@@ -1,0 +1,36 @@
+#!/bin/sh
+
+zero=0000000000000000000000000000000000000000
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # PowerShell-driven tests can feed CRLF even though Git normally feeds LF.
+  # Strip carriage returns so the all-zero SHA comparison is unambiguous.
+  local_sha="$(printf '%s' "$local_sha" | tr -d '\r')"
+  remote_sha="$(printf '%s' "$remote_sha" | tr -d '\r')"
+
+  if test "$local_sha" = "$zero"; then
+    continue
+  fi
+
+  if test "$remote_sha" = "$zero"; then
+    revision_range="$local_sha"
+  else
+    revision_range="$remote_sha..$local_sha"
+  fi
+
+  if ! commits="$(git rev-list "$revision_range")"; then
+    echo >&2 "BLOCKED: could not audit commits before push."
+    exit 1
+  fi
+
+  for commit in $commits; do
+    blocked_paths="$(git ls-tree -r --name-only "$commit" -- private .gitmodules)"
+    if test -n "$blocked_paths"; then
+      echo >&2 "BLOCKED: commit $commit contains private/ or .gitmodules."
+      echo >&2 "$blocked_paths"
+      exit 1
+    fi
+  done
+done
+
+exit 0

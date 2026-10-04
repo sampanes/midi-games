@@ -1,0 +1,68 @@
+# Private by provenance: real hardware, recordings, notes, and local settings
+/private/
+/local/
+/captures/
+/recordings/
+/screenshots/
+/logs/
+/secrets/
+/credentials/
+/device-snapshots/
+/usb-snapshots/
+/config/local.*
+/config/*.local.*
+/*.local.*
+
+# Environment files and credentials
+/.env
+/.env.*
+!/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.pcap
+*.pcapng
+*.etl
+
+# Common accidental root-level device and performance dumps
+/usb-baseline*.json
+/midi-devices*.json
+/*.mid
+/*.midi
+/*.syx
+
+# Local operator and assistant metadata
+/.claude/
+/.codex/
+/.agents/
+/AGENTS.md
+/CLAUDE.md
+/.vscode/
+/.idea/
+*.user
+*.suo
+
+# Python, Node, and generated output
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+*.log
+*.bak
+*.tmp
+*.swp
+*~
+
+# Operating-system noise
+Thumbs.db
+Desktop.ini
+.DS_Store

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+private_entries="$(git ls-files --stage -- private)"
+gitmodules_entry="$(git ls-files --stage -- .gitmodules)"
+
+if test -n "$private_entries" || test -n "$gitmodules_entry"; then
+  echo >&2 "BLOCKED: private/ and .gitmodules must never enter the public midi-games repository."
+  if test -n "$private_entries"; then
+    echo >&2 "$private_entries"
+  fi
+  if test -n "$gitmodules_entry"; then
+    echo >&2 "$gitmodules_entry"
+  fi
+  exit 1
+fi
+
+exit 0
