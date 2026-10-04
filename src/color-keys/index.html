@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Color Keys</title>
+    <link rel="stylesheet" href="/color-keys/styles.css">
+  </head>
+  <body>
+    <canvas id="sparks" aria-hidden="true"></canvas>
+    <main>
+      <p id="prompt" class="prompt">Find</p>
+      <div id="target" class="target"><span id="target-name"></span></div>
+      <div id="stars" class="stars" aria-label="stars"></div>
+      <p id="round" class="round"></p>
+    </main>
+    <footer>
+      <span id="midi-status">Looking for the keyboard...</span>
+      <span class="help">F11 full screen / Esc leaves full screen</span>
+    </footer>
+    <div id="sound-gate" class="sound-gate" hidden>
+      <button id="sound-button" type="button">Click to turn on sound</button>
+    </div>
+    <script type="module" src="/color-keys/app.js"></script>
+  </body>
+</html>

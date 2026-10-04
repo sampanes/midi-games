@@ -121,3 +121,62 @@ trial-scoped note pairing/polyphony, unmatched events, and one-to-one exact-byte
 mirror evidence with directional coverage and timing skew. It keeps attack and
 release velocity separate and states limitations instead of inventing missing
 capabilities.
+
+## Output lab: what can the computer make the keyboard do?
+
+A separate page that sends only standard, quiet MIDI to one chosen output:
+a pad-light sweep (one note per pad, velocity capped at 32, each released and
+followed by All Notes Off / All Sound Off), a single test note, and Program
+Change. It never sends SysEx, reset, or clock. Incoming MIDI is logged during
+tests, and the log saves under ignored `private/midi/output-lab-*.json`.
+
+From cmd:
+
+```bat
+scripts\start-output-lab.bat
+```
+
+It uses the same server and stop/status scripts as the listener.
+
+## Unattended output probe
+
+Learns what the computer can make the keyboard's built-in synth do without
+anyone watching: it sends quiet notes to every output port and channel while
+recording the keyboard's own USB audio input, then measures which ports
+sound, tuning, velocity and CC7 response, and whether Program Change changes
+the sound. Needs PATCH on, nobody touching the keyboard, `ffmpeg` on PATH, and
+Python with numpy. Takes about 3 minutes.
+
+It needs the keyboard's audio input name and MIDI port name pattern. Pass
+`-AudioDevice "..." -PortPattern "..."` or put them in ignored
+`private/local-device.json` as `audioDevice` and `portPattern`.
+
+```bat
+scripts\run-auto-probe.bat
+```
+
+Results go to ignored `private/midi/auto-probe-*.json`; recordings to
+`private/tmp/auto-probe/`. Pass `-SkipProgramChange` to avoid leaving the
+synth on program 0.
+
+## Game: Color Keys (couch MVP)
+
+A big colored circle shows a color name and plays its note. Press any key or
+pad whose note has that color (any octave counts) to earn a star; eight stars
+wins a round with a fanfare. Wrong notes still play and sparkle, so there is
+no way to lose. Colors: C red, D orange, E yellow, F green, G blue, A purple,
+B pink.
+
+It listens to every MIDI input on any channel, so it works over USB or
+Bluetooth whatever controller preset the keyboard is on. If the keyboard is on
+USB and Bluetooth at once, duplicate messages are filtered out. Sound comes
+from the computer (Web Audio), so it streams to the TV with the picture.
+
+```bat
+scripts\start-color-keys.bat
+```
+
+Opens full screen (F11 toggles). Stop with Ctrl+C in that window or
+`scripts\stop-midi-listener.bat`. Without the keyboard, typing `a s d f g h j`
+plays C D E F G A B. If a "Click to turn on sound" button appears, the browser
+profile was already open without the autoplay flag; click once.

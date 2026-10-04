@@ -3,7 +3,9 @@ param(
     [ValidateRange(1024, 65535)]
     [int]$Port = 8765,
     [ValidateSet('WinRT', 'Default')]
-    [string]$MidiBackend = 'WinRT'
+    [string]$MidiBackend = 'WinRT',
+    [ValidateSet('midi-listener', 'output-lab', 'color-keys')]
+    [string]$Page = 'midi-listener'
 )
 
 Set-StrictMode -Version Latest
@@ -12,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $serverScript = Join-Path $PSScriptRoot 'serve-midi-listener.mjs'
 $nodeCommand = Get-Command node -ErrorAction Stop
-$listenerUrl = "http://127.0.0.1:$Port/midi-listener/?backend=$MidiBackend"
+$listenerUrl = "http://127.0.0.1:$Port/$Page/?backend=$MidiBackend"
 $serverProcess = $null
 $quotedServerScript = '"' + $serverScript.Replace('"', '\"') + '"'
 
@@ -80,6 +82,13 @@ try {
         if ($MidiBackend -eq 'WinRT') {
             $browserArguments += '--enable-features=MidiManagerWinrt'
         }
+        if ($Page -eq 'color-keys') {
+            # Couch mode: full screen, and let the game make sound without a
+            # mouse click first. Flags only apply if this browser profile is
+            # not already open; otherwise the page shows a sound button.
+            $browserArguments += '--start-fullscreen'
+            $browserArguments += '--autoplay-policy=no-user-gesture-required'
+        }
         $browserArguments += $listenerUrl
         Start-Process -FilePath $browser -ArgumentList $browserArguments | Out-Null
     }
@@ -92,8 +101,13 @@ try {
 
     Write-Host "MIDI listener opened at $listenerUrl"
     Write-Host "MIDI backend: $MidiBackend"
-    Write-Host 'Click Enable MIDI in the page, then exercise and optionally label controls at your own pace.'
-    Write-Host 'Click Save private inventory when finished. Press Ctrl+C here to stop the local server.'
+    if ($Page -eq 'color-keys') {
+        Write-Host 'Color Keys is running. Press Ctrl+C here to stop the game server.'
+    }
+    else {
+        Write-Host 'Click Enable MIDI in the page, then exercise and optionally label controls at your own pace.'
+        Write-Host 'Click Save private inventory when finished. Press Ctrl+C here to stop the local server.'
+    }
     Write-Host "Server PID: $($serverProcess.Id). If this window is closed, run scripts\stop-midi-listener.bat."
 
     Wait-Process -Id $serverProcess.Id

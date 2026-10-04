@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>MIDI Output Lab</title>
+    <link rel="stylesheet" href="/midi-listener/styles.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">MIDI Games / private hardware probe</p>
+        <h1>MIDI Output Lab</h1>
+        <p class="lede">
+          Find out what the computer can make the keyboard do: light pads, play its
+          built-in synth, or switch sounds/presets. Only standard MIDI is sent: short
+          quiet notes (velocity 32 or less, always released) and Program Change.
+          Never SysEx, reset, or clock.
+        </p>
+      </header>
+
+      <section class="panel action-panel" aria-labelledby="connect-title">
+        <div>
+          <h2 id="connect-title">1. Connect</h2>
+          <p id="status-text" class="status">MIDI access has not been requested.</p>
+        </div>
+        <div class="button-row">
+          <button id="enable-button" class="primary" type="button">Enable MIDI</button>
+          <button id="panic-button" type="button" disabled>Stop all sound</button>
+          <button id="save-button" type="button" disabled>Save private log</button>
+        </div>
+      </section>
+
+      <section class="panel warning-panel" aria-labelledby="setup-title">
+        <h2 id="setup-title">2. Before sending anything</h2>
+        <ul class="checklist">
+          <li>Headphones/speaker in the AUDIO jack at very low volume (or unplugged).</li>
+          <li>ARP, Note Repeat, Scale, Chord, sequencer playback off.</li>
+          <li>Look at the pads and the screen while each test runs.</li>
+          <li>Try each output port in turn: [0], [1], [2], then Bluetooth.</li>
+        </ul>
+        <div class="probe-grid">
+          <label>Output
+            <select id="output-select" disabled><option value="">No output selected</option></select>
+          </label>
+        </div>
+        <label class="acknowledgement">
+          <input id="ack" type="checkbox">
+          This output belongs to the keyboard, volume is low, and I am watching the keyboard.
+        </label>
+      </section>
+
+      <section class="panel" aria-labelledby="pads-title">
+        <h2 id="pads-title">3. Pad-light sweep</h2>
+        <p>
+          Sends one quiet note per pad, in pad order 1 to 16. Watch whether each pad
+          lights up (and which colour). Velocity often selects the colour on pad
+          controllers, so try a few velocities.
+        </p>
+        <div class="probe-grid">
+          <label>Channel
+            <input id="pad-channel" type="number" min="1" max="16" value="10">
+          </label>
+          <label>Velocity (1-32)
+            <input id="pad-velocity" type="number" min="1" max="32" value="16">
+          </label>
+          <label>Hold ms
+            <input id="pad-hold" type="number" min="50" max="2000" value="400">
+          </label>
+          <label>Pad notes (pad 1 first)
+            <input id="pad-notes" type="text" maxlength="200">
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="sweep-button" type="button" disabled>Sweep pads</button>
+          <button id="stop-sweep-button" type="button" disabled>Stop sweep</button>
+        </div>
+        <p id="sweep-status" class="subtle">No sweep running.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="note-title">
+        <h2 id="note-title">4. Single test note</h2>
+        <p>One quiet note. Useful for finding which port/channel plays the built-in synth (PATCH on).</p>
+        <div class="probe-grid">
+          <label>Channel
+            <input id="note-channel" type="number" min="1" max="16" value="1">
+          </label>
+          <label>Note
+            <input id="note-number" type="number" min="0" max="127" value="60">
+          </label>
+          <label>Velocity (1-32)
+            <input id="note-velocity" type="number" min="1" max="32" value="16">
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="note-button" type="button" disabled>Send test note</button>
+        </div>
+      </section>
+
+      <section class="panel warning-panel" aria-labelledby="pc-title">
+        <h2 id="pc-title">5. Program Change</h2>
+        <p>
+          May switch the synth sound or the controller preset. This is the
+          "put it in a known mode" test. Watch the screen. To undo by hand: hold PATCH
+          and turn knobs 1-4 (sounds), or hold GLOBE and turn knob 1 (presets 1-8).
+        </p>
+        <div class="probe-grid">
+          <label>Channel
+            <input id="pc-channel" type="number" min="1" max="16" value="1">
+          </label>
+          <label>Program (0-127; 0 is usually "first")
+            <input id="pc-program" type="number" min="0" max="127" value="0">
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="pc-button" type="button" disabled>Send Program Change</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="result-title">
+        <h2 id="result-title">6. What happened?</h2>
+        <p id="pending-text" class="subtle">Nothing waiting for a result.</p>
+        <div class="probe-result-grid">
+          <label>Result
+            <select id="result-select">
+              <option value="nothing">Nothing visible or audible</option>
+              <option value="pads-lit">Pad lights changed</option>
+              <option value="sound">Built-in synth made sound</option>
+              <option value="screen-changed">Screen changed (sound/preset)</option>
+              <option value="other">Other / unsure</option>
+            </select>
+          </label>
+          <label>Notes
+            <input id="result-notes" maxlength="300" placeholder="Which pads, colours, screen text...">
+          </label>
+          <button id="record-button" type="button" disabled>Record result</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="log-title">
+        <h2 id="log-title">Log</h2>
+        <ol id="action-list" class="recent-list"><li class="empty">No actions yet.</li></ol>
+        <h2>Incoming MIDI during tests</h2>
+        <ol id="incoming-list" class="recent-list"><li class="empty">Nothing received.</li></ol>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
