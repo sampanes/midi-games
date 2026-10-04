@@ -4,18 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>MIDI Control Listener</title>
+    <title>MIDI Capability Census</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <main>
       <header>
         <p class="eyebrow">MIDI Games / private hardware probe</p>
-        <h1>MIDI Control Listener</h1>
+        <h1>MIDI Capability Census</h1>
         <p class="lede">
-          Listen to every available MIDI input at once. Nothing is timed. Exercise controls
-          whenever you like, then save one bounded report under the Git-ignored
-          <code>private/midi/</code> directory.
+          Capture complete, named trials at your own pace. The report preserves bounded raw
+          MIDI events, timing, every visible input and output, and the controller state you
+          record. Nothing is uploaded; saves go under <code>private/midi/</code>.
         </p>
       </header>
 
@@ -23,74 +23,220 @@
         <div>
           <h2 id="connection-title">1. Connect</h2>
           <p id="status-text" class="status">MIDI access has not been requested.</p>
+          <p class="subtle">Launcher backend: <strong id="backend-label">unknown</strong></p>
         </div>
         <div class="button-row">
           <button id="enable-button" class="primary" type="button">Enable MIDI</button>
-          <button id="clear-button" type="button" disabled>Clear observations</button>
-          <button id="save-button" type="button" disabled>Save private inventory</button>
+          <button id="clear-button" type="button" disabled>Clear this capture</button>
+          <button id="save-button" type="button" disabled>Save private census</button>
         </div>
       </section>
 
       <section class="summary-grid" aria-label="Session summary">
         <article class="metric"><span>Inputs</span><strong id="input-count">0</strong></article>
-        <article class="metric"><span>Events</span><strong id="event-count">0</strong></article>
+        <article class="metric"><span>Outputs</span><strong id="output-count">0</strong></article>
+        <article class="metric"><span>All events</span><strong id="event-count">0</strong></article>
+        <article class="metric"><span>Raw retained</span><strong id="raw-count">0</strong></article>
         <article class="metric"><span>Signals</span><strong id="signal-count">0</strong></article>
-        <article class="metric"><span>Possible mirrors</span><strong id="mirror-count">0</strong></article>
+        <article class="metric"><span>Trials finished</span><strong id="trial-count">0</strong></article>
       </section>
 
-      <section class="panel" aria-labelledby="label-title">
-        <h2 id="label-title">2. Optionally label physical controls</h2>
+      <section class="panel" aria-labelledby="configuration-title">
+        <h2 id="configuration-title">2. Record the starting state</h2>
         <p>
-          Enter a physical label, arm it, then operate that control once. If a panel button
-          does nothing, record that explicitly instead of guessing.
+          Read what you can from the controller screen before changing modes. Unknown is a
+          valid answer; an honest blank is better than a guessed default.
         </p>
-        <div class="label-row">
-          <label for="label-input">Physical label</label>
-          <input id="label-input" type="text" maxlength="80" placeholder="Example: Pad 1, Sustain, Play">
-          <button id="arm-button" type="button" disabled>Arm next signal</button>
-          <button id="no-midi-button" type="button" disabled>No MIDI observed</button>
-        </div>
-        <p id="armed-status" class="subtle">No label is armed.</p>
+        <form id="session-form" class="form-grid">
+          <label>Connection
+            <select name="connectionMode">
+              <option value="unknown">Unknown / choose one</option>
+              <option value="usb-and-bluetooth">USB + Bluetooth</option>
+              <option value="usb-only">USB only</option>
+              <option value="bluetooth-only">Bluetooth only</option>
+            </select>
+          </label>
+          <label>Firmware
+            <input name="firmwareVersion" maxlength="40" placeholder="Unknown">
+          </label>
+          <label>Preset
+            <select name="preset">
+              <option value="unknown">Unknown</option>
+              <option value="1">1</option><option value="2">2</option>
+              <option value="3">3</option><option value="4">4</option>
+              <option value="5">5</option><option value="6">6</option>
+              <option value="7">7</option><option value="8">8</option>
+            </select>
+          </label>
+          <label>Key channel
+            <input name="keyChannel" type="number" min="1" max="16" placeholder="Unknown">
+          </label>
+          <label>Pad channel
+            <input name="padChannel" type="number" min="1" max="16" placeholder="Unknown">
+          </label>
+          <label>Key velocity curve
+            <input name="keyVelocityCurve" maxlength="40" placeholder="Unknown">
+          </label>
+          <label>Pad velocity curve
+            <input name="padVelocityCurve" maxlength="40" placeholder="Unknown">
+          </label>
+          <label>Pad aftertouch
+            <select name="padAftertouch">
+              <option value="unknown">Unknown</option>
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+          <label>Pedal mode
+            <select name="pedalMode">
+              <option value="unknown">Unknown / no pedal</option>
+              <option value="sustain">Sustain</option>
+              <option value="expression">Expression</option>
+            </select>
+          </label>
+          <label>Octave state
+            <input name="octaveState" maxlength="40" placeholder="Centered / unknown">
+          </label>
+          <label class="wide">Active modes and banks
+            <input name="activeModes" maxlength="240" placeholder="Example: ARP off; SCALE off; default knob/fader/pad banks">
+          </label>
+          <label class="wide">Session notes
+            <textarea name="notes" rows="3" maxlength="2000" placeholder="Anything visible, connected, or unusual"></textarea>
+          </label>
+        </form>
       </section>
 
-      <section class="panel" aria-labelledby="exercise-title">
-        <h2 id="exercise-title">3. Exercise the controller at your own pace</h2>
-        <ul class="checklist">
-          <li>Play the lowest and highest keys, several middle keys, and a chord, or every key if you want a complete key scan.</li>
-          <li>Hit each pad softly and firmly; hold one briefly to reveal aftertouch if present.</li>
-          <li>Press and release every pedal and panel button.</li>
-          <li>Sweep every knob, slider, wheel, or ribbon through its full range.</li>
-          <li>Test alternate banks or modes separately and label them when useful.</li>
-        </ul>
+      <section class="panel" aria-labelledby="trial-title">
+        <h2 id="trial-title">3. Run named trials</h2>
+        <p>
+          Choose one action, begin it, operate only that control or mode, then finish it.
+          Every message produced by the action is grouped together, including mirrored ports
+          and multi-message controls. There is no countdown.
+        </p>
+        <div class="trial-grid">
+          <label>Recommended trial
+            <select id="trial-select"></select>
+          </label>
+          <label>Or a custom label
+            <input id="custom-trial-label" maxlength="100" placeholder="Optional custom action">
+          </label>
+        </div>
+        <p id="trial-instructions" class="instruction"></p>
+        <div class="trial-result-grid">
+          <label>Outcome when finished
+            <select id="trial-result">
+              <option value="completed">Completed / inspect captured MIDI</option>
+              <option value="expected-effect">Expected effect observed</option>
+              <option value="no-effect">No effect observed</option>
+              <option value="local-only-effect">Local sound/display/light only</option>
+              <option value="uncertain">Uncertain / needs retest</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </label>
+          <label>Observation
+            <textarea id="trial-observation" rows="2" maxlength="2000" placeholder="What sounded, lit, changed, disconnected, or behaved unexpectedly?"></textarea>
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="begin-trial-button" class="primary" type="button" disabled>Begin selected trial</button>
+          <button id="finish-trial-button" type="button" disabled>Finish active trial</button>
+          <button id="no-midi-trial-button" type="button" disabled>Finish active: no MIDI</button>
+        </div>
+        <p id="active-trial-status" class="subtle">No trial is active.</p>
+        <p class="subtle">Save after each small section. Saving creates a checkpoint and does not clear this capture.</p>
+        <details>
+          <summary>Completed and skipped trials</summary>
+          <ol id="trial-list" class="trial-list"><li class="empty">None yet.</li></ol>
+        </details>
+      </section>
+
+      <section class="panel warning-panel" aria-labelledby="output-probe-title">
+        <h2 id="output-probe-title">4. Optional safe output probe</h2>
+        <p>
+          This sends one short note at the selected velocity to exactly one selected output.
+          It then attempts Note Off, All Notes Off, and All Sound Off, and records whether
+          every cleanup message succeeded. It never sends Program Change, bank select,
+          clock, reset, NRPN, or SysEx.
+        </p>
+        <p>
+          First put wired headphones/speaker volume very low; disconnect the physical MIDI
+          OUT unless you intend to test its receiver; and set ARP/latch, Note Repeat/latch,
+          Scale, Chord, and sequencer playback off, sustain released, and octave neutral.
+          If cleanup is uncertain, reconnect the endpoint, press <strong>Stop all test
+          notes</strong>, and power-cycle the keyboard if anything still sounds.
+        </p>
+        <div class="probe-grid">
+          <label>Output
+            <select id="output-select" disabled><option value="">No output selected</option></select>
+          </label>
+          <label>Channel (use recorded key channel)
+            <input id="probe-channel" type="number" min="1" max="16" value="1">
+          </label>
+          <label>Note
+            <input id="probe-note" type="number" min="0" max="127" value="60">
+          </label>
+          <label>Velocity
+            <input id="probe-velocity" type="number" min="1" max="32" value="16">
+          </label>
+        </div>
+        <label class="acknowledgement">
+          <input id="output-acknowledgement" type="checkbox">
+          I verified this exact output belongs to the keyboard or intended receiver, set
+          connected audio volume low, and completed the neutral-state checks above.
+        </label>
+        <div class="button-row">
+          <button id="send-probe-button" type="button" disabled>Send short test note</button>
+          <button id="panic-button" type="button" disabled>Stop all test notes</button>
+        </div>
+        <div class="probe-result-grid">
+          <label>What happened?
+            <select id="probe-result">
+              <option value="no-observed-effect">No visible or audible effect</option>
+              <option value="internal-synth-audible">Internal synth was audible</option>
+              <option value="light-changed">A pad or button light changed</option>
+              <option value="external-midi-received">External MIDI device received it</option>
+              <option value="other">Other / uncertain</option>
+            </select>
+          </label>
+          <label>Observation
+            <input id="probe-notes" maxlength="300" placeholder="Which sound, light, or device?">
+          </label>
+          <button id="record-probe-button" type="button" disabled>Record probe result</button>
+        </div>
+        <p id="probe-status" class="subtle">No output probe sent.</p>
+        <p class="subtle">
+          Stop all test notes sends cleanup-only messages on all channels to the selected
+          output and any output retained after uncertain cleanup; it does not send a new note.
+        </p>
       </section>
 
       <section class="panel" aria-labelledby="ports-title">
-        <h2 id="ports-title">Ports</h2>
+        <h2 id="ports-title">Visible MIDI ports</h2>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Input</th><th>State</th><th>Events</th><th>Notes</th><th>Controls</th><th>Other</th></tr></thead>
-            <tbody id="ports-body"><tr><td colspan="6" class="empty">No MIDI inputs opened.</td></tr></tbody>
+            <thead><tr><th>Ref</th><th>Direction</th><th>Name</th><th>State</th><th>Events</th><th>Notes</th><th>Controls</th><th>Other</th></tr></thead>
+            <tbody id="ports-body"><tr><td colspan="8" class="empty">No MIDI ports opened.</td></tr></tbody>
           </table>
         </div>
       </section>
 
       <section class="panel" aria-labelledby="signals-title">
-        <h2 id="signals-title">Discovered signals</h2>
+        <h2 id="signals-title">Discovered input signals</h2>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Label</th><th>Port</th><th>Signal</th><th>Last event</th><th>Range</th><th>Count</th></tr></thead>
+            <thead><tr><th>Trials</th><th>Port</th><th>Signal</th><th>Last event</th><th>Range</th><th>Count</th></tr></thead>
             <tbody id="signals-body"><tr><td colspan="6" class="empty">Operate a control to discover it.</td></tr></tbody>
           </table>
         </div>
       </section>
 
       <section class="panel" aria-labelledby="manual-title">
-        <h2 id="manual-title">Controls with no MIDI observed</h2>
+        <h2 id="manual-title">Explicit no-MIDI results</h2>
         <ul id="manual-list" class="manual-list"><li class="empty">None recorded.</li></ul>
       </section>
 
       <section class="panel" aria-labelledby="recent-title">
-        <h2 id="recent-title">Recent events</h2>
+        <h2 id="recent-title">Recent input events</h2>
         <ol id="recent-list" class="recent-list"><li class="empty">Waiting for MIDI.</li></ol>
       </section>
     </main>

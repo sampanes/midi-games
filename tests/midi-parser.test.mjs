@@ -32,6 +32,14 @@ test("treats note-on velocity zero as note-off", () => {
   assert.equal(event.signalKey, "note:1:64");
 });
 
+test("reports a truncated channel message instead of inventing values", () => {
+  const event = parseMidiMessage([0x90, 60], 21);
+  assert.equal(event.category, "invalid");
+  assert.equal(event.messageType, "invalid-length");
+  assert.equal(event.expectedLength, 3);
+  assert.equal(event.value, null);
+});
+
 test("keeps changing control values under one controller signal", () => {
   const low = parseMidiMessage([0xb1, 74, 1], 1);
   const high = parseMidiMessage([0xb1, 74, 127], 2);

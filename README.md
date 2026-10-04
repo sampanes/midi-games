@@ -42,13 +42,19 @@ staged files; `.gitignore` is a guardrail, not a privacy audit.
 Synthetic MIDI fixtures may be committed outside `private/` when the project
 eventually needs tests. Real recordings should remain under `private/recordings/`.
 
-## Inventory physical MIDI controls
+## Run a complete MIDI capability census
 
-The local listener opens every browser-visible MIDI input simultaneously and
-aggregates signals by port, channel, message type, and note/controller number.
-It can label physical controls, record panel buttons that produce no MIDI, flag
-possible mirrored events, and save a bounded inventory under ignored
-`private/midi/`.
+The local listener opens every browser-visible MIDI input, inventories visible
+outputs without opening them, and groups complete raw event streams into named
+physical trials. The bundled plan covers keys, velocity, chords, pads and pad
+banks, knobs and faders in both banks, wheels, pedals, panel buttons, presets,
+musical transforms, USB/Bluetooth transport, output routing, audio, and recovery.
+
+Each saved schema-version-2 census includes up to 100,000 ordered raw events,
+relative event and callback timestamps, decoded MIDI fields, input/output port
+topology, reconnect transitions, controller-state metadata, trial boundaries,
+explicit no-MIDI results, and opt-in output observations. Raw mirror events are
+preserved rather than silently deduplicated.
 
 Run it from PowerShell:
 
@@ -62,9 +68,35 @@ Windows Bluetooth LE MIDI endpoints without changing the user's normal
 `chrome://flags` settings. To test Chromium's default Windows MIDI backend
 instead, pass `-MidiBackend Default`.
 
-In the opened page, click **Enable MIDI**, exercise controls at your own pace,
-then click **Save private inventory**. Keep the launching terminal open; press
-Ctrl+C there when finished.
+In the opened page:
+
+1. Click **Enable MIDI**.
+2. Record the controller screen/settings before changing modes.
+3. Choose a guided trial, click **Begin selected trial**, operate only that
+   control or mode at your own pace, choose the outcome, write any audible,
+   visible, local-only, or uncertain observation, then click **Finish active
+   trial**.
+4. Use **Finish active: no MIDI** for local-only buttons. System clock and
+   active-sensing noise do not prevent an honest no-MIDI result.
+5. Click **Save private census**. The server saves the raw JSON and a derived
+   Markdown analysis under ignored `private/midi/`.
+
+Save after each small section. Each save is a checkpoint and does not clear the
+active capture; the page also warns before leaving with unsaved evidence.
+
+The output probe is deliberately separate and opt-in. It sends one short note at
+a capped velocity to one selected output, then independently attempts Note Off,
+All Notes Off, and All Sound Off and records every cleanup result. It does not
+send Program Change, bank select, clock, reset, NRPN, or SysEx. The **Stop all
+test notes** button sends cleanup-only messages on every channel to outputs that
+remain open after uncertain cleanup, plus the currently selected output. Ports
+with confirmed cleanup are closed after the probe so another MIDI program can
+use them. Use connected headphones or powered-speaker volume at minimum and
+complete the neutral-state checklist before probing.
+
+For useful transport evidence, save separate sessions for neutral USB plus
+Bluetooth, USB-only, and battery-powered Bluetooth-only operation. Do not mix
+mode changes into a neutral control-mapping trial.
 
 Starting again stops any previous listener server first. From cmd:
 
@@ -78,6 +110,14 @@ The server is a hidden `node` process identified by `serve-midi-listener.mjs`
 in its command line. If the launching terminal is closed instead of stopped
 with Ctrl+C, the server keeps running until `stop-midi-listener.bat` is run.
 
-Labels typed in the page are copied to identical events that arrive on mirror
-ports within the mirror window. Note ranges show press velocity only; release
-velocity is excluded.
+To regenerate or tune the offline analysis later:
+
+```powershell
+npm run midi:analyze -- private/midi/capability-census-EXAMPLE.json -o private/midi/capability-census-EXAMPLE-analysis.md
+```
+
+The analyzer reports per-port messages, signal ranges and step behavior,
+trial-scoped note pairing/polyphony, unmatched events, and one-to-one exact-byte
+mirror evidence with directional coverage and timing skew. It keeps attack and
+release velocity separate and states limitations instead of inventing missing
+capabilities.

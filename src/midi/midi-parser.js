@@ -52,6 +52,20 @@ export function parseMidiMessage(data, timestamp = 0) {
 
   const family = status & 0xf0;
   const channel = (status & 0x0f) + 1;
+  const expectedLength = family === 0xc0 || family === 0xd0 ? 2 : 3;
+  if (bytes.length < expectedLength) {
+    return {
+      category: "invalid",
+      messageType: "invalid-length",
+      phase: "event",
+      channel,
+      signalKey: `invalid-length:${status.toString(16)}`,
+      value: null,
+      expectedLength,
+      bytes,
+      timestamp
+    };
+  }
   const data1 = bytes[1] ?? 0;
   const data2 = bytes[2] ?? 0;
 

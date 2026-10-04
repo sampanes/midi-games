@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $serverScript = Join-Path $PSScriptRoot 'serve-midi-listener.mjs'
 $nodeCommand = Get-Command node -ErrorAction Stop
-$listenerUrl = "http://127.0.0.1:$Port/midi-listener/"
+$listenerUrl = "http://127.0.0.1:$Port/midi-listener/?backend=$MidiBackend"
 $serverProcess = $null
 $quotedServerScript = '"' + $serverScript.Replace('"', '\"') + '"'
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test \"tests/**/*.test.mjs\"",
+    "midi:analyze": "node ./scripts/analyze-midi-capabilities.mjs",
     "midi:listen": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/Start-MidiListener.ps1",
     "midi:stop": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/Stop-MidiListener.ps1",
     "midi:status": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/Get-MidiListenerStatus.ps1"

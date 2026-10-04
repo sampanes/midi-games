@@ -2,13 +2,15 @@ import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { analyzeMidiCapabilities, formatCapabilityReportMarkdown } from "../src/midi/capability-analysis.js";
+import { validateCapabilityInventory } from "../src/midi/capability-schema.js";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
 const staticRoot = join(repositoryRoot, "src");
 const port = parsePort(process.argv);
 const host = "127.0.0.1";
-const maxBodyBytes = 1024 * 1024;
+const maxBodyBytes = 64 * 1024 * 1024;
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -131,11 +133,22 @@ async function saveInventory(request, response, listenerPort) {
     sendJson(response, 400, { error: "Inventory must be a JSON object" });
     return;
   }
+  if (inventory.schemaVersion === 2) {
+    const validationError = validateCapabilityInventory(inventory);
+    if (validationError) {
+      sendJson(response, 422, { error: validationError });
+      return;
+    }
+  } else if (inventory.schemaVersion !== 1) {
+    sendJson(response, 422, { error: "Unsupported inventory schemaVersion" });
+    return;
+  }
 
   const outputDirectory = join(repositoryRoot, "private", "midi");
   await mkdir(outputDirectory, { recursive: true });
   const timestamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
-  const fileName = `control-inventory-${timestamp}.json`;
+  const prefix = inventory.schemaVersion === 2 ? "capability-census" : "control-inventory";
+  const fileName = `${prefix}-${timestamp}.json`;
   const outputPath = join(outputDirectory, fileName);
   const stored = {
     ...inventory,
@@ -144,9 +157,26 @@ async function saveInventory(request, response, listenerPort) {
   };
   await writeFile(outputPath, `${JSON.stringify(stored, null, 2)}\n`, "utf8");
 
+  let reportRelativePath = null;
+  let reportError = null;
+  if (inventory.schemaVersion === 2) {
+    try {
+      const reportName = fileName.replace(/\.json$/i, "-analysis.md");
+      const reportPath = join(outputDirectory, reportName);
+      const report = formatCapabilityReportMarkdown(analyzeMidiCapabilities(stored));
+      await writeFile(reportPath, report, "utf8");
+      reportRelativePath = relative(repositoryRoot, reportPath).split(sep).join("/");
+    } catch (error) {
+      reportError = String(error.message || error);
+      console.error("Could not generate MIDI capability analysis", error);
+    }
+  }
+
   sendJson(response, 201, {
     saved: true,
-    relativePath: relative(repositoryRoot, outputPath).split(sep).join("/")
+    relativePath: relative(repositoryRoot, outputPath).split(sep).join("/"),
+    reportRelativePath,
+    reportError
   });
 }
 
