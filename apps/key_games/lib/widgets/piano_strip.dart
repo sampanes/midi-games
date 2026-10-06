@@ -184,10 +184,11 @@ class _PianoPainter extends CustomPainter {
               : Color.lerp(color, const Color(0xFF14111C), 0.6)!;
       canvas.drawRRect(rounded, fill);
       canvas.drawRRect(rounded, edge);
+      _drawLetter(canvas, pitchClasses[pc].name, rect, isTarget ? color : null);
       if (isTarget) {
         canvas.drawRRect(rounded.deflate(ring.strokeWidth / 2), ring);
-        // Bouncing dot near the bottom: "press here".
-        final dot = Offset(rect.center.dx, rect.bottom - rect.width * (0.7 + 0.35 * glow));
+        // Bouncing dot above the letter: "press here".
+        final dot = Offset(rect.center.dx, rect.bottom - rect.width * (1.6 + 0.35 * glow));
         fill.color = Colors.white;
         canvas.drawCircle(dot, rect.width * 0.24, fill);
       }
@@ -210,6 +211,27 @@ class _PianoPainter extends CustomPainter {
         fill,
       );
     }
+  }
+
+  // Note letter at the bottom of a white key. On a lit key the text color
+  // depends on the key color (dark on yellow, white on blue).
+  void _drawLetter(Canvas canvas, String letter, Rect rect, Color? litColor) {
+    final dark = litColor != null && litColor.computeLuminance() > 0.5;
+    final text = TextPainter(
+      text: TextSpan(
+        text: letter,
+        style: TextStyle(
+          fontSize: min(rect.width * 0.6, 22),
+          fontWeight: FontWeight.w800,
+          color: litColor == null ? Colors.white60 : (dark ? const Color(0xFF2A2233) : Colors.white),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    text.paint(
+      canvas,
+      Offset(rect.center.dx - text.width / 2, rect.bottom - text.height - rect.width * 0.25),
+    );
   }
 
   @override

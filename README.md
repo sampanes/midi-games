@@ -189,7 +189,8 @@ keyboards by itself: Bluetooth LE MIDI devices from a scan, plus wired devices
 with an input port. The status chip in the corner lists devices for manual
 connect/disconnect. The real keys have no colors, so a 37-key picture of the
 keyboard along the bottom shows them (white keys tinted, black keys with a
-dot) and makes every key of the target color glow; it follows the octave
+dot, note letters on the white keys) and makes every key of the target
+note glow; the circle shows the note letter in its color; it follows the octave
 buttons and can be played by touch. On a PC the keys `a s d f g h j k` play
 too. Each new color plays its note.
 

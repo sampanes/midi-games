@@ -1,5 +1,5 @@
-// Color Keys screen: a big circle shows a color, the child presses a key of
-// that color and plays its note. Hits earn a star and sparks; 8 stars win a
+// Color Keys screen: a big circle shows a note letter in its color, the child
+// presses a key of that note and it plays. Hits earn a star and sparks; 8 stars win a
 // round. Wrong keys still make music, sparkle, and gently wiggle the circle.
 //
 // The real keys have no colors, so a picture of the keyboard along the bottom
@@ -259,11 +259,10 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
               child: Padding(
                 padding: EdgeInsets.all(diameter * 0.12),
                 child: Text(
-                  target.colorName,
+                  target.name,
                   style: TextStyle(
-                    fontSize: diameter * 0.17,
+                    fontSize: diameter * 0.42,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
                     color: darkText ? const Color(0xFF2A2233) : Colors.white,
                   ),
                 ),
