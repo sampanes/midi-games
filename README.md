@@ -180,3 +180,28 @@ Opens full screen (F11 toggles). Stop with Ctrl+C in that window or
 `scripts\stop-midi-listener.bat`. Without the keyboard, typing `a s d f g h j`
 plays C D E F G A B. If a "Click to turn on sound" button appears, the browser
 profile was already open without the autoplay flag; click once.
+
+## App: Key Games (Flutter, phone and PC)
+
+`apps/key_games` is the same Color Keys game as a native app for Android and
+Windows, with low-latency synth sound (SoLoud). It finds and connects to MIDI
+keyboards by itself: Bluetooth LE MIDI devices from a scan, plus wired devices
+with an input port. The status chip in the corner lists devices for manual
+connect/disconnect. While no keyboard is connected, color keys appear on screen
+so the game also works by touch; on a PC the keys `a s d f g h j k` play too.
+Each new color plays its note.
+
+Phone: connect the keyboard from inside the app only. If it is paired in the
+phone's Bluetooth settings, Android may treat it as an audio device and send
+the game's sound to it instead of the speaker.
+
+```bat
+cd apps\key_games
+flutter build apk --release
+flutter build windows --release
+```
+
+Windows: `scripts\start-key-games.bat` opens it borderless full screen (add
+`--windowed` for a normal window); `scripts\stop-key-games.bat` or Alt+F4
+quits. The app keeps the screen awake, since keyboard play is not screen
+activity. `apps/keys_spike` is the earlier latency test app.
