@@ -1,5 +1,5 @@
 // Key Games: kids' games played on a MIDI keyboard, on a phone (keyboard over
-// Bluetooth LE or USB) or a PC (streamed to a TV). First game: Color Keys.
+// Bluetooth LE or USB) or a PC (streamed to a TV). Games: Color Keys, Songs.
 
 import 'dart:async';
 
@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'audio/synth.dart';
-import 'games/color_keys_page.dart';
+import 'home_page.dart';
 import 'midi/midi_input.dart';
 
 void main() {
@@ -46,7 +46,7 @@ class _KeyGamesAppState extends State<KeyGamesApp> {
       title: 'Key Games',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-      home: ColorKeysPage(synth: _synth, midi: _midi),
+      home: HomePage(synth: _synth, midi: _midi),
     );
   }
 }

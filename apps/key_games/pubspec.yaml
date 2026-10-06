@@ -20,6 +20,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Song melodies from scripts/extract-melodies.py (ignored by Git, local only).
+  assets:
+    - assets/songs/
 
 # Build SoLoud without Opus/Ogg/Vorbis/FLAC. The games only play synthesized
 # tones, and this avoids the build hook downloading unpinned prebuilt binaries

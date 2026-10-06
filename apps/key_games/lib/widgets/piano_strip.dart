@@ -27,14 +27,19 @@ class PianoStrip extends StatefulWidget {
   const PianoStrip({
     super.key,
     required this.base,
-    required this.target,
+    this.target,
+    this.targetNote,
     required this.held,
     required this.onNoteOn,
     required this.onNoteOff,
   });
 
   final int base;
+
+  // Glow every key of this pitch class (0-11), or only the exact key
+  // [targetNote] (songs, where the octave matters for the picture).
   final int? target;
+  final int? targetNote;
   final Set<int> held;
   final void Function(int note) onNoteOn;
   final void Function(int note) onNoteOff;
@@ -83,6 +88,7 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
               painter: _PianoPainter(
                 layout: _PianoLayout(widget.base, size),
                 target: widget.target,
+                targetNote: widget.targetNote,
                 held: widget.held,
                 glow: Curves.easeInOut.transform(_glow.value),
               ),
@@ -141,14 +147,19 @@ class _PianoPainter extends CustomPainter {
   _PianoPainter({
     required this.layout,
     required this.target,
+    required this.targetNote,
     required this.held,
     required this.glow,
   });
 
   final _PianoLayout layout;
   final int? target;
+  final int? targetNote;
   final Set<int> held;
   final double glow;
+
+  bool _isTarget(int note) =>
+      targetNote != null ? note == targetNote : pitchClass(note) == target;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -167,7 +178,7 @@ class _PianoPainter extends CustomPainter {
       final note = layout.whites[i];
       final pc = pitchClass(note);
       final color = Color(pitchClasses[pc].argb);
-      final isTarget = pc == target;
+      final isTarget = _isTarget(note);
       final isHeld = held.contains(note);
       final rect = layout.whiteRect(i).deflate(1.5);
       final rounded = RRect.fromRectAndCorners(
@@ -201,10 +212,26 @@ class _PianoPainter extends CustomPainter {
         bottomLeft: const Radius.circular(5),
         bottomRight: const Radius.circular(5),
       );
-      fill.color = held.contains(note) ? const Color(0xFF4A4458) : const Color(0xFF1E1A26);
+      final color = Color(pitchClasses[pitchClass(note)].argb);
+      final isTarget = _isTarget(note);
+      fill.color = isTarget
+          ? color
+          : held.contains(note)
+              ? const Color(0xFF4A4458)
+              : const Color(0xFF1E1A26);
       canvas.drawRRect(rounded, fill);
+      if (isTarget) {
+        canvas.drawRRect(rounded.deflate(ring.strokeWidth / 2), ring);
+        fill.color = Colors.white;
+        canvas.drawCircle(
+          Offset(rect.center.dx, rect.bottom - rect.width * (0.8 + 0.4 * glow)),
+          rect.width * 0.28,
+          fill,
+        );
+        continue;
+      }
       // Small sticker dot in the key's own color.
-      fill.color = Color(pitchClasses[pitchClass(note)].argb);
+      fill.color = color;
       canvas.drawCircle(
         Offset(rect.center.dx, rect.bottom - rect.width * 0.45),
         min(rect.width * 0.26, 9),

@@ -15,27 +15,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../audio/synth.dart';
+import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
+import '../widgets/keyboard_status.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
+import '../widgets/win_banner.dart';
 import 'color_keys_rules.dart';
 
 const _background = Color(0xFF14111C);
 const _starGold = Color(0xFFFFD84A);
 const _hitDelay = Duration(milliseconds: 650);
 const _winDelay = Duration(milliseconds: 2800);
-
-// Computer keys for testing on a PC: one octave of white keys from middle C.
-final _computerKeys = {
-  LogicalKeyboardKey.keyA: 60,
-  LogicalKeyboardKey.keyS: 62,
-  LogicalKeyboardKey.keyD: 64,
-  LogicalKeyboardKey.keyF: 65,
-  LogicalKeyboardKey.keyG: 67,
-  LogicalKeyboardKey.keyH: 69,
-  LogicalKeyboardKey.keyJ: 71,
-  LogicalKeyboardKey.keyK: 72,
-};
 
 Color pitchColor(int pc) => Color(pitchClasses[pc].argb);
 
@@ -89,12 +80,7 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
     super.dispose();
   }
 
-  bool _onKey(KeyEvent event) {
-    final note = _computerKeys[event.logicalKey];
-    if (note == null || event is KeyRepeatEvent) return false;
-    _onNote(NoteEvent(note, 100, on: event is KeyDownEvent));
-    return true;
-  }
+  bool _onKey(KeyEvent event) => handleComputerKey(event, _onNote);
 
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
@@ -199,8 +185,9 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Row(
                     children: [
+                      if (Navigator.canPop(context)) const BackButton(),
                       Expanded(child: _StarRow(stars: _state.stars)),
-                      _KeyboardStatus(midi: widget.midi),
+                      Flexible(child: KeyboardStatus(midi: widget.midi)),
                     ],
                   ),
                 ),
@@ -222,7 +209,7 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
             ),
           ),
           Positioned.fill(child: Sparks(key: _sparksKey)),
-          if (_celebrating) const _WinBanner(),
+          if (_celebrating) const WinBanner(),
         ],
       ),
     );
@@ -301,109 +288,6 @@ class _StarRow extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-class _KeyboardStatus extends StatelessWidget {
-  const _KeyboardStatus({required this.midi});
-
-  final MidiInput midi;
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<List<String>>(
-      valueListenable: midi.connected,
-      builder: (context, connected, _) {
-        final ready = connected.isNotEmpty;
-        return ActionChip(
-          avatar: Icon(Icons.piano, color: ready ? Colors.greenAccent : Colors.amber),
-          label: Text(ready ? 'Keyboard ready' : 'Looking for keyboard...'),
-          onPressed: () => showModalBottomSheet<void>(
-            context: context,
-            builder: (_) => _DeviceSheet(midi: midi),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// Lists MIDI devices with manual connect/disconnect, for troubleshooting.
-class _DeviceSheet extends StatelessWidget {
-  const _DeviceSheet({required this.midi});
-
-  final MidiInput midi;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: ValueListenableBuilder(
-        valueListenable: midi.devices,
-        builder: (context, devices, _) => ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text('MIDI devices', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            const Text('Keyboards connect by themselves. On a phone, do not pair the '
-                'keyboard in Bluetooth settings; that sends the sound to the keyboard.'),
-            ValueListenableBuilder(
-              valueListenable: midi.problem,
-              builder: (context, problem, _) => problem.isEmpty
-                  ? const SizedBox.shrink()
-                  : Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(problem, style: const TextStyle(color: Colors.amber)),
-                    ),
-            ),
-            if (devices.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: Text('None found yet. Turn the keyboard on.'),
-              ),
-            for (final d in devices)
-              ListTile(
-                title: Text(d.name),
-                subtitle: Text('${d.type.name} - ${d.connectionState.name}'),
-                trailing: d.connected
-                    ? OutlinedButton(onPressed: () => midi.disconnect(d), child: const Text('Disconnect'))
-                    : FilledButton(onPressed: () => midi.connect(d), child: const Text('Connect')),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WinBanner extends StatelessWidget {
-  const _WinBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final rainbow = [for (final pc in whitePitchClasses) pitchColor(pc)];
-    return IgnorePointer(
-      child: Center(
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.3, end: 1),
-          duration: const Duration(milliseconds: 700),
-          curve: Curves.elasticOut,
-          builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-          child: ShaderMask(
-            shaderCallback: (rect) => LinearGradient(colors: rainbow).createShader(rect),
-            child: Text(
-              'YAY!',
-              style: TextStyle(
-                fontSize: min(MediaQuery.sizeOf(context).width * 0.28, 220),
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                shadows: const [Shadow(color: Colors.black54, blurRadius: 24)],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

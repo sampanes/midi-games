@@ -66,3 +66,7 @@ coverage/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Song melodies built from private MIDI files: bundled into local app builds only
+/apps/key_games/assets/songs/*
+!/apps/key_games/assets/songs/README.md

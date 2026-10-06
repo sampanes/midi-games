@@ -208,3 +208,27 @@ Windows: `scripts\start-key-games.bat` opens it borderless full screen (add
 `--windowed` for a normal window); `scripts\stop-key-games.bat` or Alt+F4
 quits. The app keeps the screen awake, since keyboard play is not screen
 activity. `apps/keys_spike` is the earlier latency test app.
+
+### Song mode
+
+The home screen has Color Keys and Songs. In a song, the glowing key walks
+through a real melody one note at a time; the game waits for each note (any
+octave counts), bubbles show what comes next (higher notes sit higher), and
+the next note sounds as a hint after a few quiet seconds. At the end the
+melody plays back at real speed.
+
+Songs come from your own MIDI files and are never committed:
+
+```bat
+python scripts\extract-melodies.py
+cd apps\key_games
+flutter build apk --release
+```
+
+The script reads `private/songs/*.mid`, picks the melody part (as
+`scripts/inspect-midi.py` would), keeps one note at a time, moves it to the
+key with the fewest black keys, fits it to the 37 keys, and writes
+`apps/key_games/assets/songs/*.json` (ignored by Git). When it picks the
+wrong part, add an override in `private/songs/song-picks.json`; the script's
+header documents the options (track, channel, skip, max_notes, title,
+transpose).
