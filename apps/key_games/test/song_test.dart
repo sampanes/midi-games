@@ -37,12 +37,22 @@ void main() {
     expect(run.press(60).result, SongPress.ignored);
   });
 
-  test('any octave counts; wrong notes count a miss and stay put', () {
+  test('octave matters: right letter in the wrong octave says which way', () {
     var step = const SongRun(_song).press(48);
-    expect(step.result, SongPress.hit);
+    expect(step.result, SongPress.tooLow);
+    expect(step.run.index, 0);
+    expect(step.run.misses, 1);
+    step = step.run.press(72);
+    expect(step.result, SongPress.tooHigh);
     step = step.run.press(62);
     expect(step.result, SongPress.miss);
-    expect(step.run.index, 1);
-    expect(step.run.misses, 1);
+    step = step.run.press(60);
+    expect(step.result, SongPress.hit);
+  });
+
+  test('keyboard octave shift moves every target by whole octaves', () {
+    final step = const SongRun(_song).press(72, shift: 12);
+    expect(step.result, SongPress.hit);
+    expect(step.run.press(60, shift: 12).result, SongPress.tooLow); // second C, an octave low
   });
 }

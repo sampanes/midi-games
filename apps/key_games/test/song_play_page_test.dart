@@ -35,6 +35,8 @@ void main() {
     expect(find.text('C'), findsWidgets);
 
     await _tapKey(tester, LogicalKeyboardKey.keyF); // F: wrong, stays on C
+    await _tapKey(tester, LogicalKeyboardKey.keyK); // high C: right letter, too high
+    expect(find.text('Lower!'), findsOneWidget);
     await _tapKey(tester, LogicalKeyboardKey.keyA); // C
     await _tapKey(tester, LogicalKeyboardKey.keyS); // D
     await _tapKey(tester, LogicalKeyboardKey.keyD); // E: finished

@@ -212,8 +212,10 @@ activity. `apps/keys_spike` is the earlier latency test app.
 ### Song mode
 
 The home screen has Color Keys and Songs. In a song, the glowing key walks
-through a real melody one note at a time; the game waits for each note (any
-octave counts), bubbles show what comes next (higher notes sit higher), and
+through a real melody one note at a time; the game waits for each note. The
+octave matters (the keys send 48-84 with the octave button centered, matching
+the picture; the octave buttons are followed by whole octaves), and the right
+letter in the wrong octave shows "Higher!" or "Lower!". Bubbles show what comes next (higher notes sit higher), and
 the next note sounds as a hint after a few quiet seconds. At the end the
 melody plays back at real speed.
 

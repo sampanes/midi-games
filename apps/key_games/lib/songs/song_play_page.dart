@@ -1,5 +1,8 @@
 // Song mode: the glowing key walks through a real melody. The game waits for
-// each note (no timing pressure); any octave counts. A row of bubbles shows
+// each note (no timing pressure). The octave matters: the right letter in the
+// wrong octave gets a "Higher!" / "Lower!" nudge. The keyboard's octave
+// buttons are followed by whole octaves (its keys send 48-84 when centered,
+// the same range as the picture). A row of bubbles shows
 // what comes next, higher notes sitting higher. If nothing is played for a
 // few seconds, the next note sounds as a hint. At the end the whole melody
 // plays back at its real speed, so the child hears the song they just built.
@@ -51,6 +54,12 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   Size _laneSize = Size.zero;
   bool _celebrating = false;
   bool _listening = false;
+  // Lowest C of the keyboard picture; moves when the octave buttons are used.
+  int _base = 48;
+  String? _nudge;
+  Timer? _nudgeTimer;
+
+  int get _shift => _base - 48;
 
   @override
   void initState() {
@@ -66,6 +75,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     HardwareKeyboard.instance.removeHandler(_onKey);
     unawaited(_noteSub?.cancel());
     _hintTimer?.cancel();
+    _nudgeTimer?.cancel();
     for (final timer in _timers) {
       timer.cancel();
     }
@@ -92,7 +102,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   void _hint() {
     final want = _run.current;
     if (want == null || _listening) return;
-    widget.synth.blip(want.note, velocity: 55, lengthMs: 450);
+    widget.synth.blip(want.note + _shift, velocity: 55, lengthMs: 450);
   }
 
   void _onNote(NoteEvent event) {
@@ -103,21 +113,42 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
       return;
     }
     widget.synth.noteOn(event.note, event.velocity);
-    setState(() => _held.add(event.note));
+    setState(() {
+      _held.add(event.note);
+      _base = fitBase(_base, event.note);
+    });
     if (_listening || _celebrating) return;
-    final step = _run.press(event.note);
+    final step = _run.press(event.note, shift: _shift);
     setState(() => _run = step.run);
     switch (step.result) {
       case SongPress.hit:
-        _burst(event.note, 22);
+        _burst(event.note - _shift, 22);
         _armHint();
+        _showNudge(null);
       case SongPress.finished:
-        _burst(event.note, 40);
+        _burst(event.note - _shift, 40);
         _finish();
+        _showNudge(null);
+      case SongPress.tooLow:
+        _shake.forward(from: 0);
+        _showNudge('Higher!');
+      case SongPress.tooHigh:
+        _shake.forward(from: 0);
+        _showNudge('Lower!');
       case SongPress.miss:
         _shake.forward(from: 0);
       case SongPress.ignored:
         break;
+    }
+  }
+
+  void _showNudge(String? text) {
+    _nudgeTimer?.cancel();
+    setState(() => _nudge = text);
+    if (text != null) {
+      _nudgeTimer = Timer(const Duration(milliseconds: 1400), () {
+        if (mounted) setState(() => _nudge = null);
+      });
     }
   }
 
@@ -166,7 +197,10 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   }
 
   void _restart() {
-    setState(() => _run = SongRun(widget.song));
+    setState(() {
+      _run = SongRun(widget.song);
+      _nudge = null;
+    });
     _later(const Duration(milliseconds: 500), _hint);
     _armHint();
   }
@@ -251,8 +285,8 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
                   child: SizedBox(
                     height: min(180, MediaQuery.sizeOf(context).height * 0.24),
                     child: PianoStrip(
-                      base: 48,
-                      targetNote: _listening ? null : want?.note,
+                      base: _base,
+                      targetNote: _listening || want == null ? null : want.note + _shift,
                       held: _held,
                       onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
                       onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
@@ -287,10 +321,34 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
               )
             else
               Center(child: _endPanel()),
+            if (want != null && _nudge != null) _buildNudge(want.note),
             Positioned.fill(child: Sparks(key: _sparksKey)),
           ],
         );
       },
+    );
+  }
+
+  // "Higher!" / "Lower!" above the current bubble, with an arrow.
+  Widget _buildNudge(int note) {
+    final rect = _bubbleRect(0, note, note, _laneSize);
+    final up = _nudge == 'Higher!';
+    final width = min(_laneSize.width, 320.0);
+    return Positioned(
+      left: (rect.center.dx - width / 2).clamp(0, _laneSize.width - width),
+      width: width,
+      height: 60,
+      top: up ? max(0, rect.top - 64) : min(_laneSize.height - 60, rect.bottom + 4),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, size: 44),
+            Text(_nudge!, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+          ],
+        ),
+      ),
     );
   }
 

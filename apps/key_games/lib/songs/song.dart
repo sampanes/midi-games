@@ -46,10 +46,11 @@ Future<List<Song>> loadSongs(AssetBundle bundle) async {
   return songs;
 }
 
-enum SongPress { hit, finished, miss, ignored }
+enum SongPress { hit, finished, tooLow, tooHigh, miss, ignored }
 
-// Where the player is in a song. Any octave of the right note counts: the
-// keyboard's octave buttons should never make a child "wrong".
+// Where the player is in a song. The octave matters (a melody can jump from
+// A up to the high A and back), but [shift] lets the keyboard's octave
+// buttons move everything by whole octaves without making a child "wrong".
 class SongRun {
   const SongRun(this.song, {this.index = 0, this.misses = 0});
 
@@ -60,11 +61,14 @@ class SongRun {
   bool get done => index >= song.notes.length;
   SongNote? get current => done ? null : song.notes[index];
 
-  ({SongRun run, SongPress result}) press(int note) {
+  ({SongRun run, SongPress result}) press(int note, {int shift = 0}) {
     final want = current;
     if (want == null) return (run: this, result: SongPress.ignored);
-    if (pitchClass(note) != pitchClass(want.note)) {
-      return (run: SongRun(song, index: index, misses: misses + 1), result: SongPress.miss);
+    final target = want.note + shift;
+    if (note != target) {
+      final missed = SongRun(song, index: index, misses: misses + 1);
+      if (pitchClass(note) != pitchClass(target)) return (run: missed, result: SongPress.miss);
+      return (run: missed, result: note < target ? SongPress.tooLow : SongPress.tooHigh);
     }
     final next = SongRun(song, index: index + 1, misses: misses);
     return (run: next, result: next.done ? SongPress.finished : SongPress.hit);
