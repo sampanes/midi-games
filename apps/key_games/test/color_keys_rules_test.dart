@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:key_games/games/color_keys_rules.dart';
 import 'package:key_games/midi/mirror_filter.dart';
+import 'package:key_games/widgets/piano_strip.dart';
 
 void main() {
   test('pitch class ignores octave', () {
@@ -81,5 +82,13 @@ void main() {
       expect(filter.accept('usb', 'on/60/100', 1010), isTrue);
       expect(filter.accept('ble', 'on/60/100', 1200), isTrue);
     });
+  });
+
+  test('keyboard picture follows octave shifts in whole octaves', () {
+    expect(fitBase(48, 60), 48);
+    expect(fitBase(48, 84), 48); // top C of 37 keys
+    expect(fitBase(48, 85), 60);
+    expect(fitBase(48, 36), 36);
+    expect(fitBase(48, 30), 24);
   });
 }

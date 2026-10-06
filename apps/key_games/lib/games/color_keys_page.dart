@@ -2,8 +2,11 @@
 // that color and plays its note. Hits earn a star and sparks; 8 stars win a
 // round. Wrong keys still make music, sparkle, and gently wiggle the circle.
 //
-// Input: any connected MIDI keyboard (auto-connected), on-screen color keys
-// while no keyboard is connected, and the computer keys A S D F G H J K.
+// The real keys have no colors, so a picture of the keyboard along the bottom
+// shows the colors and makes every key of the target color glow.
+//
+// Input: any connected MIDI keyboard (auto-connected), touching the keyboard
+// picture, and the computer keys A S D F G H J K.
 
 import 'dart:async';
 import 'dart:math';
@@ -13,6 +16,7 @@ import 'package:flutter/services.dart';
 
 import '../audio/synth.dart';
 import '../midi/midi_input.dart';
+import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import 'color_keys_rules.dart';
 
@@ -57,6 +61,9 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
   StreamSubscription<NoteEvent>? _noteSub;
   Timer? _advanceTimer;
   bool _celebrating = false;
+  // Lowest C of the keyboard picture, and notes currently held down.
+  int _base = 48;
+  final Set<int> _held = {};
 
   @override
   void initState() {
@@ -93,11 +100,16 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
     if (!isGameNote(event.note)) return;
     if (!event.on) {
       widget.synth.noteOff(event.note);
+      setState(() => _held.remove(event.note));
       return;
     }
     widget.synth.noteOn(event.note, event.velocity);
     final result = pressNote(_state, event.note);
-    setState(() => _state = result.state);
+    setState(() {
+      _state = result.state;
+      _base = fitBase(_base, event.note);
+      _held.add(event.note);
+    });
     for (final effect in result.effects) {
       switch (effect) {
         case Effect.play:
@@ -193,11 +205,18 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
                   ),
                 ),
                 Expanded(child: Center(child: _buildCircle(target, color))),
-                ValueListenableBuilder<List<String>>(
-                  valueListenable: widget.midi.connected,
-                  builder: (context, connected, _) => connected.isEmpty
-                      ? _TouchKeys(onNote: _onNote)
-                      : const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                  child: SizedBox(
+                    height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+                    child: PianoStrip(
+                      base: _base,
+                      target: _state.locked ? null : _state.target,
+                      held: _held,
+                      onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                      onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -264,21 +283,25 @@ class _StarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = min(52.0, MediaQuery.sizeOf(context).width / 11);
-    return Wrap(
-      children: [
-        for (var i = 0; i < starsPerRound; i++)
-          AnimatedScale(
-            scale: i < stars ? 1.0 : 0.8,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.elasticOut,
-            child: Icon(
-              Icons.star_rounded,
-              size: size,
-              color: i < stars ? _starGold : Colors.white24,
-            ),
-          ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = min(52.0, constraints.maxWidth / starsPerRound);
+        return Row(
+          children: [
+            for (var i = 0; i < starsPerRound; i++)
+              AnimatedScale(
+                scale: i < stars ? 1.0 : 0.8,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.elasticOut,
+                child: Icon(
+                  Icons.star_rounded,
+                  size: size,
+                  color: i < stars ? _starGold : Colors.white24,
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -347,45 +370,6 @@ class _DeviceSheet extends StatelessWidget {
                 trailing: d.connected
                     ? OutlinedButton(onPressed: () => midi.disconnect(d), child: const Text('Disconnect'))
                     : FilledButton(onPressed: () => midi.connect(d), child: const Text('Connect')),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// On-screen color keys (one octave of white keys), shown while no keyboard is
-// connected so the game still works by touch.
-class _TouchKeys extends StatelessWidget {
-  const _TouchKeys({required this.onNote});
-
-  final void Function(NoteEvent) onNote;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: SizedBox(
-        height: 96,
-        child: Row(
-          children: [
-            for (final pc in whitePitchClasses)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: GestureDetector(
-                    onTapDown: (_) => onNote(NoteEvent(60 + pc, 100, on: true)),
-                    onTapUp: (_) => onNote(NoteEvent(60 + pc, 0, on: false)),
-                    onTapCancel: () => onNote(NoteEvent(60 + pc, 0, on: false)),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: pitchColor(pc),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ),
               ),
           ],
         ),

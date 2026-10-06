@@ -187,9 +187,11 @@ profile was already open without the autoplay flag; click once.
 Windows, with low-latency synth sound (SoLoud). It finds and connects to MIDI
 keyboards by itself: Bluetooth LE MIDI devices from a scan, plus wired devices
 with an input port. The status chip in the corner lists devices for manual
-connect/disconnect. While no keyboard is connected, color keys appear on screen
-so the game also works by touch; on a PC the keys `a s d f g h j k` play too.
-Each new color plays its note.
+connect/disconnect. The real keys have no colors, so a 37-key picture of the
+keyboard along the bottom shows them (white keys tinted, black keys with a
+dot) and makes every key of the target color glow; it follows the octave
+buttons and can be played by touch. On a PC the keys `a s d f g h j k` play
+too. Each new color plays its note.
 
 Phone: connect the keyboard from inside the app only. If it is paired in the
 phone's Bluetooth settings, Android may treat it as an audio device and send
