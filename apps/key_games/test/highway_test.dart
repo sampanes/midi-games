@@ -5,8 +5,10 @@ import 'package:key_games/audio/synth.dart';
 import 'package:key_games/games/difficulty.dart';
 import 'package:key_games/games/highway_page.dart';
 import 'package:key_games/games/highway_rules.dart';
+import 'package:key_games/games/rush_page.dart';
 import 'package:key_games/midi/midi_input.dart';
 import 'package:key_games/songs/song.dart';
+import 'package:key_games/widgets/piano_strip.dart';
 
 // A made-up tune: up the C scale and back, half a second a note.
 final _scale = Song('Test scale', [
@@ -121,6 +123,48 @@ void main() {
     expect(find.text('Song done!'), findsNothing);
     await tester.pump(const Duration(milliseconds: 2000));
     expect(find.text('3'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  // A phone on its side: the keyboard picture is gone at the end, so the end
+  // choices show in full.
+  Future<void> expectEndFits(WidgetTester tester) async {
+    final view = tester.getRect(find.byType(SingleChildScrollView).last);
+    for (final label in ['Play again', 'Songs', 'Menu']) {
+      final button = find.widgetWithText(ButtonStyleButton, label);
+      if (button.evaluate().isEmpty) continue;
+      expect(tester.getRect(button).bottom, lessThanOrEqualTo(view.bottom), reason: label);
+    }
+    expect(find.byType(PianoStrip), findsNothing);
+  }
+
+  // Larger text (a phone setting) must fit too.
+  Widget bigText(Widget home) => MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.3)),
+          child: child!,
+        ),
+        home: home,
+      );
+
+  testWidgets('end screens fit a landscape phone', (tester) async {
+    tester.view.physicalSize = const Size(2316, 1080);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    const song = Song('Two notes', [SongNote(60, 0, 300), SongNote(62, 600, 300)]);
+    await tester.pumpWidget(bigText(HighwayPage(song: song, synth: Synth(), midi: MidiInput())));
+    await tester.pump(const Duration(seconds: 8));
+    expect(find.text('Nice try!'), findsOneWidget);
+    await expectEndFits(tester);
+
+    await tester.pumpWidget(bigText(RushPage(synth: Synth(), midi: MidiInput(), songs: const [])));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 61));
+    expect(find.text("Time's up!"), findsOneWidget);
+    await expectEndFits(tester);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));

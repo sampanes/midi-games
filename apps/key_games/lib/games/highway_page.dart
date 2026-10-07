@@ -281,21 +281,23 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
                             ],
                           ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: SizedBox(
-                      height: min(140, MediaQuery.sizeOf(context).height * 0.18),
-                      child: PianoStrip(
-                        base: _base,
-                        target: _nextKey,
-                        plain: _plain,
-                        choices: _level == Difficulty.expert ? null : lanePcs,
-                        held: _held,
-                        onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                        onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                  // Hidden at the end, so the end choices fit a landscape phone.
+                  if (_phase == _Phase.playing)
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: SizedBox(
+                        height: min(140, MediaQuery.sizeOf(context).height * 0.18),
+                        child: PianoStrip(
+                          base: _base,
+                          target: _nextKey,
+                          plain: _plain,
+                          choices: _level == Difficulty.expert ? null : lanePcs,
+                          held: _held,
+                          onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                          onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -435,7 +437,7 @@ class _Geometry {
     laneWidth = min(150.0, size.width / max(1, laneCount));
     left = (size.width - laneWidth * laneCount) / 2;
     buttonRadius = min(laneWidth * 0.4, 44);
-    lineY = size.height - buttonRadius - 10;
+    lineY = size.height - buttonRadius - 16;
   }
 
   final Size size;
@@ -482,6 +484,8 @@ class _HighwayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final g = _Geometry(size, chart.lanes.length);
     final fill = Paint();
+    // Notes past the line must not spill onto the keyboard picture.
+    canvas.clipRect(Offset.zero & size);
 
     // Lanes: dark columns tinted with their color, a line between them.
     for (var i = 0; i < chart.lanes.length; i++) {

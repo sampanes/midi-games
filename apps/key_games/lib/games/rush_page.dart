@@ -330,20 +330,22 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white54, fontSize: 16),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: SizedBox(
-                      height: min(180, MediaQuery.sizeOf(context).height * 0.24),
-                      child: PianoStrip(
-                        base: _base,
-                        target: playing && _glow && !_state.frozen ? _state.target : null,
-                        plain: _plain,
-                        held: _held,
-                        onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                        onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                  // Hidden at the end, so the end choices fit a landscape phone.
+                  if (_phase != _Phase.done)
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: SizedBox(
+                        height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+                        child: PianoStrip(
+                          base: _base,
+                          target: playing && _glow && !_state.frozen ? _state.target : null,
+                          plain: _plain,
+                          held: _held,
+                          onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                          onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
