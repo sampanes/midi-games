@@ -47,6 +47,11 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 2000));
     expect(find.text('Play again'), findsOneWidget);
+
+    // C on the keyboard is the Play again button.
+    await _tapKey(tester, LogicalKeyboardKey.keyA);
+    expect(find.text('Play again'), findsNothing);
+    await tester.pump(const Duration(seconds: 2));
     await tester.pumpWidget(const SizedBox());
   });
 }

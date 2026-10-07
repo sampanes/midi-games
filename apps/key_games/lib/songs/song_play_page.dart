@@ -3,9 +3,11 @@
 // wrong octave gets a "Higher!" / "Lower!" nudge. The keyboard's octave
 // buttons are followed by whole octaves (its keys send 48-84 when centered,
 // the same range as the picture). A row of bubbles shows
-// what comes next, higher notes sitting higher. If nothing is played for a
+// what comes next, higher notes sitting higher. A wrong key is followed by
+// that note and then the right one, to compare by ear. If nothing is played for a
 // few seconds, the next note sounds as a hint. At the end the whole melody
 // plays back at its real speed, so the child hears the song they just built.
+// The end buttons are picked with keys too: C again, D listen, E more songs.
 
 import 'dart:async';
 import 'dart:math';
@@ -13,10 +15,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
 import '../games/color_keys_rules.dart';
 import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
+import '../widgets/key_nav.dart';
 import '../widgets/keyboard_status.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
@@ -47,6 +51,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
   late SongRun _run = SongRun(widget.song);
+  late final MissEcho _echo = MissEcho(widget.synth);
   final Set<int> _held = {};
   final List<Timer> _timers = [];
   StreamSubscription<NoteEvent>? _noteSub;
@@ -76,6 +81,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     unawaited(_noteSub?.cancel());
     _hintTimer?.cancel();
     _nudgeTimer?.cancel();
+    _echo.cancel();
     for (final timer in _timers) {
       timer.cancel();
     }
@@ -117,29 +123,38 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
       _held.add(event.note);
       _base = fitBase(_base, event.note);
     });
-    if (_listening || _celebrating) return;
+    final want = _run.current;
+    if (want == null || _listening || _celebrating) return;
+    final target = want.note + _shift;
     final step = _run.press(event.note, shift: _shift);
     setState(() => _run = step.run);
     switch (step.result) {
       case SongPress.hit:
+        _echo.cancel();
         _burst(event.note - _shift, 22);
         _armHint();
         _showNudge(null);
       case SongPress.finished:
+        _echo.cancel();
         _burst(event.note - _shift, 40);
         _finish();
         _showNudge(null);
       case SongPress.tooLow:
-        _shake.forward(from: 0);
-        _showNudge('Higher!');
+        _missed(event.note, target, 'Higher!');
       case SongPress.tooHigh:
-        _shake.forward(from: 0);
-        _showNudge('Lower!');
+        _missed(event.note, target, 'Lower!');
       case SongPress.miss:
-        _shake.forward(from: 0);
+        _missed(event.note, target, null);
       case SongPress.ignored:
         break;
     }
+  }
+
+  void _missed(int note, int target, String? nudge) {
+    _shake.forward(from: 0);
+    if (nudge != null) _showNudge(nudge);
+    _echo.play(note, target);
+    _armHint();
   }
 
   void _showNudge(String? text) {
@@ -229,78 +244,85 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     final want = _run.current;
     final color = want == null ? Colors.white : _noteColor(want.note);
     final total = widget.song.notes.length;
+    final ended = want == null && !_listening && !_celebrating;
     return Scaffold(
       backgroundColor: _background,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(-0.45, 0),
-                colors: [color.withValues(alpha: 0.22), _background],
-                radius: 0.9,
+      body: KeyNav(
+        midi: widget.midi,
+        picks: ended ? {0: _restart, 2: _playBack, 4: _moreSongs} : const {},
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.45, 0),
+                  colors: [color.withValues(alpha: 0.22), _background],
+                  radius: 0.9,
+                ),
               ),
             ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-                  child: Row(
-                    children: [
-                      const BackButton(),
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(widget.song.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: _run.index / total,
-                                minHeight: 8,
-                                color: color,
-                                backgroundColor: Colors.white12,
+            SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                    child: Row(
+                      children: [
+                        const BackButton(),
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(widget.song.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 6),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: _run.index / total,
+                                  minHeight: 8,
+                                  color: color,
+                                  backgroundColor: Colors.white12,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(flex: 2, child: KeyboardStatus(midi: widget.midi)),
-                    ],
-                  ),
-                ),
-                Expanded(child: _buildLane()),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: SizedBox(
-                    height: min(180, MediaQuery.sizeOf(context).height * 0.24),
-                    child: PianoStrip(
-                      base: _base,
-                      targetNote: _listening || want == null ? null : want.note + _shift,
-                      held: _held,
-                      onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                      onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                        const SizedBox(width: 12),
+                        Flexible(flex: 2, child: KeyboardStatus(midi: widget.midi)),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                  Expanded(child: _buildLane()),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: SizedBox(
+                      height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+                      child: PianoStrip(
+                        base: _base,
+                        targetNote: _listening || want == null ? null : want.note + _shift,
+                        held: _held,
+                        onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                        onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (_celebrating) const WinBanner(),
-        ],
+            if (_celebrating) const WinBanner(),
+          ],
+        ),
       ),
     );
   }
+
+  void _moreSongs() => Navigator.pop(context);
 
   Widget _buildLane() {
     return LayoutBuilder(
@@ -426,17 +448,17 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
           children: [
             FilledButton.icon(
               onPressed: _restart,
-              icon: const Icon(Icons.replay),
+              icon: const KeyBadge(pc: 0, size: 30),
               label: const Text('Play again'),
             ),
             FilledButton.tonalIcon(
               onPressed: _playBack,
-              icon: const Icon(Icons.hearing),
+              icon: const KeyBadge(pc: 2, size: 30),
               label: const Text('Listen again'),
             ),
             OutlinedButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.library_music),
+              onPressed: _moreSongs,
+              icon: const KeyBadge(pc: 4, size: 30),
               label: const Text('More songs'),
             ),
           ],

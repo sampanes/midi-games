@@ -198,6 +198,19 @@ Phone: connect the keyboard from inside the app only. If it is paired in the
 phone's Bluetooth settings, Android may treat it as an audio device and send
 the game's sound to it instead of the speaker.
 
+Keyboard only (TV boxes, no touch screen): every menu choice wears a note
+letter and pressing any key of that letter picks it (home: C Color Keys,
+D Songs, E Ear Notes; songs: C to A, B for the next page; end of a song:
+C again, D listen, E more songs). Holding the lowest and highest C together
+goes back, as do Escape and the remote's back button. The Android build also
+lists itself on Android TV home screens (banner, no touch screen required).
+
+Every game answers a wrong key the same way: after it, the wrong note plays
+again and then the right one, so the two can be compared by ear.
+
+The icon (Android, Android TV banner, Windows) is drawn by
+`python scripts\make-app-icons.py` (needs Pillow).
+
 ```bat
 cd apps\key_games
 flutter build apk --release
@@ -238,8 +251,9 @@ transpose).
 ### Ear Notes
 
 A mystery note plays and the child finds it by sound alone: the keyboard
-picture has no colors and nothing glows. Any octave counts. A wrong key plays
-the mystery note again, tapping the circle replays it, and after two wrong
+picture has no colors and nothing glows. Any octave counts. A wrong key is
+followed by the right note nearest to it, the mystery note replays after a
+quiet spell (or a tap on the circle), and after two wrong
 tries the answer lights up (found that way, it earns no star). Six stars move
 up a level: C G, then C E G, then C D E F G, then all white keys, then all
 twelve. The letters a level uses are shown above the keyboard; the level chip

@@ -1,6 +1,7 @@
 // Ear Notes screen: a mystery note plays and the child finds it on the
-// keyboard by sound alone. The keyboard picture has no colors here. Wrong keys
-// make the mystery note play again; after two wrong tries the answer lights up.
+// keyboard by sound alone. The keyboard picture has no colors here. After a
+// wrong key, that note and then the mystery note (the nearest one) play, to
+// compare by ear; after two wrong tries the answer lights up.
 // Tap the big circle to hear the note again.
 //
 // Input: any connected MIDI keyboard (auto-connected), touching the keyboard
@@ -12,9 +13,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
 import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
+import '../widgets/key_nav.dart';
 import '../widgets/keyboard_status.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
@@ -27,7 +30,6 @@ const _mystery = Color(0xFF3A3448);
 const _starGold = Color(0xFFFFD84A);
 const _hitDelay = Duration(milliseconds: 1300);
 const _levelUpDelay = Duration(milliseconds: 3000);
-const _replayAfterMiss = Duration(milliseconds: 800);
 const _idleReplay = Duration(seconds: 7);
 
 // The mystery note is played around middle C.
@@ -57,6 +59,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   late EarState _state = EarState.start(0, _random);
+  late final MissEcho _echo = MissEcho(widget.synth);
   StreamSubscription<NoteEvent>? _noteSub;
   Timer? _advanceTimer;
   Timer? _replayTimer;
@@ -79,6 +82,10 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
     unawaited(_noteSub?.cancel());
     _advanceTimer?.cancel();
     _replayTimer?.cancel();
+    _echo.cancel();
+    for (final note in _held) {
+      widget.synth.noteOff(note);
+    }
     _pulse.dispose();
     _shake.dispose();
     super.dispose();
@@ -115,12 +122,12 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
       _base = fitBase(_base, event.note);
       _held.add(event.note);
     });
-    if (!_state.locked) _scheduleReplay(_idleReplay);
     for (final effect in result.effects) {
       switch (effect) {
         case EarEffect.miss:
           _shake.forward(from: 0);
-          _scheduleReplay(_replayAfterMiss);
+          _echo.play(event.note, nearestOfClass(event.note, _state.target));
+          _scheduleReplay(MissEcho.length + _idleReplay);
         case EarEffect.reveal:
           break;
         case EarEffect.hit:
@@ -138,6 +145,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
 
   void _celebrateHit({required bool big}) {
     _replayTimer?.cancel();
+    _echo.cancel();
     _pulse.forward(from: 0);
     final pc = _state.target;
     final color = _pitchColor(pc);
@@ -204,61 +212,64 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
     final color = show ? _pitchColor(_state.target) : _mystery;
     return Scaffold(
       backgroundColor: _background,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [color.withValues(alpha: show ? 0.28 : 0.4), _background],
-                radius: 0.9,
+      body: KeyNav(
+        midi: widget.midi,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [color.withValues(alpha: show ? 0.28 : 0.4), _background],
+                  radius: 0.9,
+                ),
               ),
             ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Row(
-                    children: [
-                      if (Navigator.canPop(context)) const BackButton(),
-                      Expanded(child: _StarRow(stars: _state.stars)),
-                      const SizedBox(width: 8),
-                      ActionChip(
-                        avatar: const Icon(Icons.trending_up, size: 18),
-                        label: Text('Level ${_state.level + 1}'),
-                        onPressed: _nextLevel,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(child: KeyboardStatus(midi: widget.midi)),
-                    ],
-                  ),
-                ),
-                Expanded(child: Center(child: _buildCircle(show, color))),
-                _ChoiceRow(choices: _state.choices),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                  child: SizedBox(
-                    height: min(180, MediaQuery.sizeOf(context).height * 0.24),
-                    child: PianoStrip(
-                      base: _base,
-                      target: show ? _state.target : null,
-                      plain: true,
-                      choices: _state.choices,
-                      held: _held,
-                      onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                      onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+            SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Row(
+                      children: [
+                        if (Navigator.canPop(context)) const BackButton(),
+                        Expanded(child: _StarRow(stars: _state.stars)),
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          avatar: const Icon(Icons.trending_up, size: 18),
+                          label: Text('Level ${_state.level + 1}'),
+                          onPressed: _nextLevel,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(child: KeyboardStatus(midi: widget.midi)),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                  Expanded(child: Center(child: _buildCircle(show, color))),
+                  _ChoiceRow(choices: _state.choices),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    child: SizedBox(
+                      height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+                      child: PianoStrip(
+                        base: _base,
+                        target: show ? _state.target : null,
+                        plain: true,
+                        choices: _state.choices,
+                        held: _held,
+                        onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                        onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
-          if (_celebrating) const WinBanner(),
-        ],
+            Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
+            if (_celebrating) const WinBanner(),
+          ],
+        ),
       ),
     );
   }

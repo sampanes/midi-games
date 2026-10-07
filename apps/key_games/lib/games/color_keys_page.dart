@@ -1,6 +1,7 @@
 // Color Keys screen: a big circle shows a note letter in its color, the child
 // presses a key of that note and it plays. Hits earn a star and sparks; 8 stars win a
-// round. Wrong keys still make music, sparkle, and gently wiggle the circle.
+// round. Wrong keys still make music, sparkle, and gently wiggle the circle;
+// then the wrong note and the right one play, to compare by ear.
 //
 // The real keys have no colors, so a picture of the keyboard along the bottom
 // shows the colors and makes every key of the target color glow.
@@ -14,9 +15,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
 import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
+import '../widgets/key_nav.dart';
 import '../widgets/keyboard_status.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
@@ -49,6 +52,7 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   late ColorKeysState _state = ColorKeysState.start(_random);
+  late final MissEcho _echo = MissEcho(widget.synth);
   StreamSubscription<NoteEvent>? _noteSub;
   Timer? _advanceTimer;
   bool _celebrating = false;
@@ -75,6 +79,10 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
     HardwareKeyboard.instance.removeHandler(_onKey);
     unawaited(_noteSub?.cancel());
     _advanceTimer?.cancel();
+    _echo.cancel();
+    for (final note in _held) {
+      widget.synth.noteOff(note);
+    }
     _pulse.dispose();
     _shake.dispose();
     super.dispose();
@@ -104,7 +112,9 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
           _shake.forward(from: 0);
           _sparksKey.currentState?.burst(
               _circleCenter(), [pitchColor(pitchClass(event.note))], count: 12, speed: 300);
+          _echo.play(event.note, nearestOfClass(event.note, _state.target));
         case Effect.hit:
+          _echo.cancel();
           _celebrateHit(pitchClass(event.note));
         case Effect.nextSoon:
           _scheduleAdvance(_hitDelay);
@@ -166,51 +176,54 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
     final color = Color(target.argb);
     return Scaffold(
       backgroundColor: _background,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [color.withValues(alpha: 0.28), _background],
-                radius: 0.9,
+      body: KeyNav(
+        midi: widget.midi,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [color.withValues(alpha: 0.28), _background],
+                  radius: 0.9,
+                ),
               ),
             ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Row(
-                    children: [
-                      if (Navigator.canPop(context)) const BackButton(),
-                      Expanded(child: _StarRow(stars: _state.stars)),
-                      Flexible(child: KeyboardStatus(midi: widget.midi)),
-                    ],
-                  ),
-                ),
-                Expanded(child: Center(child: _buildCircle(target, color))),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                  child: SizedBox(
-                    height: min(180, MediaQuery.sizeOf(context).height * 0.24),
-                    child: PianoStrip(
-                      base: _base,
-                      target: _state.locked ? null : _state.target,
-                      held: _held,
-                      onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                      onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+            SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Row(
+                      children: [
+                        if (Navigator.canPop(context)) const BackButton(),
+                        Expanded(child: _StarRow(stars: _state.stars)),
+                        Flexible(child: KeyboardStatus(midi: widget.midi)),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                  Expanded(child: Center(child: _buildCircle(target, color))),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    child: SizedBox(
+                      height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+                      child: PianoStrip(
+                        base: _base,
+                        target: _state.locked ? null : _state.target,
+                        held: _held,
+                        onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                        onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Positioned.fill(child: Sparks(key: _sparksKey)),
-          if (_celebrating) const WinBanner(),
-        ],
+            Positioned.fill(child: Sparks(key: _sparksKey)),
+            if (_celebrating) const WinBanner(),
+          ],
+        ),
       ),
     );
   }

@@ -48,6 +48,13 @@ const starsPerRound = 8;
 
 int pitchClass(int note) => note % 12;
 
+// The note of pitch class [pc] closest to [note] (the higher one on a tie),
+// so a wrong key can be compared with the right one next to it.
+int nearestOfClass(int note, int pc) {
+  final below = note - (note - pc) % 12;
+  return note - below < 6 ? below : below + 12;
+}
+
 bool isGameNote(int note) => note >= minGameNote && note <= maxGameNote;
 
 // Next target: a white key, never the same as the last one.
