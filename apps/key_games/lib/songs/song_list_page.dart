@@ -23,11 +23,17 @@ class SongListPage extends StatefulWidget {
     required this.synth,
     required this.midi,
     this.difficulty = Difficulty.easy,
+    this.title = 'Songs',
+    this.play,
   });
 
   final Synth synth;
   final MidiInput midi;
   final Difficulty difficulty;
+  final String title;
+
+  // The game a picked song opens; song steps when not given.
+  final Widget Function(Song song)? play;
 
   @override
   State<SongListPage> createState() => _SongListPageState();
@@ -78,12 +84,14 @@ class _SongListPageState extends State<SongListPage> {
     Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => SongPlayPage(
-          song: song,
-          synth: widget.synth,
-          midi: widget.midi,
-          difficulty: widget.difficulty,
-        ),
+        builder: (_) =>
+            widget.play?.call(song) ??
+            SongPlayPage(
+              song: song,
+              synth: widget.synth,
+              midi: widget.midi,
+              difficulty: widget.difficulty,
+            ),
       ),
     );
   }
@@ -104,7 +112,7 @@ class _SongListPageState extends State<SongListPage> {
                   children: [
                     const BackButton(),
                     Expanded(
-                      child: Text('Songs: ${widget.difficulty.label}',
+                      child: Text('${widget.title}: ${widget.difficulty.label}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),

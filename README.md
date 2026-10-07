@@ -206,7 +206,8 @@ decides what the levels change (glowing keys, colors, black keys, hints).
 Keyboard only (TV boxes, no touch screen): every menu choice wears a note
 letter and pressing any key of that letter picks it, so C C C reaches the
 first game on Easy (songs: C to A, B for the next page; end of a song:
-C again, D listen, E more songs; end of Key Rush: C again, E menu). Holding the lowest and highest C together
+C again, D listen, E more songs; end of Key Rush or Note Highway: C again,
+E back). Holding the lowest and highest C together
 goes back, as do Escape and the remote's back button. The Android build also
 lists itself on Android TV home screens (banner, no touch screen required).
 
@@ -229,7 +230,7 @@ activity. `apps/keys_spike` is the earlier latency test app.
 
 ### Song mode
 
-The home screen has Color Keys and Songs. In a song, the glowing key walks
+Songs has two games: Song Steps and Note Highway. In Song Steps, the glowing key walks
 through a real melody one note at a time; the game waits for each note. The
 octave matters (the keys send 48-84 with the octave button centered, matching
 the picture; the octave buttons are followed by whole octaves), and the right
@@ -273,3 +274,17 @@ instead of the key pressed, so fast playing makes the melody come out. A wrong
 key plays itself and then the right note, and above Easy it freezes scoring
 for that moment while the clock runs. Best scores are kept per difficulty for
 the session.
+
+### Note Highway (Songs)
+
+Falling notes, Guitar Hero style: a song's notes come down lanes and are hit
+as they reach the line, with a 3-2-1 while the first ones fall. Whatever key
+hits a note, the song's own note sounds, so the tune comes out even on four
+keys. Easy squashes the melody onto C D E F by its shape (low notes on C, high
+ones on F, up stays up), slows it down, thins out fast runs, and glows the
+next key on the keyboard picture. Medium moves the song to the white keys in
+one octave; Hard uses its real letters with sharps and flats, any octave;
+Expert wants the exact keys at full speed. A wrong key plays itself and then
+the right note, and that note is missed; a key with nothing due just plays.
+Streaks of 10, 20 and 30 raise the score multiplier, and the end shows up to
+three stars by the share of notes hit.

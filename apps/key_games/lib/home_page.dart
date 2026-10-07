@@ -9,6 +9,7 @@ import 'audio/synth.dart';
 import 'games/color_keys_page.dart';
 import 'games/difficulty.dart';
 import 'games/ear_page.dart';
+import 'games/highway_page.dart';
 import 'games/rush_page.dart';
 import 'midi/midi_input.dart';
 import 'songs/song_list_page.dart';
@@ -79,13 +80,27 @@ class HomePage extends StatelessWidget {
       earLevelsText,
       (d) => EarPage(synth: synth, midi: midi, difficulty: d),
     );
-    final songs = _game(
-      'Songs',
+    final steps = _game(
+      'Song Steps',
       'Play real tunes, one note at a time',
       Icons.music_note,
       const [Color(0xFF8A4DFF), Color(0xFFFF5EC8), Color(0xFFFF9A1F)],
       songLevels,
-      (d) => SongListPage(synth: synth, midi: midi, difficulty: d),
+      (d) => SongListPage(synth: synth, midi: midi, difficulty: d, title: 'Song Steps'),
+    );
+    final highway = _game(
+      'Note Highway',
+      'Hit the falling notes in time',
+      Icons.queue_music,
+      const [Color(0xFF2FA8FF), Color(0xFF8A4DFF), Color(0xFFFF5EC8)],
+      highwayLevelsText,
+      (d) => SongListPage(
+        synth: synth,
+        midi: midi,
+        difficulty: d,
+        title: 'Note Highway',
+        play: (song) => HighwayPage(song: song, synth: synth, midi: midi, difficulty: d),
+      ),
     );
     final rush = _game(
       'Key Rush',
@@ -103,8 +118,8 @@ class HomePage extends StatelessWidget {
             const [Color(0xFFFF3B3B), Color(0xFFFF9A1F)], [colorKeys]),
         _category('Listen', 'Games for your ears', Icons.hearing,
             const [Color(0xFF22C9A0), Color(0xFF4A6BFF)], [ear]),
-        // Songs is one game, so its tile goes straight to the difficulty.
-        songs,
+        _category('Songs', 'Play real tunes', Icons.music_note,
+            const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)], [steps, highway]),
         _category('Arcade', 'Fast games against the clock', Icons.sports_esports,
             const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [rush]),
       ],
