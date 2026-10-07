@@ -32,26 +32,35 @@ void main() {
     expect(songsPerPage(8), 6);
   });
 
-  testWidgets('home picks a game by note letter and Escape comes back', (tester) async {
+  testWidgets('menus pick by note letter, all the way into a game, and Escape backs out',
+      (tester) async {
     tester.view.physicalSize = const Size(1080, 2316);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
 
+    Future<void> press(LogicalKeyboardKey key) async {
+      await tester.sendKeyEvent(key);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+
     await tester.pumpWidget(MaterialApp(home: HomePage(synth: Synth(), midi: MidiInput())));
     await tester.pump();
+    expect(find.text('Listen'), findsOneWidget);
+
+    await press(LogicalKeyboardKey.keyS); // D: Listen
     expect(find.text('Ear Notes'), findsOneWidget);
+    await press(LogicalKeyboardKey.keyA); // C: Ear Notes
+    expect(find.text('Expert'), findsOneWidget);
+    await press(LogicalKeyboardKey.keyD); // E: Hard
+    expect(find.text('Level 4'), findsOneWidget);
 
-    // Computer key D plays E: the Ear Notes letter.
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Level 1'), findsOneWidget);
-
+    // The difficulty picker was replaced by the game, so back is the menu.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 3));
-    expect(find.text('Level 1'), findsNothing);
-    expect(find.text('Key Games'), findsOneWidget);
+    expect(find.text('Level 4'), findsNothing);
+    expect(find.text('Ear Notes'), findsOneWidget);
   });
 
   testWidgets('song list lays out on a phone, with or without local songs', (tester) async {

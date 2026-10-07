@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import '../audio/synth.dart';
 import '../games/color_keys_rules.dart';
+import '../games/difficulty.dart';
 import '../midi/midi_input.dart';
 import '../widgets/key_nav.dart';
 import '../widgets/keyboard_status.dart';
@@ -17,10 +18,16 @@ import 'song.dart';
 import 'song_play_page.dart';
 
 class SongListPage extends StatefulWidget {
-  const SongListPage({super.key, required this.synth, required this.midi});
+  const SongListPage({
+    super.key,
+    required this.synth,
+    required this.midi,
+    this.difficulty = Difficulty.easy,
+  });
 
   final Synth synth;
   final MidiInput midi;
+  final Difficulty difficulty;
 
   @override
   State<SongListPage> createState() => _SongListPageState();
@@ -71,7 +78,12 @@ class _SongListPageState extends State<SongListPage> {
     Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => SongPlayPage(song: song, synth: widget.synth, midi: widget.midi),
+        builder: (_) => SongPlayPage(
+          song: song,
+          synth: widget.synth,
+          midi: widget.midi,
+          difficulty: widget.difficulty,
+        ),
       ),
     );
   }
@@ -91,8 +103,11 @@ class _SongListPageState extends State<SongListPage> {
                 child: Row(
                   children: [
                     const BackButton(),
-                    const Expanded(
-                      child: Text('Songs', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
+                    Expanded(
+                      child: Text('Songs: ${widget.difficulty.label}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
                     ),
                     Flexible(child: KeyboardStatus(midi: widget.midi)),
                   ],

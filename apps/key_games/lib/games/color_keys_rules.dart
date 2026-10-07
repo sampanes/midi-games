@@ -57,10 +57,13 @@ int nearestOfClass(int note, int pc) {
 
 bool isGameNote(int note) => note >= minGameNote && note <= maxGameNote;
 
-// Next target: a white key, never the same as the last one.
-int pickNextTarget(int? previous, Random random) {
-  final choices = whitePitchClasses.where((pc) => pc != previous).toList();
-  return choices[random.nextInt(choices.length)];
+final allPitchClasses = [for (var pc = 0; pc < 12; pc++) pc];
+
+// Next target from [choices] (white keys unless given), never the same as
+// the last one.
+int pickNextTarget(int? previous, Random random, [List<int>? choices]) {
+  final from = (choices ?? whitePitchClasses).where((pc) => pc != previous).toList();
+  return from[random.nextInt(from.length)];
 }
 
 enum Effect { play, miss, hit, nextSoon, win }
@@ -73,8 +76,8 @@ class ColorKeysState {
     this.locked = false,
   });
 
-  factory ColorKeysState.start(Random random) =>
-      ColorKeysState(target: pickNextTarget(null, random));
+  factory ColorKeysState.start(Random random, [List<int>? choices]) =>
+      ColorKeysState(target: pickNextTarget(null, random, choices));
 
   final int target;
   final int stars;
@@ -108,8 +111,8 @@ PressResult pressNote(ColorKeysState state, int note) {
   return PressResult(next, const [Effect.hit, Effect.nextSoon]);
 }
 
-ColorKeysState advance(ColorKeysState state, Random random) {
-  final target = pickNextTarget(state.target, random);
+ColorKeysState advance(ColorKeysState state, Random random, [List<int>? choices]) {
+  final target = pickNextTarget(state.target, random, choices);
   if (state.stars >= starsPerRound) {
     return ColorKeysState(target: target, rounds: state.rounds + 1);
   }

@@ -6,6 +6,10 @@
 // The real keys have no colors, so a picture of the keyboard along the bottom
 // shows the colors and makes every key of the target color glow.
 //
+// Difficulty: Easy glows the keys; Medium shows only the colors on the
+// picture; Hard adds the black keys on a plain picture (read the letter);
+// Expert shows the letter alone, with no color and no sound hint.
+//
 // Input: any connected MIDI keyboard (auto-connected), touching the keyboard
 // picture, and the computer keys A S D F G H J K.
 
@@ -25,19 +29,34 @@ import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import '../widgets/win_banner.dart';
 import 'color_keys_rules.dart';
+import 'difficulty.dart';
 
 const _background = Color(0xFF14111C);
 const _starGold = Color(0xFFFFD84A);
 const _hitDelay = Duration(milliseconds: 650);
 const _winDelay = Duration(milliseconds: 2800);
+const _letterOnly = Color(0xFF4A4360);
+
+const colorKeysLevels = {
+  Difficulty.easy: 'The right keys glow',
+  Difficulty.medium: 'Match the color',
+  Difficulty.hard: 'Read the letter, black keys too',
+  Difficulty.expert: 'Letter only, no hints',
+};
 
 Color pitchColor(int pc) => Color(pitchClasses[pc].argb);
 
 class ColorKeysPage extends StatefulWidget {
-  const ColorKeysPage({super.key, required this.synth, required this.midi});
+  const ColorKeysPage({
+    super.key,
+    required this.synth,
+    required this.midi,
+    this.difficulty = Difficulty.easy,
+  });
 
   final Synth synth;
   final MidiInput midi;
+  final Difficulty difficulty;
 
   @override
   State<ColorKeysPage> createState() => _ColorKeysPageState();
@@ -51,7 +70,12 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
       AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
-  late ColorKeysState _state = ColorKeysState.start(_random);
+  Difficulty get _level => widget.difficulty;
+  bool get _glow => _level == Difficulty.easy;
+  bool get _plain => _level.atLeast(Difficulty.hard);
+  bool get _colored => _level != Difficulty.expert;
+  List<int> get _choices => _plain ? allPitchClasses : whitePitchClasses;
+  late ColorKeysState _state = ColorKeysState.start(_random, _choices);
   late final MissEcho _echo = MissEcho(widget.synth);
   StreamSubscription<NoteEvent>? _noteSub;
   Timer? _advanceTimer;
@@ -71,7 +95,7 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
 
   // Each new color plays its own note, so the colors and sounds go together.
   void _playTarget() {
-    if (mounted) widget.synth.blip(72 + _state.target, velocity: 70, lengthMs: 350);
+    if (mounted && _colored) widget.synth.blip(72 + _state.target, velocity: 70, lengthMs: 350);
   }
 
   @override
@@ -155,7 +179,7 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
     _advanceTimer = Timer(delay, () {
       if (!mounted) return;
       setState(() {
-        _state = advance(_state, _random);
+        _state = advance(_state, _random, _choices);
         _celebrating = false;
       });
       _playTarget();
@@ -173,7 +197,7 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final target = pitchClasses[_state.target];
-    final color = Color(target.argb);
+    final color = _colored ? Color(target.argb) : _letterOnly;
     return Scaffold(
       backgroundColor: _background,
       body: KeyNav(
@@ -210,7 +234,8 @@ class _ColorKeysPageState extends State<ColorKeysPage> with TickerProviderStateM
                       height: min(180, MediaQuery.sizeOf(context).height * 0.24),
                       child: PianoStrip(
                         base: _base,
-                        target: _state.locked ? null : _state.target,
+                        target: _state.locked || !_glow ? null : _state.target,
+                        plain: _plain,
                         held: _held,
                         onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
                         onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),

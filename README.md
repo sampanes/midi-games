@@ -198,10 +198,15 @@ Phone: connect the keyboard from inside the app only. If it is paired in the
 phone's Bluetooth settings, Android may treat it as an audio device and send
 the game's sound to it instead of the speaker.
 
+Menus: home has categories (C Look, D Listen, E Songs, F Arcade), each
+category lists its games, and every game starts with a difficulty picker:
+C Easy (ages 3+), D Medium (5+), E Hard (8+), F Expert (grown-ups). Each game
+decides what the levels change (glowing keys, colors, black keys, hints).
+
 Keyboard only (TV boxes, no touch screen): every menu choice wears a note
-letter and pressing any key of that letter picks it (home: C Color Keys,
-D Songs, E Ear Notes; songs: C to A, B for the next page; end of a song:
-C again, D listen, E more songs). Holding the lowest and highest C together
+letter and pressing any key of that letter picks it, so C C C reaches the
+first game on Easy (songs: C to A, B for the next page; end of a song:
+C again, D listen, E more songs; end of Key Rush: C again, E menu). Holding the lowest and highest C together
 goes back, as do Escape and the remote's back button. The Android build also
 lists itself on Android TV home screens (banner, no touch screen required).
 
@@ -257,4 +262,14 @@ quiet spell (or a tap on the circle), and after two wrong
 tries the answer lights up (found that way, it earns no star). Six stars move
 up a level: C G, then C E G, then C D E F G, then all white keys, then all
 twelve. The letters a level uses are shown above the keyboard; the level chip
-skips ahead.
+skips ahead. Difficulty picks the starting level.
+
+### Key Rush (Arcade)
+
+After the arcade piano games: 3-2-1, then one minute to hit as many target
+keys as possible; the target jumps after every hit. Song smash: each hit plays
+the next note of a random bundled song (or a scale when none are bundled)
+instead of the key pressed, so fast playing makes the melody come out. A wrong
+key plays itself and then the right note, and above Easy it freezes scoring
+for that moment while the clock runs. Best scores are kept per difficulty for
+the session.

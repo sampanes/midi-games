@@ -8,6 +8,10 @@
 // few seconds, the next note sounds as a hint. At the end the whole melody
 // plays back at its real speed, so the child hears the song they just built.
 // The end buttons are picked with keys too: C again, D listen, E more songs.
+//
+// Difficulty: Easy glows the key; Medium shows only the colored bubbles;
+// Hard shows letters alone on a plain keyboard; Expert is by ear ("?"
+// bubbles; the hint note and Higher!/Lower! still help).
 
 import 'dart:async';
 import 'dart:math';
@@ -18,6 +22,7 @@ import 'package:flutter/services.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
 import '../games/color_keys_rules.dart';
+import '../games/difficulty.dart';
 import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
 import '../widgets/key_nav.dart';
@@ -34,11 +39,26 @@ const _upcoming = 6;
 const _playbackCapMs = 45000;
 
 Color _noteColor(int note) => Color(pitchClasses[pitchClass(note)].argb);
+const _neutral = Color(0xFF4A4360);
+
+const songLevels = {
+  Difficulty.easy: 'The next key glows',
+  Difficulty.medium: 'Follow the colored bubbles',
+  Difficulty.hard: 'Read the letters',
+  Difficulty.expert: 'By ear: hidden notes',
+};
 
 class SongPlayPage extends StatefulWidget {
-  const SongPlayPage({super.key, required this.song, required this.synth, required this.midi});
+  const SongPlayPage({
+    super.key,
+    required this.song,
+    required this.synth,
+    required this.midi,
+    this.difficulty = Difficulty.easy,
+  });
 
   final Song song;
+  final Difficulty difficulty;
   final Synth synth;
   final MidiInput midi;
 
@@ -65,6 +85,10 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   Timer? _nudgeTimer;
 
   int get _shift => _base - 48;
+  bool get _glow => widget.difficulty == Difficulty.easy;
+  bool get _colored => !widget.difficulty.atLeast(Difficulty.hard);
+  bool get _hidden => widget.difficulty == Difficulty.expert;
+  Color _bubbleColor(int note) => _colored ? _noteColor(note) : _neutral;
 
   @override
   void initState() {
@@ -169,7 +193,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
 
   void _burst(int note, int count) {
     final center = _bubbleRect(0, note, note, _laneSize).center;
-    _sparksKey.currentState?.burst(center, [_noteColor(note), Colors.white], count: count);
+    _sparksKey.currentState?.burst(center, [_bubbleColor(note), Colors.white], count: count);
   }
 
   void _finish() {
@@ -242,7 +266,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final want = _run.current;
-    final color = want == null ? Colors.white : _noteColor(want.note);
+    final color = want == null ? Colors.white : _bubbleColor(want.note);
     final total = widget.song.notes.length;
     final ended = want == null && !_listening && !_celebrating;
     return Scaffold(
@@ -305,7 +329,8 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
                       height: min(180, MediaQuery.sizeOf(context).height * 0.24),
                       child: PianoStrip(
                         base: _base,
-                        targetNote: _listening || want == null ? null : want.note + _shift,
+                        targetNote: _listening || want == null || !_glow ? null : want.note + _shift,
+                        plain: !_colored,
                         held: _held,
                         onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
                         onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
@@ -386,7 +411,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
 
   Widget _bubble(int i, int k, int note, int currentNote) {
     final rect = _bubbleRect(k, note, currentNote, _laneSize);
-    final color = _noteColor(note);
+    final color = _bubbleColor(note);
     final dark = color.computeLuminance() > 0.5;
     return AnimatedPositioned.fromRect(
       key: ValueKey(i),
@@ -408,7 +433,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
               heightFactor: 0.6,
               child: FittedBox(
                 child: Text(
-                  pitchClasses[pitchClass(note)].name,
+                  _hidden ? '?' : pitchClasses[pitchClass(note)].name,
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     color: dark ? const Color(0xFF2A2233) : Colors.white,

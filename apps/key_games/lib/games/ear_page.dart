@@ -23,6 +23,7 @@ import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import '../widgets/win_banner.dart';
 import 'color_keys_rules.dart';
+import 'difficulty.dart';
 import 'ear_rules.dart';
 
 const _background = Color(0xFF14111C);
@@ -37,11 +38,33 @@ const _mysteryOctave = 60;
 
 Color _pitchColor(int pc) => Color(pitchClasses[pc].argb);
 
+// Difficulty picks the starting level; stars still move up from there.
+const earStartLevel = {
+  Difficulty.easy: 0,
+  Difficulty.medium: 2,
+  Difficulty.hard: 3,
+  Difficulty.expert: 4,
+};
+
+const earLevelsText = {
+  Difficulty.easy: 'Two notes: C and G',
+  Difficulty.medium: 'C D E F G',
+  Difficulty.hard: 'All the white keys',
+  Difficulty.expert: 'All twelve notes',
+};
+
 class EarPage extends StatefulWidget {
-  const EarPage({super.key, required this.synth, required this.midi, this.random});
+  const EarPage({
+    super.key,
+    required this.synth,
+    required this.midi,
+    this.difficulty = Difficulty.easy,
+    this.random,
+  });
 
   final Synth synth;
   final MidiInput midi;
+  final Difficulty difficulty;
 
   // Fixed in tests.
   final Random? random;
@@ -58,7 +81,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
       AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
-  late EarState _state = EarState.start(0, _random);
+  late EarState _state = EarState.start(earStartLevel[widget.difficulty]!, _random);
   late final MissEcho _echo = MissEcho(widget.synth);
   StreamSubscription<NoteEvent>? _noteSub;
   Timer? _advanceTimer;
