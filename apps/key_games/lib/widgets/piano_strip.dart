@@ -2,6 +2,9 @@
 // stickers, with every key of the target color glowing. The physical keys
 // have no colors, so this is how a child finds which key to press. It is also
 // playable by touch, with several fingers at once.
+//
+// [plain] draws it like the real keyboard (no sticker colors) for games where
+// the sound is the clue; only a target, if any, lights up in its color.
 
 import 'dart:math';
 
@@ -29,6 +32,8 @@ class PianoStrip extends StatefulWidget {
     required this.base,
     this.target,
     this.targetNote,
+    this.plain = false,
+    this.choices,
     required this.held,
     required this.onNoteOn,
     required this.onNoteOff,
@@ -40,6 +45,11 @@ class PianoStrip extends StatefulWidget {
   // [targetNote] (songs, where the octave matters for the picture).
   final int? target;
   final int? targetNote;
+
+  // No sticker colors. [choices] (pitch classes) are drawn a little lighter
+  // than the other keys, to show which notes a level uses.
+  final bool plain;
+  final List<int>? choices;
   final Set<int> held;
   final void Function(int note) onNoteOn;
   final void Function(int note) onNoteOff;
@@ -89,6 +99,8 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
                 layout: _PianoLayout(widget.base, size),
                 target: widget.target,
                 targetNote: widget.targetNote,
+                plain: widget.plain,
+                choices: widget.choices,
                 held: widget.held,
                 glow: Curves.easeInOut.transform(_glow.value),
               ),
@@ -148,6 +160,8 @@ class _PianoPainter extends CustomPainter {
     required this.layout,
     required this.target,
     required this.targetNote,
+    required this.plain,
+    required this.choices,
     required this.held,
     required this.glow,
   });
@@ -155,11 +169,20 @@ class _PianoPainter extends CustomPainter {
   final _PianoLayout layout;
   final int? target;
   final int? targetNote;
+  final bool plain;
+  final List<int>? choices;
   final Set<int> held;
   final double glow;
 
   bool _isTarget(int note) =>
       targetNote != null ? note == targetNote : pitchClass(note) == target;
+
+  bool _isChoice(int note) => choices == null || choices!.contains(pitchClass(note));
+
+  // Unlit key color in plain mode: slate like the real keys, lighter when
+  // the key is one of the level's notes.
+  Color _plainWhite(int note) =>
+      _isChoice(note) ? const Color(0xFF4A4360) : const Color(0xFF28232F);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -189,10 +212,12 @@ class _PianoPainter extends CustomPainter {
       // Other keys keep their sticker color but dimmed, so the target keys
       // are clearly the brightest thing on the keyboard.
       fill.color = isHeld
-          ? Color.lerp(color, Colors.black, 0.25)!
+          ? (plain && !isTarget ? const Color(0xFF7A7090) : Color.lerp(color, Colors.black, 0.25)!)
           : isTarget
               ? color
-              : Color.lerp(color, const Color(0xFF14111C), 0.6)!;
+              : plain
+                  ? _plainWhite(note)
+                  : Color.lerp(color, const Color(0xFF14111C), 0.6)!;
       canvas.drawRRect(rounded, fill);
       canvas.drawRRect(rounded, edge);
       _drawLetter(canvas, pitchClasses[pc].name, rect, isTarget ? color : null);
@@ -217,8 +242,10 @@ class _PianoPainter extends CustomPainter {
       fill.color = isTarget
           ? color
           : held.contains(note)
-              ? const Color(0xFF4A4458)
-              : const Color(0xFF1E1A26);
+              ? const Color(0xFF6A6080)
+              : plain && _isChoice(note) && choices != null
+                  ? const Color(0xFF3A3448)
+                  : const Color(0xFF1E1A26);
       canvas.drawRRect(rounded, fill);
       if (isTarget) {
         canvas.drawRRect(rounded.deflate(ring.strokeWidth / 2), ring);
@@ -230,6 +257,7 @@ class _PianoPainter extends CustomPainter {
         );
         continue;
       }
+      if (plain) continue;
       // Small sticker dot in the key's own color.
       fill.color = color;
       canvas.drawCircle(

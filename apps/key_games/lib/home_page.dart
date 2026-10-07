@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'audio/synth.dart';
 import 'games/color_keys_page.dart';
+import 'games/ear_page.dart';
 import 'midi/midi_input.dart';
 import 'songs/song_list_page.dart';
 import 'widgets/keyboard_status.dart';
@@ -34,6 +35,13 @@ class HomePage extends StatelessWidget {
         icon: Icons.music_note,
         colors: const [Color(0xFF8A4DFF), Color(0xFFFF5EC8), Color(0xFFFF9A1F)],
         onTap: () => _go(context, SongListPage(synth: synth, midi: midi)),
+      ),
+      _GameTile(
+        title: 'Ear Notes',
+        subtitle: 'Listen, then find the note',
+        icon: Icons.hearing,
+        colors: const [Color(0xFF22C9A0), Color(0xFF2FA8FF), Color(0xFF4A6BFF)],
+        onTap: () => _go(context, EarPage(synth: synth, midi: midi)),
       ),
     ];
     return Scaffold(

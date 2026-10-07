@@ -234,3 +234,13 @@ key with the fewest black keys, fits it to the 37 keys, and writes
 wrong part, add an override in `private/songs/song-picks.json`; the script's
 header documents the options (track, channel, skip, max_notes, title,
 transpose).
+
+### Ear Notes
+
+A mystery note plays and the child finds it by sound alone: the keyboard
+picture has no colors and nothing glows. Any octave counts. A wrong key plays
+the mystery note again, tapping the circle replays it, and after two wrong
+tries the answer lights up (found that way, it earns no star). Six stars move
+up a level: C G, then C E G, then C D E F G, then all white keys, then all
+twelve. The letters a level uses are shown above the keyboard; the level chip
+skips ahead.
