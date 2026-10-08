@@ -10,6 +10,7 @@ import 'games/color_keys_page.dart';
 import 'games/difficulty.dart';
 import 'games/ear_page.dart';
 import 'games/highway_page.dart';
+import 'games/runner_page.dart';
 import 'games/rush_page.dart';
 import 'midi/midi_input.dart';
 import 'songs/song_list_page.dart';
@@ -110,6 +111,14 @@ class HomePage extends StatelessWidget {
       rushLevels,
       (d) => RushPage(synth: synth, midi: midi, difficulty: d),
     );
+    final runner = _game(
+      'Key Runner',
+      'Dodge the rocks, grab the coins',
+      Icons.directions_run,
+      const [Color(0xFF22C9A0), Color(0xFFFFD84A), Color(0xFFFF5EC8)],
+      runnerLevelsText,
+      (d) => RunnerPage(synth: synth, midi: midi, difficulty: d),
+    );
     return MenuPage(
       title: 'Key Games',
       midi: midi,
@@ -121,7 +130,7 @@ class HomePage extends StatelessWidget {
         _category('Songs', 'Play real tunes', Icons.music_note,
             const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)], [steps, highway]),
         _category('Arcade', 'Fast games against the clock', Icons.sports_esports,
-            const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [rush]),
+            const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [rush, runner]),
       ],
       footer: 'Press a letter on the keyboard to pick. '
           'Hold the lowest and highest C together to go back.',

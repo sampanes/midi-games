@@ -41,14 +41,6 @@ const rushLevels = {
   Difficulty.expert: 'Letter only, no colors',
 };
 
-// Played when no songs are bundled: up and down the C major scale.
-const _scaleSong = Song('Scale', [
-  SongNote(60, 0, 300), SongNote(62, 0, 300), SongNote(64, 0, 300), SongNote(65, 0, 300),
-  SongNote(67, 0, 300), SongNote(69, 0, 300), SongNote(71, 0, 300), SongNote(72, 0, 500),
-  SongNote(71, 0, 300), SongNote(69, 0, 300), SongNote(67, 0, 300), SongNote(65, 0, 300),
-  SongNote(64, 0, 300), SongNote(62, 0, 300), SongNote(60, 0, 500),
-]);
-
 // Best score per difficulty, for this session.
 final Map<Difficulty, int> _best = {};
 
@@ -98,7 +90,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   final Set<int> _held = {};
 
   List<Song> _songs = const [];
-  Song _song = _scaleSong;
+  Song _song = scaleSong;
   int _songIndex = 0;
 
   Difficulty get _level => widget.difficulty;
@@ -182,7 +174,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     setState(() {
       _phase = _Phase.playing;
       // Picked now, not at the start, so the songs have finished loading.
-      _song = _songs.isEmpty ? _scaleSong : _songs[_random.nextInt(_songs.length)];
+      _song = _songs.isEmpty ? scaleSong : _songs[_random.nextInt(_songs.length)];
     });
     _clock = Timer.periodic(const Duration(milliseconds: rushTickMs), (_) {
       if (!mounted) return;

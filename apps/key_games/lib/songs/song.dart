@@ -31,6 +31,14 @@ class Song {
   final List<SongNote> notes;
 }
 
+// Played when no songs are bundled: up and down the C major scale.
+const scaleSong = Song('Scale', [
+  SongNote(60, 0, 300), SongNote(62, 0, 300), SongNote(64, 0, 300), SongNote(65, 0, 300),
+  SongNote(67, 0, 300), SongNote(69, 0, 300), SongNote(71, 0, 300), SongNote(72, 0, 500),
+  SongNote(71, 0, 300), SongNote(69, 0, 300), SongNote(67, 0, 300), SongNote(65, 0, 300),
+  SongNote(64, 0, 300), SongNote(62, 0, 300), SongNote(60, 0, 500),
+]);
+
 Future<List<Song>> loadSongs(AssetBundle bundle) async {
   final manifest = await AssetManifest.loadFromAssetBundle(bundle);
   final paths = manifest

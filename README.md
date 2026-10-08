@@ -206,8 +206,8 @@ decides what the levels change (glowing keys, colors, black keys, hints).
 Keyboard only (TV boxes, no touch screen): every menu choice wears a note
 letter and pressing any key of that letter picks it, so C C C reaches the
 first game on Easy (songs: C to A, B for the next page; end of a song:
-C again, D listen, E more songs; end of Key Rush or Note Highway: C again,
-E back). Holding the lowest and highest C together
+C again, D listen, E more songs; end of Key Rush, Key Runner or Note Highway:
+C again, E back). Holding the lowest and highest C together
 goes back, as do Escape and the remote's back button. The Android build also
 lists itself on Android TV home screens (banner, no touch screen required).
 
@@ -288,3 +288,15 @@ Expert wants the exact keys at full speed. A wrong key plays itself and then
 the right note, and that note is missed; a key with nothing due just plays.
 Streaks of 10, 20 and 30 raise the score multiplier, and the end shows up to
 three stars by the share of notes hit.
+
+### Key Runner (Arcade)
+
+Temple Run style: a runner on a three-lane road dodges rocks and grabs coins,
+and the keys are just buttons that pick a lane. Each coin plays the next note
+of a random bundled song, so a good run plays the melody. Easy: the low,
+middle or high part of the keyboard picks the lane (marked above the keyboard
+picture), no hearts to lose, one minute. Medium: C, E and G pick the lanes,
+three hearts, the run goes on and slowly speeds up. Hard: three letters, sharps
+too, that change every 20 seconds (the new ones play low to high). Expert:
+faster, letters only, changing every 12 seconds. A row of rocks never blocks
+all three lanes, and after a crash there is a moment to recover.
