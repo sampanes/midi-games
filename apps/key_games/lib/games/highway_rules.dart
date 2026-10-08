@@ -1,14 +1,15 @@
 // Pure rules for "Note Highway" (falling notes, Guitar Hero style): a song's
-// notes fall in lanes and are hit as they reach the line. Whatever key hits a
-// note, the song's own note sounds, so even the 4-lane version sounds like the
-// real tune.
+// notes fall in lanes and are hit as they reach the line. Each lane is the
+// note that sounds when it is hit.
 //
-// A chart is built from a song per difficulty:
-// - Easy: up to 4 lanes (C D E F). The melody is squashed by contour: low
-//   notes go to C, high ones to F, and up stays up. Slow, fast runs thinned.
-// - Medium: white keys, the song moved to the key with the most white notes
-//   and folded into one octave (black notes go to the white key below).
-// - Hard: the song's real letters, sharps and flats too, any octave.
+// Notes are never made up. A chart is built from a song per difficulty; the
+// song's notes that are not for the player (too fast, or off the level's
+// keys) are played by the game itself, so the tune is always whole:
+// - Easy: the song moved to the white keys (when it is not there already),
+//   and the player gets the notes on the five neighboring white keys that
+//   cover the most of it (C to G for most songs). Slow, fast runs thinned.
+// - Medium: all the white-key notes.
+// - Hard: every letter, sharps and flats too, any octave.
 // - Expert: the exact keys (the song moved by octaves onto the keyboard).
 
 import 'dart:math';
@@ -45,7 +46,8 @@ const highwayLevels = {
   Difficulty.expert: HighwayLevel(speed: 1, minGapMs: 100, windowMs: 110, lookAheadMs: 1700),
 };
 
-const easyLaneCount = 4;
+// Easy's hand position: this many neighboring white keys.
+const easyKeys = 5;
 
 // Lowest and highest key with the keyboard's octave buttons centered.
 const keyboardLow = 48;
@@ -74,12 +76,17 @@ class ChartNote {
 }
 
 class Chart {
-  const Chart(this.lanes, this.notes);
+  const Chart(this.lanes, this.notes, [this.autoNotes = const []]);
 
   final List<Lane> lanes;
   final List<ChartNote> notes;
 
-  int get endMs => notes.isEmpty ? 0 : notes.last.timeMs + notes.last.lengthMs;
+  // Song notes the game plays itself (their lane is -1).
+  final List<ChartNote> autoNotes;
+
+  int get endMs => [
+        for (final n in [...notes, ...autoNotes]) n.timeMs + n.lengthMs,
+      ].fold(0, max);
 }
 
 // Keeps a note only when it starts at least [minGapMs] after the last kept
@@ -90,16 +97,6 @@ List<SongNote> thinNotes(List<SongNote> notes, int minGapMs) {
     if (kept.isEmpty || n.startMs - kept.last.startMs >= max(1, minGapMs)) kept.add(n);
   }
   return kept;
-}
-
-// Lane per pitch, keeping the order of the distinct pitches (lowest pitch in
-// lane 0, highest in the top lane) and spreading them evenly over the lanes.
-List<int> contourLanes(List<int> pitches, int laneCount) {
-  final distinct = pitches.toSet().toList()..sort();
-  final lanes = min(laneCount, distinct.length);
-  return [
-    for (final p in pitches) distinct.indexOf(p) * lanes ~/ distinct.length,
-  ];
 }
 
 // The shift (-5..6) that puts the most notes on white keys; the smallest
@@ -128,49 +125,75 @@ int fitOctaves(List<int> pitches, {int low = keyboardLow, int high = keyboardHig
   return ((want - middle) / 12).round() * 12;
 }
 
+// The first of [size] neighboring white keys (as an index into the white
+// keys C..B) that covers the most of [keys]; the lowest wins a tie.
+int bestWhiteWindow(List<int> keys, int size) {
+  var best = 0;
+  var bestCount = -1;
+  for (var start = 0; start + size <= whitePitchClasses.length; start++) {
+    final window = whitePitchClasses.sublist(start, start + size);
+    final count = keys.where(window.contains).length;
+    if (count > bestCount) {
+      best = start;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
 Chart buildChart(Song song, Difficulty difficulty) {
   final level = highwayLevels[difficulty]!;
   final scaled = [
     for (final n in song.notes)
       SongNote(n.note, (n.startMs / level.speed).round(), (n.lengthMs / level.speed).round()),
   ];
-  final notes = thinNotes(scaled, level.minGapMs);
-  final pitches = [for (final n in notes) n.note];
-  final first = notes.isEmpty ? 0 : notes.first.startMs;
+  final first = scaled.isEmpty ? 0 : scaled.first.startMs;
+  final kept = Set<SongNote>.identity()..addAll(thinNotes(scaled, level.minGapMs));
+  final keptPitches = [for (final n in scaled) if (kept.contains(n)) n.note];
 
-  final List<Lane> lanes;
-  final List<int> laneOf;
-  var sounds = pitches;
+  // What sounds for each song note, and the lane key the player presses for
+  // it (null: the game plays it).
+  late final int Function(int pitch) sound;
+  late final int? Function(int sound) key;
+  var exact = false;
   switch (difficulty) {
-    case Difficulty.easy:
-      laneOf = contourLanes(pitches, easyLaneCount);
-      final count = laneOf.isEmpty ? 0 : laneOf.reduce(max) + 1;
-      lanes = [for (var i = 0; i < count; i++) Lane(whitePitchClasses[i])];
-    case Difficulty.medium:
-      final shift = whiteKeyShift(pitches);
-      // A black key is one above a white key, so the key below is white.
-      final keys = [
-        for (final p in pitches)
-          pitchClasses[pitchClass(p + shift)].white ? pitchClass(p + shift) : pitchClass(p + shift - 1),
+    case Difficulty.easy || Difficulty.medium:
+      final shift = whiteKeyShift(keptPitches);
+      sound = (p) => p + shift;
+      final whites = [
+        for (final p in keptPitches)
+          if (pitchClasses[pitchClass(p + shift)].white) pitchClass(p + shift),
       ];
-      final used = keys.toSet().toList()..sort();
-      lanes = [for (final pc in used) Lane(pc)];
-      laneOf = [for (final k in keys) used.indexOf(k)];
+      final start = difficulty == Difficulty.easy ? bestWhiteWindow(whites, easyKeys) : 0;
+      final allowed = difficulty == Difficulty.easy
+          ? whitePitchClasses.sublist(start, start + easyKeys)
+          : whitePitchClasses;
+      key = (s) => allowed.contains(pitchClass(s)) ? pitchClass(s) : null;
     case Difficulty.hard:
-      final used = pitches.map(pitchClass).toSet().toList()..sort();
-      lanes = [for (final pc in used) Lane(pc)];
-      laneOf = [for (final p in pitches) used.indexOf(pitchClass(p))];
+      sound = (p) => p;
+      key = pitchClass;
     case Difficulty.expert:
-      final octaves = fitOctaves(pitches);
-      sounds = [for (final p in pitches) p + octaves];
-      final used = sounds.toSet().toList()..sort();
-      lanes = [for (final n in used) Lane(n, exact: true)];
-      laneOf = [for (final s in sounds) used.indexOf(s)];
+      final octaves = fitOctaves(keptPitches);
+      sound = (p) => p + octaves;
+      key = (s) => s;
+      exact = true;
   }
-  return Chart(lanes, [
-    for (var i = 0; i < notes.length; i++)
-      ChartNote(laneOf[i], sounds[i], notes[i].startMs - first, notes[i].lengthMs),
-  ]);
+
+  final keys = <int>{
+    for (final n in scaled)
+      if (kept.contains(n) && key(sound(n.note)) != null) key(sound(n.note))!,
+  }.toList()
+    ..sort();
+  final lanes = [for (final k in keys) Lane(k, exact: exact)];
+  final notes = <ChartNote>[];
+  final autoNotes = <ChartNote>[];
+  for (final n in scaled) {
+    final s = sound(n.note);
+    final k = kept.contains(n) ? key(s) : null;
+    final note = ChartNote(k == null ? -1 : keys.indexOf(k), s, n.startMs - first, n.lengthMs);
+    (k == null ? autoNotes : notes).add(note);
+  }
+  return Chart(lanes, notes, autoNotes);
 }
 
 enum NoteMark { waiting, hit, missed }

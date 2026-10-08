@@ -278,14 +278,16 @@ the session.
 ### Note Highway (Songs)
 
 Falling notes, Guitar Hero style: a song's notes come down lanes and are hit
-as they reach the line, with a 3-2-1 while the first ones fall. Whatever key
-hits a note, the song's own note sounds, so the tune comes out even on four
-keys. Easy squashes the melody onto C D E F by its shape (low notes on C, high
-ones on F, up stays up), slows it down, thins out fast runs, and glows the
-next key on the keyboard picture. Medium moves the song to the white keys in
-one octave; Hard uses its real letters with sharps and flats, any octave;
-Expert wants the exact keys at full speed. A wrong key plays itself and then
-the right note, and that note is missed; a key with nothing due just plays.
+as they reach the line, with a 3-2-1 while the first ones fall. Notes are never
+made up: each lane is the note that sounds, and the song notes that are not
+the player's (too fast for the level, or off its keys) are played by the game,
+so the tune is always whole. Easy gives the player the notes on five
+neighboring white keys (C to G for most songs; a song that is not on the white
+keys is moved there first), slows the song down, and glows the next key on the
+keyboard picture. Medium uses all the white keys; Hard every letter with
+sharps and flats, any octave; Expert the exact keys at full speed. A wrong key
+plays itself and then the right note, and that note is missed; a key with
+nothing due just plays.
 Streaks of 10, 20 and 30 raise the score multiplier, and the end shows up to
 three stars by the share of notes hit.
 

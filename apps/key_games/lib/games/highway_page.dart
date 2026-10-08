@@ -1,12 +1,16 @@
 // Note Highway screen: a song's notes fall down lanes and are hit as they
 // reach the line, Guitar Hero style. A hit plays the song's own note, so the
-// tune comes out even when a small child plays it on four keys. A wrong key
+// tune comes out even when a small child plays it on five keys. A wrong key
 // plays itself and then the right note (that note counts as missed); a key
 // with nothing due just plays. Streaks raise a score multiplier.
 //
-// Difficulty (see highway_rules.dart): Easy 4 lanes, slow, the next key glows
-// on the keyboard picture; Medium white keys; Hard the real letters with
-// sharps and flats on a plain picture; Expert exact keys, letters only.
+// Notes are never made up: the song notes that are not the player's (too
+// fast, or off the level's keys) are played by the game.
+//
+// Difficulty (see highway_rules.dart): Easy the song's notes on five white
+// keys (C to G for most songs), slow, the next key glows on the keyboard
+// picture; Medium all white keys; Hard every letter with sharps and flats on
+// a plain picture; Expert exact keys, letters only.
 //
 // Keys at the end: C plays again, E goes back to the songs.
 
@@ -36,7 +40,7 @@ const _countdownStepMs = 700;
 const _flashMs = 260;
 
 const highwayLevelsText = {
-  Difficulty.easy: '4 keys, slow, the next key glows',
+  Difficulty.easy: '5 keys, slow, the next key glows',
   Difficulty.medium: 'White keys, a bit faster',
   Difficulty.hard: 'Real letters with sharps and flats',
   Difficulty.expert: 'Exact keys, full speed',
@@ -77,6 +81,9 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   bool _canPick = false;
   int _base = 48;
   final Set<int> _held = {};
+
+  // Next of the song notes the game plays itself.
+  int _autoNext = 0;
 
   // Lane -> time of its last hit or miss, for the flash at the line.
   final Map<int, int> _hitAt = {};
@@ -133,6 +140,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
       _run = HighwayRun(_chart, _settings.windowMs);
       _phase = _Phase.playing;
       _canPick = false;
+      _autoNext = 0;
       _hitAt.clear();
       _missAt.clear();
       _popup = '';
@@ -149,6 +157,14 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     for (var i = 3; i >= 1; i--) {
       final at = -i * _countdownStepMs;
       if (before < at && now >= at) widget.synth.blip(72, velocity: 70, lengthMs: 150);
+    }
+    // The song notes that are not the player's play on their own.
+    final autos = _chart.autoNotes;
+    while (_autoNext < autos.length && autos[_autoNext].timeMs <= now) {
+      final n = autos[_autoNext++];
+      if (n.timeMs >= now - 200) {
+        widget.synth.blip(n.sound, velocity: 80, lengthMs: n.lengthMs.clamp(100, 900));
+      }
     }
     final missed = _run.advance(now);
     if (missed.isNotEmpty) {

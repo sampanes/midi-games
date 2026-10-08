@@ -23,14 +23,6 @@ void main() {
     expect(thinNotes(notes, 500).map((n) => n.note), [60, 65]);
   });
 
-  test('contour lanes keep up as up and spread over the lanes', () {
-    expect(contourLanes([60, 62, 64, 65, 67, 69, 71, 72], 4), [0, 0, 1, 1, 2, 2, 3, 3]);
-    expect(contourLanes([60, 67, 60, 72], 4), [0, 1, 0, 2]);
-    final lanes = contourLanes([72, 60, 64, 67, 64, 60], 4);
-    expect(lanes.first, 3);
-    expect(lanes[1], 0);
-  });
-
   test('a song in D moves to C for the white keys; octaves fit the keyboard', () {
     expect(whiteKeyShift([62, 64, 66, 67, 69, 71, 73]), -2);
     expect(whiteKeyShift([60, 62, 64]), 0);
@@ -38,16 +30,60 @@ void main() {
     expect(fitOctaves([60, 72]), 0);
   });
 
-  test('easy squashes the song onto C D E F, slower', () {
+  test('easy gives the player five neighboring white keys and plays the rest', () {
     final chart = buildChart(_scale, Difficulty.easy);
-    expect(chart.lanes.map((l) => l.key), [0, 2, 4, 5]);
+    // C to G covers most of the scale; A and B (four notes) are played for you.
+    expect(chart.lanes.map((l) => l.key), [0, 2, 4, 5, 7]);
+    expect(chart.notes, hasLength(11));
+    expect(chart.autoNotes.map((n) => n.sound), [69, 71, 71, 69]);
+    expect(chart.autoNotes.every((n) => n.lane == -1), isTrue);
     expect(chart.notes.first.timeMs, 0);
     // 500 ms apart becomes 667 ms at three-quarter speed.
     expect(chart.notes[1].timeMs, 667);
-    // The real tune still sounds.
-    expect(chart.notes.map((n) => n.sound).take(3), [60, 62, 64]);
-    expect(chart.notes.first.lane, 0);
-    expect(chart.notes[7].lane, 3);
+    // Every lane is the note that sounds: nothing is made up.
+    for (final n in chart.notes) {
+      expect(chart.lanes[n.lane].matches(n.sound), isTrue);
+    }
+  });
+
+  test('easy keeps the real notes, moved to C only when the song is not on white keys', () {
+    // E D C D E E E, half a second each.
+    const song = Song('Three letters', [
+      SongNote(64, 0, 400), SongNote(62, 500, 400), SongNote(60, 1000, 400), SongNote(62, 1500, 400),
+      SongNote(64, 2000, 400), SongNote(64, 2500, 400), SongNote(64, 3000, 400),
+    ]);
+    final chart = buildChart(song, Difficulty.easy);
+    expect(chart.lanes.map((l) => l.key), [0, 2, 4]);
+    expect([for (final n in chart.notes) chart.lanes[n.lane].key], [4, 2, 0, 2, 4, 4, 4]);
+    expect(chart.autoNotes, isEmpty);
+
+    // The same tune in D moves to C, and it sounds where it is played.
+    const inD = Song('In D', [SongNote(66, 0, 400), SongNote(64, 500, 400), SongNote(62, 1000, 400)]);
+    final moved = buildChart(inD, Difficulty.easy);
+    expect(moved.lanes.map((l) => l.key), [0, 2, 4]);
+    expect(moved.notes.map((n) => n.sound), [64, 62, 60]);
+
+    // C C G G A A G: C and G are on C to G; the A's are played for you.
+    const hops = Song('Seven notes', [
+      SongNote(60, 0, 400), SongNote(60, 600, 400), SongNote(67, 1200, 400), SongNote(67, 1800, 400),
+      SongNote(69, 2400, 400), SongNote(69, 3000, 400), SongNote(67, 3600, 800),
+    ]);
+    final chart2 = buildChart(hops, Difficulty.easy);
+    expect(chart2.lanes.map((l) => l.key), [0, 7]);
+    expect(chart2.autoNotes.map((n) => n.sound), [69, 69]);
+  });
+
+  test('medium plays the black keys for you; notes too fast are played for you too', () {
+    const song = Song('Chromatic', [SongNote(60, 0, 300), SongNote(61, 500, 300), SongNote(62, 1000, 300)]);
+    final medium = buildChart(song, Difficulty.medium);
+    expect(medium.lanes.map((l) => l.key), [0, 2]);
+    expect(medium.autoNotes.map((n) => n.sound), [61]);
+
+    const quick = Song('Quick', [SongNote(60, 0, 100), SongNote(62, 100, 100), SongNote(64, 1000, 100)]);
+    final easy = buildChart(quick, Difficulty.easy);
+    expect(easy.notes.map((n) => n.sound), [60, 64]);
+    expect(easy.autoNotes.map((n) => n.sound), [62]);
+    expect(easy.endMs, greaterThan(easy.autoNotes.single.timeMs));
   });
 
   test('hard keeps sharps; expert wants the exact keys', () {
