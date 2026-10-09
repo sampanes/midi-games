@@ -21,6 +21,14 @@ void main() {
     expect(song.notes.length, 2);
     expect(song.notes[1].note, 62);
     expect(song.notes[1].startMs, 300);
+    expect(song.group, 'Songs');
+    expect(Song.fromJson({'title': 'T', 'group': 'Pop', 'notes': []}).group, 'Pop');
+  });
+
+  test('song groups come in the set order, unknown ones last by name', () {
+    Song inGroup(String group) => Song('x', const [], group: group);
+    final songs = [for (final g in ['Zoo', 'Games', 'Kids', 'Apples', 'Kids', 'Classical']) inGroup(g)];
+    expect(songGroups(songs), ['Kids', 'Classical', 'Games', 'Apples', 'Zoo']);
   });
 
   test('right notes walk through the song, repeated notes need repeated presses', () {

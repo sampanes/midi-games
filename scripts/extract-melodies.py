@@ -17,11 +17,13 @@ For each .mid file:
   4. Write JSON: {"title", "source", "notes": [[note, start_ms, length_ms], ...]}
 
 Optional overrides live in SONG_FOLDER/song-picks.json, keyed by file name:
-  {"tune.mid": {"title": "My Tune", "track": 1, "channel": 2,
-                "skip": 0, "max_notes": 60, "transpose": false}}
+  {"tune.mid": {"title": "My Tune", "group": "Kids", "track": 1, "channel": 2,
+                "skip": 0, "max_notes": 60, "min_note": 60, "transpose": false}}
 "track"/"channel" choose the part (1-based channel, as inspect-midi.py
 prints), "skip" drops leading notes (pickups, intros), "max_notes" caps the
-length (default 80), "transpose": false keeps the original key.
+length (default 80), "min_note" drops lower notes before the melody is taken
+(a left hand mixed into the part), "transpose": false keeps the original key.
+"group" files the song under a heading in the song list (default "Songs").
 """
 
 import importlib.util
@@ -151,7 +153,8 @@ def extract(path, options):
         key = max(candidates, key=lambda k: len(parts[k]))
     else:
         key = max(parts, key=lambda k: melody_score(parts[k], k[1]))
-    line = skyline(parts[key], division)
+    low = options.get("min_note", 0)
+    line = skyline([n for n in parts[key] if n[2] >= low], division)
     line = line[options.get("skip", 0):][:options.get("max_notes", DEFAULT_MAX_NOTES)]
     if not line:
         raise ValueError("melody part is empty")
@@ -166,6 +169,7 @@ def extract(path, options):
         notes.append([fold(note + shift), round(start_ms), round(length_ms)])
     return {
         "title": options.get("title") or title_from_file(os.path.basename(path)),
+        "group": options.get("group", "Songs"),
         "source": os.path.basename(path),
         "part": {"track": key[0], "channel": key[1] + 1},
         "notes": notes,

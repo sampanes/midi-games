@@ -11,7 +11,8 @@
 //
 // Difficulty: Easy glows the key; Medium shows only the colored bubbles;
 // Hard shows letters alone on a plain keyboard; Expert is by ear ("?"
-// bubbles; the hint note and Higher!/Lower! still help).
+// bubbles; the hint note and Higher!/Lower! still help). Easy and Medium
+// show only the keys from the song's lowest note to its highest.
 
 import 'dart:async';
 import 'dart:math';
@@ -89,6 +90,11 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   bool get _colored => !widget.difficulty.atLeast(Difficulty.hard);
   bool get _hidden => widget.difficulty == Difficulty.expert;
   Color _bubbleColor(int note) => _colored ? _noteColor(note) : _neutral;
+
+  late final int _lowest = widget.song.notes.map((n) => n.note).reduce(min);
+  late final int _highest = widget.song.notes.map((n) => n.note).reduce(max);
+  ({int low, int high})? get _span =>
+      _colored ? whiteSpan(_lowest + _shift, _highest + _shift) : null;
 
   @override
   void initState() {
@@ -329,6 +335,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
                       height: min(180, MediaQuery.sizeOf(context).height * 0.24),
                       child: PianoStrip(
                         base: _base,
+                        span: _span,
                         targetNote: _listening || want == null || !_glow ? null : want.note + _shift,
                         plain: !_colored,
                         held: _held,

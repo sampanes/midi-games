@@ -10,7 +10,9 @@
 // Difficulty (see highway_rules.dart): Easy the song's notes on five white
 // keys (C to G for most songs), slow, the next key glows on the keyboard
 // picture; Medium all white keys; Hard every letter with sharps and flats on
-// a plain picture; Expert exact keys, letters only.
+// a plain picture; Expert exact keys, letters only. Easy and Medium show
+// only the keys the song uses on the keyboard picture, in the octave last
+// played.
 //
 // Keys at the end: C plays again, E goes back to the songs.
 
@@ -80,6 +82,8 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   _Phase _phase = _Phase.playing;
   bool _canPick = false;
   int _base = 48;
+  // The octave (its C) of the last key played, for the small picture.
+  int _octave = 60;
   final Set<int> _held = {};
 
   // Next of the song notes the game plays itself.
@@ -194,6 +198,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     setState(() {
       _held.add(event.note);
       _base = fitBase(_base, event.note);
+      _octave = event.note - pitchClass(event.note);
     });
     final now = _now.value;
     if (_phase != _Phase.playing || now < -_settings.windowMs) {
@@ -253,6 +258,13 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     return null;
   }
 
+  // Easy and Medium picture just the keys from the lowest lane to the
+  // highest (lanes are letters there, all within one octave).
+  ({int low, int high})? _span(List<int> lanePcs) {
+    if (_level.atLeast(Difficulty.hard) || lanePcs.isEmpty) return null;
+    return whiteSpan(_octave + lanePcs.reduce(min), _octave + lanePcs.reduce(max));
+  }
+
   @override
   Widget build(BuildContext context) {
     final lanePcs = {for (final lane in _chart.lanes) lane.pc}.toList();
@@ -305,6 +317,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
                         height: min(140, MediaQuery.sizeOf(context).height * 0.18),
                         child: PianoStrip(
                           base: _base,
+                          span: _span(lanePcs),
                           target: _nextKey,
                           plain: _plain,
                           choices: _level == Difficulty.expert ? null : lanePcs,

@@ -17,18 +17,34 @@ class SongNote {
 }
 
 class Song {
-  const Song(this.title, this.notes);
+  const Song(this.title, this.notes, {this.group = 'Songs'});
 
   factory Song.fromJson(Map<String, dynamic> json) {
     final notes = [
       for (final n in json['notes'] as List)
         SongNote((n as List)[0] as int, n[1] as int, n[2] as int),
     ];
-    return Song(json['title'] as String, notes);
+    return Song(json['title'] as String, notes, group: json['group'] as String? ?? 'Songs');
   }
 
   final String title;
   final List<SongNote> notes;
+
+  // Heading in the song list (Kids, Classical, ...).
+  final String group;
+}
+
+// Groups listed first, in this order; any others follow by name.
+const songGroupOrder = ['Kids', 'Classical', 'Ballet', 'Musicals', 'Movies', 'Pop', 'Games'];
+
+List<String> songGroups(List<Song> songs) {
+  int rank(String group) {
+    final i = songGroupOrder.indexOf(group);
+    return i < 0 ? songGroupOrder.length : i;
+  }
+
+  return {for (final song in songs) song.group}.toList()
+    ..sort((a, b) => rank(a) != rank(b) ? rank(a) - rank(b) : a.compareTo(b));
 }
 
 // Played when no songs are bundled: up and down the C major scale.

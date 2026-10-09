@@ -26,10 +26,22 @@ int fitBase(int base, int note) {
   return base;
 }
 
+// The keys from [low] to [high], widened to start and end on white keys.
+({int low, int high}) whiteSpan(int low, int high) {
+  while (!pitchClasses[pitchClass(low)].white) {
+    low--;
+  }
+  while (!pitchClasses[pitchClass(high)].white) {
+    high++;
+  }
+  return (low: low, high: high);
+}
+
 class PianoStrip extends StatefulWidget {
   const PianoStrip({
     super.key,
     required this.base,
+    this.span,
     this.target,
     this.targetNote,
     this.plain = false,
@@ -40,6 +52,10 @@ class PianoStrip extends StatefulWidget {
   });
 
   final int base;
+
+  // Only these keys (low to high, from [whiteSpan]) instead of all 37 from
+  // [base]: easy levels show just the keys a song needs.
+  final ({int low, int high})? span;
 
   // Glow every key of this pitch class (0-11), or only the exact key
   // [targetNote] (songs, where the octave matters for the picture).
@@ -70,8 +86,13 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  _PianoLayout _layout(Size size) {
+    final span = widget.span ?? (low: widget.base, high: widget.base + pianoKeyCount - 1);
+    return _PianoLayout(span.low, span.high, size);
+  }
+
   void _down(PointerDownEvent event, Size size) {
-    final note = _PianoLayout(widget.base, size).noteAt(event.localPosition);
+    final note = _layout(size).noteAt(event.localPosition);
     if (note == null) return;
     _pointerNotes[event.pointer] = note;
     widget.onNoteOn(note);
@@ -96,7 +117,7 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
             builder: (context, _) => CustomPaint(
               size: size,
               painter: _PianoPainter(
-                layout: _PianoLayout(widget.base, size),
+                layout: _layout(size),
                 target: widget.target,
                 targetNote: widget.targetNote,
                 plain: widget.plain,
@@ -113,21 +134,28 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
 }
 
 class _PianoLayout {
-  _PianoLayout(this.base, this.size) {
-    for (var note = base; note < base + pianoKeyCount; note++) {
+  _PianoLayout(this.low, this.high, this.size) {
+    for (var note = low; note <= high; note++) {
       if (pitchClasses[pitchClass(note)].white) whites.add(note);
     }
     whiteWidth = size.width / whites.length;
     blackWidth = whiteWidth * 0.62;
     blackHeight = size.height * 0.6;
+    // Marks (dots, rings, letters) are sized by the key, but no bigger than
+    // the strip's height allows: a few keys across a wide screen are wide.
+    whiteUnit = min(whiteWidth, size.height * 0.4);
+    blackUnit = whiteUnit * 0.62;
   }
 
-  final int base;
+  final int low;
+  final int high;
   final Size size;
   final List<int> whites = [];
   late final double whiteWidth;
   late final double blackWidth;
   late final double blackHeight;
+  late final double whiteUnit;
+  late final double blackUnit;
 
   Rect whiteRect(int index) => Rect.fromLTWH(index * whiteWidth, 0, whiteWidth, size.height);
 
@@ -139,7 +167,7 @@ class _PianoLayout {
   }
 
   Iterable<int> get blacks sync* {
-    for (var note = base; note < base + pianoKeyCount; note++) {
+    for (var note = low; note <= high; note++) {
       if (!pitchClasses[pitchClass(note)].white) yield note;
     }
   }
@@ -195,7 +223,7 @@ class _PianoPainter extends CustomPainter {
     final ring = Paint()
       ..style = PaintingStyle.stroke
       ..color = Colors.white
-      ..strokeWidth = layout.whiteWidth * (0.06 + 0.06 * glow);
+      ..strokeWidth = layout.whiteUnit * (0.06 + 0.06 * glow);
 
     for (var i = 0; i < layout.whites.length; i++) {
       final note = layout.whites[i];
@@ -220,13 +248,14 @@ class _PianoPainter extends CustomPainter {
                   : Color.lerp(color, const Color(0xFF14111C), 0.6)!;
       canvas.drawRRect(rounded, fill);
       canvas.drawRRect(rounded, edge);
-      _drawLetter(canvas, pitchClasses[pc].name, rect, isTarget ? color : null);
+      final unit = layout.whiteUnit;
+      _drawLetter(canvas, pitchClasses[pc].name, rect, unit, isTarget ? color : null);
       if (isTarget) {
         canvas.drawRRect(rounded.deflate(ring.strokeWidth / 2), ring);
         // Bouncing dot above the letter: "press here".
-        final dot = Offset(rect.center.dx, rect.bottom - rect.width * (1.6 + 0.35 * glow));
+        final dot = Offset(rect.center.dx, rect.bottom - unit * (1.6 + 0.35 * glow));
         fill.color = Colors.white;
-        canvas.drawCircle(dot, rect.width * 0.24, fill);
+        canvas.drawCircle(dot, unit * 0.24, fill);
       }
     }
 
@@ -251,8 +280,8 @@ class _PianoPainter extends CustomPainter {
         canvas.drawRRect(rounded.deflate(ring.strokeWidth / 2), ring);
         fill.color = Colors.white;
         canvas.drawCircle(
-          Offset(rect.center.dx, rect.bottom - rect.width * (0.8 + 0.4 * glow)),
-          rect.width * 0.28,
+          Offset(rect.center.dx, rect.bottom - layout.blackUnit * (0.8 + 0.4 * glow)),
+          layout.blackUnit * 0.28,
           fill,
         );
         continue;
@@ -261,8 +290,8 @@ class _PianoPainter extends CustomPainter {
       // Small sticker dot in the key's own color.
       fill.color = color;
       canvas.drawCircle(
-        Offset(rect.center.dx, rect.bottom - rect.width * 0.45),
-        min(rect.width * 0.26, 9),
+        Offset(rect.center.dx, rect.bottom - layout.blackUnit * 0.45),
+        min(layout.blackUnit * 0.26, 9),
         fill,
       );
     }
@@ -270,13 +299,13 @@ class _PianoPainter extends CustomPainter {
 
   // Note letter at the bottom of a white key. On a lit key the text color
   // depends on the key color (dark on yellow, white on blue).
-  void _drawLetter(Canvas canvas, String letter, Rect rect, Color? litColor) {
+  void _drawLetter(Canvas canvas, String letter, Rect rect, double unit, Color? litColor) {
     final dark = litColor != null && litColor.computeLuminance() > 0.5;
     final text = TextPainter(
       text: TextSpan(
         text: letter,
         style: TextStyle(
-          fontSize: min(rect.width * 0.6, 22),
+          fontSize: min(unit * 0.6, 22),
           fontWeight: FontWeight.w800,
           color: litColor == null ? Colors.white60 : (dark ? const Color(0xFF2A2233) : Colors.white),
         ),
@@ -285,7 +314,7 @@ class _PianoPainter extends CustomPainter {
     )..layout();
     text.paint(
       canvas,
-      Offset(rect.center.dx - text.width / 2, rect.bottom - text.height - rect.width * 0.25),
+      Offset(rect.center.dx - text.width / 2, rect.bottom - text.height - unit * 0.25),
     );
   }
 

@@ -205,7 +205,8 @@ decides what the levels change (glowing keys, colors, black keys, hints).
 
 Keyboard only (TV boxes, no touch screen): every menu choice wears a note
 letter and pressing any key of that letter picks it, so C C C reaches the
-first game on Easy (songs: C to A, B for the next page; end of a song:
+first game on Easy (songs: first a group such as Kids or Classical, then a
+song, C to A, B for the next page; end of a song:
 C again, D listen, E more songs; end of Key Rush, Key Runner or Note Highway:
 C again, E back). Holding the lowest and highest C together
 goes back, as do Escape and the remote's back button. The Android build also
@@ -236,7 +237,12 @@ octave matters (the keys send 48-84 with the octave button centered, matching
 the picture; the octave buttons are followed by whole octaves), and the right
 letter in the wrong octave shows "Higher!" or "Lower!". Bubbles show what comes next (higher notes sit higher), and
 the next note sounds as a hint after a few quiet seconds. At the end the
-melody plays back at real speed.
+melody plays back at real speed. On Easy and Medium the keyboard picture
+shows only the keys from the song's lowest note to its highest.
+
+The song list starts with the groups the songs are filed under (Kids,
+Classical, Ballet, Musicals, Movies, Pop, Games), one letter each, then the
+songs of the picked group.
 
 Songs come from your own MIDI files and are never committed:
 
@@ -251,8 +257,8 @@ The script reads `private/songs/*.mid`, picks the melody part (as
 key with the fewest black keys, fits it to the 37 keys, and writes
 `apps/key_games/assets/songs/*.json` (ignored by Git). When it picks the
 wrong part, add an override in `private/songs/song-picks.json`; the script's
-header documents the options (track, channel, skip, max_notes, title,
-transpose).
+header documents the options (track, channel, skip, max_notes, min_note,
+title, group, transpose).
 
 ### Ear Notes
 
@@ -284,7 +290,8 @@ the player's (too fast for the level, or off its keys) are played by the game,
 so the tune is always whole. Easy gives the player the notes on five
 neighboring white keys (C to G for most songs; a song that is not on the white
 keys is moved there first), slows the song down, and glows the next key on the
-keyboard picture. Medium uses all the white keys; Hard every letter with
+keyboard picture. On Easy and Medium the picture shows only the keys from
+the lowest lane to the highest, in the octave last played. Medium uses all the white keys; Hard every letter with
 sharps and flats, any octave; Expert the exact keys at full speed. A wrong key
 plays itself and then the right note, and that note is missed; a key with
 nothing due just plays.

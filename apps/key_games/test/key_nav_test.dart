@@ -5,6 +5,7 @@ import 'package:key_games/audio/synth.dart';
 import 'package:key_games/games/color_keys_rules.dart';
 import 'package:key_games/home_page.dart';
 import 'package:key_games/midi/midi_input.dart';
+import 'package:key_games/songs/song.dart';
 import 'package:key_games/songs/song_list_page.dart';
 import 'package:key_games/widgets/key_nav.dart';
 
@@ -70,5 +71,36 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: SongListPage(synth: Synth(), midi: MidiInput())));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(KeyNav), findsOneWidget);
+  });
+
+  testWidgets('songs in groups: pick a group by letter, then its songs; Escape goes back',
+      (tester) async {
+    tester.view.physicalSize = const Size(2316, 1080);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    const notes = [SongNote(60, 0, 300)];
+    const songs = [
+      Song('Lullaby Test', notes, group: 'Kids'),
+      Song('Rhyme Test', notes, group: 'Kids'),
+      Song('March Test', notes, group: 'Classical'),
+    ];
+    await tester.pumpWidget(MaterialApp(home: SongListPage(synth: Synth(), midi: MidiInput(), songs: songs)));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Kids'), findsOneWidget);
+    expect(find.text('Classical'), findsOneWidget);
+    expect(find.text('March Test'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS); // D: the second group
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('March Test'), findsOneWidget);
+    expect(find.text('Lullaby Test'), findsNothing);
+    expect(find.text('Songs: Classical'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Classical'), findsOneWidget);
+    expect(find.text('March Test'), findsNothing);
   });
 }

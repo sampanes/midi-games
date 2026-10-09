@@ -17,6 +17,12 @@ final _scale = Song('Test scale', [
 ]);
 
 void main() {
+  test('the small keyboard picture starts and ends on white keys', () {
+    expect(whiteSpan(60, 67), (low: 60, high: 67));
+    expect(whiteSpan(61, 66), (low: 60, high: 67));
+    expect(whiteSpan(55, 70), (low: 55, high: 71));
+  });
+
   test('thinning drops notes that come too fast and never keeps two at once', () {
     const notes = [SongNote(60, 0, 100), SongNote(62, 0, 100), SongNote(64, 100, 100), SongNote(65, 600, 100)];
     expect(thinNotes(notes, 0).map((n) => n.note), [60, 64, 65]);
