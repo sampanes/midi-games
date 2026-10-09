@@ -252,8 +252,10 @@ cd apps\key_games
 flutter build apk --release
 ```
 
-The script reads `private/songs/*.mid`, picks the melody part (as
-`scripts/inspect-midi.py` would), keeps one note at a time, moves it to the
+The script reads `private/songs/*.mid`, picks the melody part (in a
+karaoke file, the part that sings the lyrics; otherwise a one-note-at-a-time
+part that is not a bass line, preferring tracks named like "Melody" or
+"Vocal"), keeps one note at a time, moves it to the
 key with the fewest black keys, fits it to the 37 keys, and writes
 `apps/key_games/assets/songs/*.json` (ignored by Git). When it picks the
 wrong part, add an override in `private/songs/song-picks.json`; the script's

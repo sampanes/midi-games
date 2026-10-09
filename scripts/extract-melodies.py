@@ -8,8 +8,11 @@ The output folder is ignored by Git: the songs are bundled into local app
 builds only, never committed.
 
 For each .mid file:
-  1. Pick the melody part: the (track, channel) with the best melody score
-     from inspect-midi.py, unless an override says otherwise.
+  1. Pick the melody part, unless an override says otherwise. Karaoke files
+     carry lyrics: the part whose notes start with the syllables is the sung
+     line. Otherwise the (track, channel) with the best melody score: one
+     note at a time, not low (bass), named like a melody ("Melody", "Vocal",
+     "Lead", "Right Hand") rather than an accompaniment.
   2. Keep one note per moment (the highest, "skyline"), so chords become a
      single line a child can play.
   3. Transpose to the key with the fewest black keys (easier for small
@@ -26,9 +29,11 @@ length (default 80), "min_note" drops lower notes before the melody is taken
 "group" files the song under a heading in the song list (default "Songs").
 """
 
+import bisect
 import importlib.util
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +41,8 @@ ROOT = os.path.dirname(HERE)
 LOW, HIGH = 48, 84  # C3..C6, the 37 keys the app pictures
 WHITE = {0, 2, 4, 5, 7, 9, 11}
 DEFAULT_MAX_NOTES = 80
+MELODY_NAME = re.compile(r"melody|vocal|vox|voice|lead|solo|right hand|rh", re.I)
+BACKING_NAME = re.compile(r"bass|drum|left hand|lh|pad|chord|accomp|rhythm", re.I)
 
 spec = importlib.util.spec_from_file_location("inspect_midi", os.path.join(HERE, "inspect-midi.py"))
 inspect_midi = importlib.util.module_from_spec(spec)
@@ -71,16 +78,71 @@ def collect_parts(tracks):
     return parts, tempos
 
 
-def melody_score(notes, channel):
-    """Same idea as inspect-midi.py: monophonic, mid register, not drums."""
+def melody_score(notes, channel, name=""):
+    """Like inspect-midi.py: one note at a time, mid register, not drums.
+
+    Low parts lose fast (a bass line is never the tune), and the track name
+    counts: "Melody" or "Vocal" up, "Bass" or "Left Hand" down.
+    """
     if channel == 9 or not notes:
         return 0
     ordered = sorted(notes)
     overlaps = sum(1 for a, b in zip(ordered, ordered[1:]) if b[0] < a[1])
     mono = 1 - overlaps / len(ordered)
     mean = sum(n[2] for n in ordered) / len(ordered)
-    register = max(0.0, 1 - abs(mean - 67) / 24)
-    return 100 * (0.6 * mono + 0.4 * register) * min(1, len(ordered) / 40)
+    register = max(0.0, 1 - (67 - mean) / 12 if mean < 67 else 1 - (mean - 67) / 24)
+    score = 100 * (0.6 * mono + 0.4 * register) * min(1, len(ordered) / 40)
+    if MELODY_NAME.search(name):
+        score *= 1.5
+    elif BACKING_NAME.search(name):
+        score *= 0.5
+    return score
+
+
+def track_names(tracks):
+    names = []
+    for events in tracks:
+        name = ""
+        for tick, kind, fields in events:
+            if kind == "meta" and fields[0] == 0x03:
+                name = fields[1].decode("latin-1", "replace").strip()
+                break
+        names.append(name)
+    return names
+
+
+def lyric_ticks(tracks):
+    """Start ticks of the lyric syllables (lyric events, or the text events
+    karaoke .kar files use)."""
+    ticks = []
+    for events in tracks:
+        texts = [(tick, fields[0]) for tick, kind, fields in events
+                 if kind == "meta" and fields[0] in (0x01, 0x05) and tick > 0]
+        if any(meta == 0x05 for _, meta in texts):
+            texts = [t for t in texts if t[1] == 0x05]
+        ticks += [tick for tick, _ in texts]
+    return sorted(ticks)
+
+
+def sung_part(parts, lyrics, division):
+    """The part whose notes start with the most syllables, or None when the
+    file has no lyrics or no part follows them."""
+    if len(lyrics) < 20:
+        return None
+    tolerance = max(1, division // 16)
+    best, best_share = None, 0.0
+    for key, notes in parts.items():
+        if key[1] == 9:
+            continue
+        starts = sorted(n[0] for n in notes)
+        hits = 0
+        for tick in lyrics:
+            i = bisect.bisect_left(starts, tick - tolerance)
+            hits += i < len(starts) and starts[i] <= tick + tolerance
+        share = hits / len(lyrics)
+        if share > best_share:
+            best, best_share = key, share
+    return best if best_share >= 0.6 else None
 
 
 def ticks_to_ms(tick, tempos, division):
@@ -152,7 +214,9 @@ def extract(path, options):
             raise ValueError(f"no part matches override {options}")
         key = max(candidates, key=lambda k: len(parts[k]))
     else:
-        key = max(parts, key=lambda k: melody_score(parts[k], k[1]))
+        names = track_names(tracks)
+        key = sung_part(parts, lyric_ticks(tracks), division) or max(
+            parts, key=lambda k: melody_score(parts[k], k[1], names[k[0]]))
     low = options.get("min_note", 0)
     line = skyline([n for n in parts[key] if n[2] >= low], division)
     line = line[options.get("skip", 0):][:options.get("max_notes", DEFAULT_MAX_NOTES)]
