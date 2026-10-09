@@ -231,7 +231,7 @@ activity. `apps/keys_spike` is the earlier latency test app.
 
 ### Song mode
 
-Songs has two games: Song Steps and Note Highway. In Song Steps, the glowing key walks
+Songs has two games, Song Steps and Note Highway, plus Song Box. In Song Steps, the glowing key walks
 through a real melody one note at a time; the game waits for each note. The
 octave matters (the keys send 48-84 with the octave button centered, matching
 the picture; the octave buttons are followed by whole octaves), and the right
@@ -244,6 +244,10 @@ The song list starts with the groups the songs are filed under (Kids,
 Classical, Ballet, Musicals, Movies, Pop, Games), one letter each, then the
 songs of the picked group.
 
+Song Box (no levels) plays a picked song's melody, exactly the notes the
+games use, at real speed with the keys lighting up: a quick way to hear
+whether a song came out right. C plays it again, D stops, Back returns.
+
 Songs come from your own MIDI files and are never committed:
 
 ```bat
@@ -255,8 +259,9 @@ flutter build apk --release
 The script reads `private/songs/*.mid`, picks the melody part (in a
 karaoke file, the part that sings the lyrics; otherwise a one-note-at-a-time
 part that is not a bass line, preferring tracks named like "Melody" or
-"Vocal"), keeps one note at a time, moves it to the
-key with the fewest black keys, fits it to the 37 keys, and writes
+"Vocal"), keeps one note at a time, shortens rests longer than
+2.5 s (the melody part sitting out), moves it to the key with the fewest
+black keys, fits it to the 37 keys, and writes
 `apps/key_games/assets/songs/*.json` (ignored by Git). When it picks the
 wrong part, add an override in `private/songs/song-picks.json`; the script's
 header documents the options (track, channel, skip, max_notes, min_note,

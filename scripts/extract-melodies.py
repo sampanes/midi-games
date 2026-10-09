@@ -15,9 +15,11 @@ For each .mid file:
      "Lead", "Right Hand") rather than an accompaniment.
   2. Keep one note per moment (the highest, "skyline"), so chords become a
      single line a child can play.
-  3. Transpose to the key with the fewest black keys (easier for small
+  3. Shorten rests longer than 2.5 s (the melody part sitting out while the
+     band plays) to 2.5 s, so the tune never stops for long.
+  4. Transpose to the key with the fewest black keys (easier for small
      hands), then move by octaves to fit the 37-key range C3..C6.
-  4. Write JSON: {"title", "source", "notes": [[note, start_ms, length_ms], ...]}
+  5. Write JSON: {"title", "source", "notes": [[note, start_ms, length_ms], ...]}
 
 Optional overrides live in SONG_FOLDER/song-picks.json, keyed by file name:
   {"tune.mid": {"title": "My Tune", "group": "Kids", "track": 1, "channel": 2,
@@ -41,6 +43,7 @@ ROOT = os.path.dirname(HERE)
 LOW, HIGH = 48, 84  # C3..C6, the 37 keys the app pictures
 WHITE = {0, 2, 4, 5, 7, 9, 11}
 DEFAULT_MAX_NOTES = 80
+MAX_REST_MS = 2500
 MELODY_NAME = re.compile(r"melody|vocal|vox|voice|lead|solo|right hand|rh", re.I)
 BACKING_NAME = re.compile(r"bass|drum|left hand|lh|pad|chord|accomp|rhythm", re.I)
 
@@ -227,9 +230,15 @@ def extract(path, options):
     shift += octave_shift([p + shift for p in pitches])
     origin = ticks_to_ms(line[0][0], tempos, division)
     notes = []
+    cut = 0.0  # rest time taken out so far
+    last_end = 0.0
     for start, end, note in line:
         start_ms = ticks_to_ms(start, tempos, division) - origin
-        length_ms = max(60, ticks_to_ms(end, tempos, division) - origin - start_ms)
+        end_ms = ticks_to_ms(end, tempos, division) - origin
+        cut += max(0.0, start_ms - cut - last_end - MAX_REST_MS)
+        start_ms -= cut
+        length_ms = max(60, end_ms - cut - start_ms)
+        last_end = max(last_end, start_ms + length_ms)
         notes.append([fold(note + shift), round(start_ms), round(length_ms)])
     return {
         "title": options.get("title") or title_from_file(os.path.basename(path)),

@@ -29,6 +29,7 @@ class SongListPage extends StatefulWidget {
     this.play,
     this.group,
     this.songs,
+    this.levels = true,
   });
 
   final Synth synth;
@@ -42,6 +43,10 @@ class SongListPage extends StatefulWidget {
   // Only this group's songs, from [songs] (already loaded).
   final String? group;
   final List<Song>? songs;
+
+  // False for a list without difficulty levels (the heading then says
+  // "All songs" instead of the level).
+  final bool levels;
 
   @override
   State<SongListPage> createState() => _SongListPageState();
@@ -117,6 +122,7 @@ class _SongListPageState extends State<SongListPage> {
           play: widget.play,
           group: group,
           songs: _loaded,
+          levels: widget.levels,
         ),
       ),
     );
@@ -154,7 +160,9 @@ class _SongListPageState extends State<SongListPage> {
                   children: [
                     const BackButton(),
                     Expanded(
-                      child: Text('${widget.title}: ${widget.group ?? widget.difficulty.label}',
+                      child: Text(
+                          '${widget.title}: '
+                          '${widget.group ?? (widget.levels ? widget.difficulty.label : 'All songs')}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),

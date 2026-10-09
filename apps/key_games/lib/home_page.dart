@@ -14,6 +14,7 @@ import 'games/runner_page.dart';
 import 'games/rush_page.dart';
 import 'midi/midi_input.dart';
 import 'songs/song_list_page.dart';
+import 'songs/song_listen_page.dart';
 import 'songs/song_play_page.dart' show songLevels;
 import 'widgets/menu_page.dart';
 
@@ -103,6 +104,23 @@ class HomePage extends StatelessWidget {
         play: (song) => HighwayPage(song: song, synth: synth, midi: midi, difficulty: d),
       ),
     );
+    // No levels: straight to the song list.
+    final songBox = MenuItem(
+      title: 'Song Box',
+      subtitle: 'Hear any song first',
+      icon: Icons.headphones,
+      colors: const [Color(0xFFFF9A1F), Color(0xFF22C9A0), Color(0xFF2FA8FF)],
+      onPick: (context) => _go(
+        context,
+        SongListPage(
+          synth: synth,
+          midi: midi,
+          title: 'Song Box',
+          levels: false,
+          play: (song) => SongListenPage(song: song, synth: synth, midi: midi),
+        ),
+      ),
+    );
     final rush = _game(
       'Key Rush',
       'One minute: hit all you can',
@@ -128,7 +146,7 @@ class HomePage extends StatelessWidget {
         _category('Listen', 'Games for your ears', Icons.hearing,
             const [Color(0xFF22C9A0), Color(0xFF4A6BFF)], [ear]),
         _category('Songs', 'Play real tunes', Icons.music_note,
-            const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)], [steps, highway]),
+            const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)], [steps, highway, songBox]),
         _category('Arcade', 'Fast games against the clock', Icons.sports_esports,
             const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [rush, runner]),
       ],

@@ -7,6 +7,7 @@ import 'package:key_games/home_page.dart';
 import 'package:key_games/midi/midi_input.dart';
 import 'package:key_games/songs/song.dart';
 import 'package:key_games/songs/song_list_page.dart';
+import 'package:key_games/songs/song_listen_page.dart';
 import 'package:key_games/widgets/key_nav.dart';
 
 void main() {
@@ -102,5 +103,45 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Classical'), findsOneWidget);
     expect(find.text('March Test'), findsNothing);
+  });
+
+  testWidgets('song box: a picked song plays, C plays it again, Escape goes back', (tester) async {
+    tester.view.physicalSize = const Size(2316, 1080);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    const songs = [
+      Song('Lullaby Test', [SongNote(60, 0, 300), SongNote(64, 400, 300)], group: 'Kids'),
+    ];
+    final synth = Synth();
+    final midi = MidiInput();
+    await tester.pumpWidget(MaterialApp(
+      home: SongListPage(
+        synth: synth,
+        midi: midi,
+        songs: songs,
+        title: 'Song Box',
+        levels: false,
+        play: (song) => SongListenPage(song: song, synth: synth, midi: midi),
+      ),
+    ));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Song Box: All songs'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA); // C: the first song
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(SongListenPage), findsOneWidget);
+    expect(find.text('Play again'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2)); // the song ends
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA); // C: again
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('0:00 / 0:00'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(SongListenPage), findsNothing);
+    expect(find.text('Lullaby Test'), findsOneWidget);
   });
 }
