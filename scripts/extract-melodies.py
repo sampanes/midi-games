@@ -23,11 +23,14 @@ For each .mid file:
 
 Optional overrides live in SONG_FOLDER/song-picks.json, keyed by file name:
   {"tune.mid": {"title": "My Tune", "group": "Kids", "track": 1, "channel": 2,
-                "skip": 0, "max_notes": 60, "min_note": 60, "transpose": false}}
+                "skip": 0, "max_notes": 60, "min_note": 60, "lowest": true,
+                "transpose": false}}
 "track"/"channel" choose the part (1-based channel, as inspect-midi.py
 prints), "skip" drops leading notes (pickups, intros), "max_notes" caps the
-length (default 80), "min_note" drops lower notes before the melody is taken
-(a left hand mixed into the part), "transpose": false keeps the original key.
+length (default 200), "min_note" drops lower notes before the melody is taken
+(a left hand mixed into the part), "lowest": true keeps the lowest note of each
+chord instead of the highest (piano covers that put harmony above the tune),
+"transpose": false keeps the original key.
 "group" files the song under a heading in the song list (default "Songs").
 """
 
@@ -42,7 +45,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 LOW, HIGH = 48, 84  # C3..C6, the 37 keys the app pictures
 WHITE = {0, 2, 4, 5, 7, 9, 11}
-DEFAULT_MAX_NOTES = 80
+DEFAULT_MAX_NOTES = 200
 MAX_REST_MS = 2500
 MELODY_NAME = re.compile(r"melody|vocal|vox|voice|lead|solo|right hand|rh", re.I)
 BACKING_NAME = re.compile(r"bass|drum|left hand|lh|pad|chord|accomp|rhythm", re.I)
@@ -159,21 +162,23 @@ def ticks_to_ms(tick, tempos, division):
     return ms + (tick - last_tick) * tempo / division / 1000
 
 
-def skyline(notes, division):
+def skyline(notes, division, lowest=False):
     """One line from a part that may hold chords or a bass line.
 
     Keeps the highest note of notes starting together (within 1/8 beat), and
     drops a lower note that starts while the kept melody note is still held
     (accompaniment under a long melody note, common in one-track piano files).
+    With lowest, the same from below: the lowest note, dropping higher ones.
     """
     tolerance = max(1, division // 8)
+    side = 1 if lowest else -1
     result = []
-    for start, end, note in sorted(notes, key=lambda n: (n[0], -n[2])):
+    for start, end, note in sorted(notes, key=lambda n: (n[0], side * n[2])):
         if result:
             last_start, last_end, last_note = result[-1]
             if start - last_start <= tolerance:
                 continue
-            if note < last_note and last_end - start > tolerance:
+            if side * (note - last_note) > 0 and last_end - start > tolerance:
                 continue
         result.append((start, end, note))
     return result
@@ -221,7 +226,8 @@ def extract(path, options):
         key = sung_part(parts, lyric_ticks(tracks), division) or max(
             parts, key=lambda k: melody_score(parts[k], k[1], names[k[0]]))
     low = options.get("min_note", 0)
-    line = skyline([n for n in parts[key] if n[2] >= low], division)
+    line = skyline([n for n in parts[key] if n[2] >= low], division,
+                   options.get("lowest", False))
     line = line[options.get("skip", 0):][:options.get("max_notes", DEFAULT_MAX_NOTES)]
     if not line:
         raise ValueError("melody part is empty")

@@ -266,7 +266,8 @@ black keys, fits it to the 37 keys, and writes
 `apps/key_games/assets/songs/*.json` (ignored by Git). When it picks the
 wrong part, add an override in `private/songs/song-picks.json`; the script's
 header documents the options (track, channel, skip, max_notes, min_note,
-title, group, transpose).
+lowest, title, group, transpose). Songs stop after 200 notes unless an
+override says otherwise.
 
 ### Ear Notes
 
