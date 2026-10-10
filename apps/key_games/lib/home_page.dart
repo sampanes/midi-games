@@ -34,8 +34,9 @@ class HomePage extends StatelessWidget {
     IconData icon,
     List<Color> colors,
     Map<Difficulty, String> levels,
-    Widget Function(Difficulty difficulty) game,
-  ) {
+    Widget Function(Difficulty difficulty) game, {
+    Map<Difficulty, String> labels = const {},
+  }) {
     return MenuItem(
       title: title,
       subtitle: subtitle,
@@ -43,7 +44,13 @@ class HomePage extends StatelessWidget {
       colors: colors,
       onPick: (context) => _go(
         context,
-        difficultyPage(title: title, midi: midi, descriptions: levels, game: game),
+        difficultyPage(
+          title: title,
+          midi: midi,
+          descriptions: levels,
+          labels: labels,
+          game: game,
+        ),
       ),
     );
   }
@@ -128,6 +135,7 @@ class HomePage extends StatelessWidget {
       const [Color(0xFFFFD84A), Color(0xFFFF6A2B), Color(0xFFFF3B3B)],
       rushLevels,
       (d) => RushPage(synth: synth, midi: midi, difficulty: d),
+      labels: rushLabels,
     );
     final runner = _game(
       'Key Runner',

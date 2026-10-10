@@ -37,6 +37,18 @@ int fitBase(int base, int note) {
   return (low: low, high: high);
 }
 
+// Where [note]'s key sits across a strip [width] wide showing [low]..[high]
+// (from [whiteSpan]), so things drawn above the strip line up with its keys.
+({double left, double width}) keyColumn(int low, int high, double width, int note) {
+  final layout = _PianoLayout(low, high, Size(width, 1));
+  if (pitchClasses[pitchClass(note)].white) {
+    final rect = layout.whiteRect(layout.whites.indexOf(note));
+    return (left: rect.left, width: rect.width);
+  }
+  final rect = layout.blackRect(note);
+  return (left: rect.left, width: rect.width);
+}
+
 class PianoStrip extends StatefulWidget {
   const PianoStrip({
     super.key,

@@ -1,14 +1,17 @@
-// Key Rush screen: 3-2-1, then one minute to hit as many target keys as
-// possible. Song smash: every hit plays the next note of a real song instead
-// of the key pressed, so a fast player hears the melody come out. A wrong key
-// plays itself and then the right note, and (above Easy) freezes scoring for
-// that moment. At the end: score, best score this session, and the song name.
+// Key Rush screen: 3-2-1, then one minute to hit as many keys as possible.
+// A board above the keyboard picture shows the key to press now (bottom row)
+// and the next ones above it, lined up with the keys, like the tiles on an
+// arcade piano. Each hit moves the tiles down a row.
 //
-// Difficulty: Easy glows the keys and never freezes; Medium freezes; Hard
-// uses all twelve notes on a plain keyboard (read the letter); Expert shows
-// the letter alone, with no color.
+// Easy shows one octave and uses only its four middle white keys; every hit
+// plays the next note of a song, whatever key was pressed, so the melody
+// comes out. A wrong key makes no sound and costs nothing.
+// Real plays a song's own notes on their own keys: each key sounds as
+// itself, and a wrong key plays itself and then the right note and freezes
+// scoring for that moment.
 //
-// Keys at the end: C plays again, E goes back to the menu.
+// At the end: score, best score this session, and the song name. Keys at
+// the end: C plays again, E goes back to the menu.
 
 import 'dart:async';
 import 'dart:math';
@@ -30,18 +33,16 @@ import 'difficulty.dart';
 import 'rush_rules.dart';
 
 const _background = Color(0xFF14111C);
-const _letterOnly = Color(0xFF4A4360);
 const _starGold = Color(0xFFFFD84A);
 const _countdownStepMs = 700;
 
 const rushLevels = {
-  Difficulty.easy: 'The keys glow, no penalty',
-  Difficulty.medium: 'Wrong keys freeze you',
-  Difficulty.hard: 'Read the letter, black keys too',
-  Difficulty.expert: 'Letter only, no colors',
+  Difficulty.easy: 'Four keys in the middle; a song plays as you hit them',
+  Difficulty.medium: "A song's real notes on the real keys",
 };
+const rushLabels = {Difficulty.medium: 'Real'};
 
-// Best score per difficulty, for this session.
+// Best score per level, for this session.
 final Map<Difficulty, int> _best = {};
 
 enum _Phase { countdown, playing, done }
@@ -58,6 +59,8 @@ class RushPage extends StatefulWidget {
 
   final Synth synth;
   final MidiInput midi;
+
+  // Easy, or anything else for Real.
   final Difficulty difficulty;
 
   // Fixed in tests.
@@ -71,9 +74,9 @@ class RushPage extends StatefulWidget {
 class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   late final Random _random = widget.random ?? Random();
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
-  final GlobalKey _circleKey = GlobalKey();
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+  final GlobalKey _boardKey = GlobalKey();
+  late final AnimationController _slide =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 140), value: 1);
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   late final MissEcho _echo = MissEcho(widget.synth);
@@ -81,7 +84,8 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   StreamSubscription<NoteEvent>? _noteSub;
   Timer? _clock;
 
-  late RushState _state = RushState.start(_random, _choices);
+  RushState _state = const RushState(upcoming: []);
+  RushFeed _feed = SongRushFeed(const [60]);
   _Phase _phase = _Phase.countdown;
   int _count = 3;
   bool _canPick = false;
@@ -94,11 +98,16 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   int _songIndex = 0;
 
   Difficulty get _level => widget.difficulty;
-  bool get _glow => !_level.atLeast(Difficulty.hard);
-  bool get _plain => _level.atLeast(Difficulty.hard);
-  bool get _colored => _level != Difficulty.expert;
-  bool get _freeze => _level != Difficulty.easy;
-  List<int> get _choices => _plain ? allPitchClasses : whitePitchClasses;
+  bool get _real => _level != Difficulty.easy;
+
+  // Real: the keyboard's octave buttons move everything by whole octaves.
+  int get _shift => _real ? _base - 48 : 0;
+
+  ({int low, int high}) get _span {
+    if (!_real) return (low: rushEasyLow, high: rushEasyHigh);
+    final notes = _song.notes.map((n) => n.note);
+    return whiteSpan(notes.reduce(min) + _shift, notes.reduce(max) + _shift);
+  }
 
   @override
   void initState() {
@@ -129,7 +138,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     for (final note in _held) {
       widget.synth.noteOff(note);
     }
-    _pulse.dispose();
+    _slide.dispose();
     _shake.dispose();
     super.dispose();
   }
@@ -145,7 +154,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   void _resetRound() {
     _clock?.cancel();
     _echo.cancel();
-    _state = RushState.start(_random, _choices);
+    _state = const RushState(upcoming: []);
     _phase = _Phase.countdown;
     _count = 3;
     _canPick = false;
@@ -175,6 +184,10 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       _phase = _Phase.playing;
       // Picked now, not at the start, so the songs have finished loading.
       _song = _songs.isEmpty ? scaleSong : _songs[_random.nextInt(_songs.length)];
+      _feed = _real
+          ? SongRushFeed([for (final n in _song.notes) n.note])
+          : EasyRushFeed(_random);
+      _state = RushState.start(_feed);
     });
     _clock = Timer.periodic(const Duration(milliseconds: rushTickMs), (_) {
       if (!mounted) return;
@@ -206,36 +219,42 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     }
     setState(() {
       _held.add(event.note);
-      _base = fitBase(_base, event.note);
+      if (_real) _base = fitBase(_base, event.note);
     });
     if (_phase != _Phase.playing) {
       widget.synth.noteOn(event.note, event.velocity);
       return;
     }
     final target = _state.target;
-    final step = pressRush(_state, event.note, _random, _choices, freeze: _freeze);
+    final step = pressRush(_state, event.note - _shift, _feed, exact: _real, freeze: _real);
     setState(() => _state = step.state);
     switch (step.result) {
       case RushResult.hit:
         _echo.cancel();
-        _smash();
-        _pulse.forward(from: 0);
+        if (_real) {
+          widget.synth.noteOn(event.note, event.velocity);
+        } else {
+          _smash();
+        }
+        _slide.forward(from: 0);
         _sparksKey.currentState?.burst(
-          _circleCenter(),
-          [_colored ? Color(pitchClasses[target].argb) : Colors.white, _starGold],
+          _tileCenter(target + _shift),
+          [Color(pitchClasses[pitchClass(target)].argb), _starGold],
           count: 16,
           speed: 380,
         );
       case RushResult.miss:
-        widget.synth.noteOn(event.note, event.velocity);
         _shake.forward(from: 0);
-        _echo.play(event.note, nearestOfClass(event.note, target));
+        if (_real) {
+          widget.synth.noteOn(event.note, event.velocity);
+          _echo.play(event.note, target + _shift);
+        }
       case RushResult.frozen || RushResult.over:
-        widget.synth.noteOn(event.note, event.velocity);
+        if (_real) widget.synth.noteOn(event.note, event.velocity);
     }
   }
 
-  // Song smash: the next note of the song instead of the key pressed.
+  // Easy: the next note of the song instead of the key pressed.
   void _smash() {
     final notes = _song.notes;
     final n = notes[_songIndex % notes.length];
@@ -243,19 +262,27 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     widget.synth.blip(n.note, velocity: 100, lengthMs: n.lengthMs.clamp(150, 700));
   }
 
-  Offset _circleCenter() {
-    final circle = _circleKey.currentContext?.findRenderObject() as RenderBox?;
+  // Middle of the bottom-row tile for [note], in the sparks' coordinates.
+  Offset _tileCenter(int note) {
+    final board = _boardKey.currentContext?.findRenderObject() as RenderBox?;
     final sparks = _sparksKey.currentContext?.findRenderObject() as RenderBox?;
-    if (circle == null || sparks == null) return Offset.zero;
-    final global = circle.localToGlobal(circle.size.center(Offset.zero));
-    return sparks.globalToLocal(global);
+    if (board == null || sparks == null) return Offset.zero;
+    final span = _span;
+    final column = keyColumn(span.low, span.high, board.size.width, note);
+    final rowHeight = board.size.height / rushRows;
+    final local = Offset(column.left + column.width / 2, board.size.height - rowHeight / 2);
+    return sparks.globalToLocal(board.localToGlobal(local));
   }
+
+  // Easy shows one octave, so a key pressed in another octave lights its
+  // twin there.
+  Set<int> get _shownHeld =>
+      _real ? _held : {for (final note in _held) rushEasyLow + pitchClass(note)};
 
   @override
   Widget build(BuildContext context) {
-    final target = pitchClasses[_state.target];
-    final color = _colored ? Color(target.argb) : _letterOnly;
     final playing = _phase == _Phase.playing;
+    final span = _span;
     return Scaffold(
       backgroundColor: _background,
       body: KeyNav(
@@ -266,18 +293,6 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    (playing ? color : _letterOnly).withValues(alpha: _state.frozen ? 0.1 : 0.3),
-                    _background,
-                  ],
-                  radius: 0.9,
-                ),
-              ),
-            ),
             SafeArea(
               child: Column(
                 children: [
@@ -308,13 +323,18 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
                     ),
                   ),
                   Expanded(
-                    child: Center(
-                      child: switch (_phase) {
-                        _Phase.countdown => _buildCountdown(),
-                        _Phase.playing => _buildCircle(target, color),
-                        _Phase.done => _buildEnd(),
-                      },
-                    ),
+                    child: _phase == _Phase.done
+                        ? Center(child: _buildEnd())
+                        : Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                _buildBoard(span, playing),
+                                if (_phase == _Phase.countdown) Center(child: _buildCountdown()),
+                              ],
+                            ),
+                          ),
                   ),
                   Text(
                     _phase == _Phase.countdown ? 'Get ready!' : 'Song: ${_song.title}',
@@ -330,9 +350,9 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
                         height: min(180, MediaQuery.sizeOf(context).height * 0.24),
                         child: PianoStrip(
                           base: _base,
-                          target: playing && _glow && !_state.frozen ? _state.target : null,
-                          plain: _plain,
-                          held: _held,
+                          span: span,
+                          targetNote: playing && !_state.frozen ? _state.target + _shift : null,
+                          held: _shownHeld,
                           onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
                           onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
                         ),
@@ -348,6 +368,29 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildBoard(({int low, int high}) span, bool playing) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_slide, _shake]),
+      builder: (context, _) {
+        final s = _shake.value;
+        return Transform.translate(
+          offset: Offset(sin(s * pi * 6) * 18 * (1 - s), 0),
+          child: CustomPaint(
+            key: _boardKey,
+            size: Size.infinite,
+            painter: _BoardPainter(
+              span: span,
+              notes: playing ? [for (final n in _state.upcoming) n + _shift] : const [],
+              lanes: _real ? null : rushEasyKeys,
+              slide: Curves.easeOut.transform(_slide.value),
+              frozen: _state.frozen,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildCountdown() {
     return TweenAnimationBuilder<double>(
       key: ValueKey(_count),
@@ -358,54 +401,6 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
         '$_count',
         style: const TextStyle(fontSize: 160, fontWeight: FontWeight.w900, color: _starGold),
       ),
-    );
-  }
-
-  Widget _buildCircle(PitchClassInfo target, Color color) {
-    final dark = _colored && color.computeLuminance() > 0.5;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final diameter = min(constraints.maxWidth, constraints.maxHeight) * 0.68;
-        return AnimatedBuilder(
-          animation: Listenable.merge([_pulse, _shake]),
-          builder: (context, child) {
-            final p = _pulse.value;
-            final s = _shake.value;
-            return Transform.translate(
-              offset: Offset(sin(s * pi * 6) * 22 * (1 - s), 0),
-              child: Transform.scale(scale: 1 + 0.12 * sin(p * pi), child: child),
-            );
-          },
-          child: Opacity(
-            opacity: _state.frozen ? 0.35 : 1,
-            child: Container(
-              key: _circleKey,
-              width: diameter,
-              height: diameter,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 50)],
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Padding(
-                  padding: EdgeInsets.all(diameter * 0.12),
-                  child: Text(
-                    _state.frozen ? 'Oops!' : target.name,
-                    style: TextStyle(
-                      fontSize: diameter * (_state.frozen ? 0.2 : 0.42),
-                      fontWeight: FontWeight.w900,
-                      color: dark ? const Color(0xFF2A2233) : Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -425,7 +420,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
             style: const TextStyle(fontSize: 22, color: Colors.white70),
           ),
           const SizedBox(height: 4),
-          Text('You smashed out ${_song.title}!',
+          Text(_real ? 'You played ${_song.title}!' : 'You smashed out ${_song.title}!',
               textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, color: Colors.white70)),
           const SizedBox(height: 20),
           Wrap(
@@ -449,4 +444,84 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+// The tile board: a grid of dim cells over the white keys, and a lit tile
+// for each upcoming key (bottom row = press now). [slide] runs 0 to 1 after
+// a hit, moving the tiles down from the row they were on.
+class _BoardPainter extends CustomPainter {
+  _BoardPainter({
+    required this.span,
+    required this.notes,
+    required this.lanes,
+    required this.slide,
+    required this.frozen,
+  });
+
+  final ({int low, int high}) span;
+  final List<int> notes;
+
+  // Keys whose columns are a little lighter (Easy's four keys); null for all.
+  final List<int>? lanes;
+  final double slide;
+  final bool frozen;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    final rowHeight = size.height / rushRows;
+    final gap = min(6.0, rowHeight * 0.06);
+    final fill = Paint();
+    for (var note = span.low; note <= span.high; note++) {
+      if (!pitchClasses[pitchClass(note)].white) continue;
+      final column = keyColumn(span.low, span.high, size.width, note);
+      final lane = lanes == null || lanes!.contains(note);
+      fill.color = lane ? const Color(0x1FFFFFFF) : const Color(0x0AFFFFFF);
+      for (var row = 0; row < rushRows; row++) {
+        final rect = Rect.fromLTWH(column.left, row * rowHeight, column.width, rowHeight);
+        canvas.drawRRect(RRect.fromRectAndRadius(rect.deflate(gap), const Radius.circular(8)), fill);
+      }
+    }
+
+    for (var row = notes.length - 1; row >= 0; row--) {
+      final note = notes[row];
+      if (note < span.low || note > span.high) continue;
+      final info = pitchClasses[pitchClass(note)];
+      final column = keyColumn(span.low, span.high, size.width, note);
+      final top = size.height - (row + 1 + (1 - slide)) * rowHeight;
+      final rect = Rect.fromLTWH(column.left, top, column.width, rowHeight).deflate(gap);
+      final now = row == 0;
+      final color = Color(info.argb).withValues(alpha: frozen ? 0.3 : (now ? 1 : 0.75 - 0.15 * row));
+      fill.color = color;
+      final tile = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+      canvas.drawRRect(tile, fill);
+      if (now && !frozen) {
+        canvas.drawRRect(
+          tile.deflate(1.5),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3
+            ..color = Colors.white,
+        );
+      }
+      final dark = Color(info.argb).computeLuminance() > 0.5;
+      final text = TextPainter(
+        text: TextSpan(
+          text: info.name,
+          style: TextStyle(
+            // Two letters (F#) on a narrow black-key tile need a smaller size.
+            fontSize: min(rect.width * (info.name.length > 1 ? 0.34 : 0.5), rect.height * 0.45),
+            fontWeight: FontWeight.w900,
+            color: (dark ? const Color(0xFF2A2233) : Colors.white)
+                .withValues(alpha: frozen ? 0.4 : 1),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      text.paint(canvas, rect.center - Offset(text.width / 2, text.height / 2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BoardPainter old) => true;
 }

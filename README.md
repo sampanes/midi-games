@@ -283,13 +283,21 @@ skips ahead. Difficulty picks the starting level.
 
 ### Key Rush (Arcade)
 
-After the arcade piano games: 3-2-1, then one minute to hit as many target
-keys as possible; the target jumps after every hit. Song smash: each hit plays
-the next note of a random bundled song (or a scale when none are bundled)
-instead of the key pressed, so fast playing makes the melody come out. A wrong
-key plays itself and then the right note, and above Easy it freezes scoring
-for that moment while the clock runs. Best scores are kept per difficulty for
-the session.
+After the arcade piano games: 3-2-1, then one minute to hit as many keys as
+possible. A board of tiles above the keyboard picture shows the key to press
+now (bottom row) and the next three above it, lined up with the keys; each hit
+moves the tiles down a row. Two ways to play:
+
+- Easy: one octave is shown and only its four middle white keys (E F G A) are
+  used, any octave counts, and the next key is never more than two keys away.
+  Each hit plays the next note of a random bundled song (or a scale when none
+  are bundled) instead of the key pressed, so the melody comes out. A wrong
+  key makes no sound and costs nothing.
+- Real: the keys are a random song's own notes in order, on their own keys,
+  and each key sounds as itself. A wrong key plays itself and then the right
+  note and freezes scoring for that moment while the clock runs.
+
+Best scores are kept per level for the session.
 
 ### Note Highway (Songs)
 

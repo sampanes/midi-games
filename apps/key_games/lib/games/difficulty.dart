@@ -24,11 +24,14 @@ enum Difficulty {
 }
 
 // A difficulty picker for one game. Picking replaces the picker with the
-// game, so going back from the game returns to the game's menu.
+// game, so going back from the game returns to the game's menu. Only the
+// levels in [descriptions] are offered; [labels] renames a level for a game
+// whose levels are different ways to play (Key Rush: Easy and Real).
 Widget difficultyPage({
   required String title,
   required MidiInput midi,
   required Map<Difficulty, String> descriptions,
+  Map<Difficulty, String> labels = const {},
   required Widget Function(Difficulty difficulty) game,
 }) {
   return MenuPage(
@@ -36,16 +39,17 @@ Widget difficultyPage({
     midi: midi,
     items: [
       for (final d in Difficulty.values)
-        MenuItem(
-          title: d.label,
-          subtitle: '${d.ages}\n${descriptions[d] ?? ''}',
-          icon: d.icon,
-          colors: d.colors,
-          onPick: (context) => Navigator.pushReplacement(
-            context,
-            MaterialPageRoute<void>(builder: (_) => game(d)),
+        if (descriptions.containsKey(d))
+          MenuItem(
+            title: labels[d] ?? d.label,
+            subtitle: '${d.ages}\n${descriptions[d] ?? ''}',
+            icon: d.icon,
+            colors: d.colors,
+            onPick: (context) => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute<void>(builder: (_) => game(d)),
+            ),
           ),
-        ),
     ],
   );
 }
