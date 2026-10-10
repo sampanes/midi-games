@@ -38,6 +38,13 @@ void main() {
     expect(result.state, same(state));
   });
 
+  test('two-note attempt is one miss even when it contains the target', () {
+    const state = ColorKeysState(target: 7, stars: 3);
+    final result = pressColorAttempt(state, [67, 60]);
+    expect(result.effects, [Effect.miss]);
+    expect(result.state, same(state));
+  });
+
   test('presses while locked only play', () {
     const state = ColorKeysState(target: 4, stars: 1, locked: true);
     expect(pressNote(state, 64).effects, [Effect.play]);
@@ -56,7 +63,10 @@ void main() {
   });
 
   test('advance mid-round keeps stars and unlocks', () {
-    final next = advance(const ColorKeysState(target: 2, stars: 3, locked: true), Random(3));
+    final next = advance(
+      const ColorKeysState(target: 2, stars: 3, locked: true),
+      Random(3),
+    );
     expect(next.stars, 3);
     expect(next.locked, isFalse);
     expect(next.target, isNot(2));
@@ -90,5 +100,11 @@ void main() {
     expect(fitBase(48, 85), 60);
     expect(fitBase(48, 36), 36);
     expect(fitBase(48, 30), 24);
+  });
+
+  test('relative correction stays inside the displayed keyboard', () {
+    expect(nearestOfClassInRange(48, 11, 48, 84), 59); // B below is hidden
+    expect(nearestOfClassInRange(84, 6, 48, 84), 78); // F# above is hidden
+    expect(nearestOfClassInRange(66, 0, 48, 84), 72); // in-range tie goes up
   });
 }

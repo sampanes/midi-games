@@ -55,6 +55,21 @@ int nearestOfClass(int note, int pc) {
   return note - below < 6 ? below : below + 12;
 }
 
+// The nearest note of [pc] that is actually visible between [low] and [high].
+// This keeps relative-octave corrections without sounding a key beyond the
+// keyboard picture at its low and high edges. Ties still prefer the higher key.
+int nearestOfClassInRange(int note, int pc, int low, int high) {
+  final first = low + (pc - pitchClass(low)) % 12;
+  if (first > high) {
+    throw ArgumentError('range $low..$high does not contain pitch class $pc');
+  }
+  var nearest = first;
+  for (var candidate = first + 12; candidate <= high; candidate += 12) {
+    if ((candidate - note).abs() <= (nearest - note).abs()) nearest = candidate;
+  }
+  return nearest;
+}
+
 bool isGameNote(int note) => note >= minGameNote && note <= maxGameNote;
 
 final allPitchClasses = [for (var pc = 0; pc < 12; pc++) pc];
@@ -62,7 +77,9 @@ final allPitchClasses = [for (var pc = 0; pc < 12; pc++) pc];
 // Next target from [choices] (white keys unless given), never the same as
 // the last one.
 int pickNextTarget(int? previous, Random random, [List<int>? choices]) {
-  final from = (choices ?? whitePitchClasses).where((pc) => pc != previous).toList();
+  final from = (choices ?? whitePitchClasses)
+      .where((pc) => pc != previous)
+      .toList();
   return from[random.nextInt(from.length)];
 }
 
@@ -86,13 +103,17 @@ class ColorKeysState {
   // True between a hit and the next target, so extra presses only make sound.
   final bool locked;
 
-  ColorKeysState copyWith({int? target, int? stars, int? rounds, bool? locked}) =>
-      ColorKeysState(
-        target: target ?? this.target,
-        stars: stars ?? this.stars,
-        rounds: rounds ?? this.rounds,
-        locked: locked ?? this.locked,
-      );
+  ColorKeysState copyWith({
+    int? target,
+    int? stars,
+    int? rounds,
+    bool? locked,
+  }) => ColorKeysState(
+    target: target ?? this.target,
+    stars: stars ?? this.stars,
+    rounds: rounds ?? this.rounds,
+    locked: locked ?? this.locked,
+  );
 }
 
 class PressResult {
@@ -104,14 +125,32 @@ class PressResult {
 
 PressResult pressNote(ColorKeysState state, int note) {
   if (state.locked) return PressResult(state, const [Effect.play]);
-  if (pitchClass(note) != state.target) return PressResult(state, const [Effect.miss]);
+  if (pitchClass(note) != state.target) {
+    return PressResult(state, const [Effect.miss]);
+  }
   final stars = state.stars + 1;
   final next = state.copyWith(stars: stars, locked: true);
-  if (stars >= starsPerRound) return PressResult(next, const [Effect.hit, Effect.win]);
+  if (stars >= starsPerRound) {
+    return PressResult(next, const [Effect.hit, Effect.win]);
+  }
   return PressResult(next, const [Effect.hit, Effect.nextSoon]);
 }
 
-ColorKeysState advance(ColorKeysState state, Random random, [List<int>? choices]) {
+// Notes that arrive together are one attempt. More than one distinct key is a
+// miss even when one of the keys happens to be the target.
+PressResult pressColorAttempt(ColorKeysState state, Iterable<int> notes) {
+  final distinct = notes.toSet();
+  if (distinct.isEmpty) return PressResult(state, const []);
+  if (state.locked) return PressResult(state, const [Effect.play]);
+  if (distinct.length > 1) return PressResult(state, const [Effect.miss]);
+  return pressNote(state, distinct.single);
+}
+
+ColorKeysState advance(
+  ColorKeysState state,
+  Random random, [
+  List<int>? choices,
+]) {
   final target = pickNextTarget(state.target, random, choices);
   if (state.stars >= starsPerRound) {
     return ColorKeysState(target: target, rounds: state.rounds + 1);

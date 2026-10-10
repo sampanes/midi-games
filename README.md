@@ -212,8 +212,9 @@ C again, E back). Holding the lowest and highest C together
 goes back, as do Escape and the remote's back button. The Android build also
 lists itself on Android TV home screens (banner, no touch screen required).
 
-Every game answers a wrong key the same way: after it, the wrong note plays
-again and then the right one, so the two can be compared by ear.
+In Color Keys, a wrong key sounds once from the player's press and then the
+right note sounds once by itself. The guided song and arcade games repeat the
+wrong and right notes so they can be compared by ear.
 
 The icon (Android, Android TV banner, Windows) is drawn by
 `python scripts\make-app-icons.py` (needs Pillow).

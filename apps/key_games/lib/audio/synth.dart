@@ -10,14 +10,16 @@ import 'package:flutter_soloud/flutter_soloud.dart';
 double noteHz(int note) => 440.0 * math.pow(2, (note - 69) / 12).toDouble();
 
 class Synth {
-  static const lowestNote = 24;
+  static const lowestNote = 12;
   static const highestNote = 108;
   static const _attack = Duration(milliseconds: 4);
-  static const _release = Duration(milliseconds: 300);
+  static const releaseLength = Duration(milliseconds: 300);
 
   final SoLoud _soloud = SoLoud.instance;
   final Map<int, AudioSource> _sources = {};
   final Map<int, SoundHandle> _playing = {};
+  final Map<int, Set<SoundHandle>> _releasing = {};
+  final Map<int, int> _generation = {};
 
   bool get ready => _soloud.isInitialized && _sources.isNotEmpty;
 
@@ -39,25 +41,59 @@ class Synth {
     final handle = _soloud.play(source, volume: 0, looping: true);
     _soloud.fadeVolume(handle, level, _attack);
     _playing[note] = handle;
+    _generation[note] = (_generation[note] ?? 0) + 1;
   }
 
   void noteOff(int note) {
     final handle = _playing.remove(note);
     if (handle == null || !ready) return;
-    _soloud.fadeVolume(handle, 0, _release);
-    _soloud.scheduleStop(handle, _release);
+    final releasing = _releasing.putIfAbsent(note, () => {});
+    releasing.add(handle);
+    _soloud.fadeVolume(handle, 0, releaseLength);
+    _soloud.scheduleStop(handle, releaseLength);
+    Timer(releaseLength, () {
+      releasing.remove(handle);
+      if (releasing.isEmpty && identical(_releasing[note], releasing)) {
+        _releasing.remove(note);
+      }
+    });
+  }
+
+  // Immediately silence a held key before a solo correction tone. Normal key
+  // releases use the gentle fade above; this is only for replacing a rejected
+  // multi-key attempt without leaving its notes audible underneath.
+  void noteOffNow(int note) {
+    final handles = <SoundHandle>[];
+    final playing = _playing.remove(note);
+    if (playing != null) handles.add(playing);
+    final releasing = _releasing.remove(note);
+    if (releasing != null) handles.addAll(releasing);
+    if (!ready) return;
+    for (final handle in handles) {
+      _soloud.setVolume(handle, 0);
+      unawaited(_soloud.stop(handle));
+    }
   }
 
   // A note with a fixed length, for on-screen taps and little tunes.
   void blip(int note, {int velocity = 90, int lengthMs = 160}) {
     noteOn(note, velocity);
-    Timer(Duration(milliseconds: lengthMs), () => noteOff(note));
+    final generation = _generation[note];
+    if (generation == null) return;
+    Timer(Duration(milliseconds: lengthMs), () {
+      // A newer press or correction may now own this pitch. An old blip timer
+      // must never release that newer voice.
+      if (_generation[note] == generation) noteOff(note);
+    });
   }
 
   // Notes one after another, e.g. a rising arpeggio for a win.
   void tune(List<int> notes, {int stepMs = 110, int lengthMs = 220}) {
     for (var i = 0; i < notes.length; i++) {
-      Timer(Duration(milliseconds: i * stepMs), () => blip(notes[i], lengthMs: lengthMs));
+      Timer(
+        Duration(milliseconds: i * stepMs),
+        () => blip(notes[i], lengthMs: lengthMs),
+      );
     }
   }
 }
