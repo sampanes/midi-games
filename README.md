@@ -241,8 +241,9 @@ melody plays back at real speed. On Easy and Medium the keyboard picture
 shows only the keys from the song's lowest note to its highest.
 
 The song list starts with the groups the songs are filed under (Kids,
-Classical, Ballet, Musicals, Movies, Pop, Games), one letter each, then the
-songs of the picked group.
+Classical, Ballet, Musicals, Movies, Pop, Games, Anime, Rock), one letter
+each (B turns the page when there are more than seven), then the songs of
+the picked group.
 
 Song Box (no levels) plays a picked song's melody, exactly the notes the
 games use, at real speed with the keys lighting up: a quick way to hear

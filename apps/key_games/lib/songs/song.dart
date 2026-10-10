@@ -35,7 +35,7 @@ class Song {
 }
 
 // Groups listed first, in this order; any others follow by name.
-const songGroupOrder = ['Kids', 'Classical', 'Ballet', 'Musicals', 'Movies', 'Pop', 'Games'];
+const songGroupOrder = ['Kids', 'Classical', 'Ballet', 'Musicals', 'Movies', 'Pop', 'Games', 'Anime', 'Rock'];
 
 List<String> songGroups(List<Song> songs) {
   int rank(String group) {
