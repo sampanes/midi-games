@@ -13,6 +13,7 @@ import {
   nextStep,
   onsetTimes,
   removeAdded,
+  restSkip,
   toggleNote,
   tuneNotes,
   uniqueSorted
@@ -523,6 +524,7 @@ function play() {
     events,
     next: lowerBound(events.map((ev) => ev.s), app.cursor),
     lastEnd,
+    heldUntil: app.cursor,
     timer: setInterval(pump, 25)
   };
   pump();
@@ -534,9 +536,16 @@ function play() {
 function pump() {
   const p = app.playing;
   if (!p) return;
-  const now = songNow();
+  let now = songNow();
+  // Once everything has gone quiet, skip a long wait for the next note.
+  if (p.next < p.events.length && now >= p.heldUntil) {
+    const skip = restSkip(now, p.events[p.next].s);
+    p.from += skip;
+    now += skip;
+  }
   while (p.next < p.events.length && p.events[p.next].s < now + PLAY_AHEAD_MS) {
     const ev = p.events[p.next++];
+    p.heldUntil = Math.max(p.heldUntil, ev.e);
     const when = p.t0 + (ev.s - p.from) / 1000;
     if (when >= audio.ctx.currentTime - 0.02) {
       voice(ev.n, Math.max(when, audio.ctx.currentTime), (ev.e - ev.s) / 1000, ev.level);

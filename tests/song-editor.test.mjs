@@ -8,6 +8,7 @@ import {
   keepPart,
   nextStep,
   onsetTimes,
+  restSkip,
   snapStart,
   toggleNote,
   tuneNotes
@@ -81,4 +82,10 @@ test("keeping a part keeps its top note at each moment; dropping clears it", () 
   const state = keepPart(notes, empty, 0);
   assert.deepEqual(tuneNotes(notes, state.kept, state.added).map((n) => n.n), [67, 72]);
   assert.equal(dropPart(notes, state, 0).kept.size, 0);
+});
+
+test("playback skips a long wait for the tune down to the games' longest rest", () => {
+  assert.equal(restSkip(1000, 2000), 0);
+  assert.equal(restSkip(1000, 3500), 0);
+  assert.equal(restSkip(10000, 122500), 110000);
 });

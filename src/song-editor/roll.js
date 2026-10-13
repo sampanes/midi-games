@@ -16,6 +16,10 @@ export const LYRIC_SNAP_MS = 350;
 export const DEFAULT_ADDED_MS = 500;
 export const MIN_ADDED_MS = 80;
 
+// The games shorten rests to this (extract-melodies.py), so playback here
+// does too: a long wait for the tune (the band playing alone) is skipped.
+export const MAX_REST_MS = 2500;
+
 // Sorted, unique values.
 export function uniqueSorted(values) {
   return [...new Set(values)].sort((a, b) => a - b);
@@ -159,4 +163,10 @@ export function keepPart(notes, state, part) {
 
 export function dropPart(notes, state, part) {
   return { kept: new Set([...state.kept].filter((i) => notes[i][3] !== part)), added: state.added };
+}
+
+// How far to jump ahead when nothing sounds from [quietFrom] until the next
+// note at [nextStart]: 0 when the wait is short enough to just wait.
+export function restSkip(quietFrom, nextStart) {
+  return Math.max(0, nextStart - quietFrom - MAX_REST_MS);
 }
