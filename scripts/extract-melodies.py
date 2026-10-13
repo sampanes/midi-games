@@ -32,6 +32,11 @@ length (default 200), "min_note" drops lower notes before the melody is taken
 chord instead of the highest (piano covers that put harmony above the tune),
 "transpose": false keeps the original key.
 "group" files the song under a heading in the song list (default "Songs").
+
+A song saved in the song editor (scripts/song-editor.py) has a canon file,
+SONG_FOLDER/canon/<name>.json: the exact notes to keep, chosen by hand. It
+replaces steps 1 and 2 and the part, skip, max_notes, min_note and lowest
+overrides; its "title" and "group", when set, win over song-picks.json.
 """
 
 import bisect
@@ -209,11 +214,17 @@ def title_from_file(name):
     return " ".join(word.capitalize() for word in os.path.splitext(name)[0].replace("_", "-").split("-"))
 
 
-def extract(path, options):
+def load(path):
+    """Return (division, tracks, parts, tempos) for a MIDI file."""
     fmt, division, tracks = inspect_midi.read_file(path)
     if division >= 0x8000:
         raise ValueError("SMPTE time division is not supported")
     parts, tempos = collect_parts(tracks)
+    return division, tracks, parts, tempos
+
+
+def pick_line(division, tracks, parts, options):
+    """The part the tune is taken from and its one-note line, in ticks."""
     if "track" in options or "channel" in options:
         candidates = [k for k in parts
                       if options.get("track", k[0]) == k[0]
@@ -228,7 +239,37 @@ def extract(path, options):
     low = options.get("min_note", 0)
     line = skyline([n for n in parts[key] if n[2] >= low], division,
                    options.get("lowest", False))
-    line = line[options.get("skip", 0):][:options.get("max_notes", DEFAULT_MAX_NOTES)]
+    return key, line[options.get("skip", 0):][:options.get("max_notes", DEFAULT_MAX_NOTES)]
+
+
+def canon_line(notes):
+    """One line from the notes of a canon file ([start, end, note, track,
+    channel], track -1 for a note added by hand): of notes starting together
+    the highest stays, and a note still held when the next starts ends there."""
+    line = []
+    for start, end, note in sorted(((n[0], n[1], n[2]) for n in notes), key=lambda n: (n[0], -n[2])):
+        if line and start == line[-1][0]:
+            continue
+        if line and line[-1][1] > start:
+            line[-1] = (line[-1][0], start, line[-1][2])
+        line.append((start, end, note))
+    return line
+
+
+def canon_part(notes):
+    """The (track, channel index) most canon notes came from."""
+    keys = [(n[3], n[4] - 1) for n in notes if n[3] >= 0]
+    return max(set(keys), key=keys.count) if keys else (-1, -1)
+
+
+def extract(path, options, canon=None):
+    division, tracks, parts, tempos = load(path)
+    if canon:
+        line = canon_line(canon["notes"])
+        key = canon_part(canon["notes"])
+        options = dict(options, **{k: canon[k] for k in ("title", "group") if canon.get(k)})
+    else:
+        key, line = pick_line(division, tracks, parts, options)
     if not line:
         raise ValueError("melody part is empty")
     pitches = [n[2] for n in line]
@@ -255,30 +296,53 @@ def extract(path, options):
     }
 
 
-def main():
-    song_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "private", "songs")
-    out_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "apps", "key_games", "assets", "songs")
+SONG_DIR = os.path.join(ROOT, "private", "songs")
+OUT_DIR = os.path.join(ROOT, "apps", "key_games", "assets", "songs")
+
+
+def read_picks(song_dir):
     picks_path = os.path.join(song_dir, "song-picks.json")
-    picks = {}
-    if os.path.exists(picks_path):
-        with open(picks_path, encoding="utf-8") as handle:
-            picks = json.load(handle)
+    if not os.path.exists(picks_path):
+        return {}
+    with open(picks_path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def read_canon(song_dir, name):
+    path = os.path.join(song_dir, "canon", os.path.splitext(name)[0] + ".json")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def write_song(song_dir, out_dir, name, picks):
+    """Extract one song file into out_dir and return the song."""
+    canon = read_canon(song_dir, name)
+    song = extract(os.path.join(song_dir, name), picks.get(name, {}), canon)
     os.makedirs(out_dir, exist_ok=True)
+    out_name = os.path.splitext(name)[0] + ".json"
+    with open(os.path.join(out_dir, out_name), "w", encoding="ascii", newline="\n") as handle:
+        json.dump(song, handle, separators=(",", ":"))
+    return song
+
+
+def main():
+    song_dir = sys.argv[1] if len(sys.argv) > 1 else SONG_DIR
+    out_dir = sys.argv[2] if len(sys.argv) > 2 else OUT_DIR
+    picks = read_picks(song_dir)
     for name in sorted(os.listdir(song_dir)):
         if not name.lower().endswith((".mid", ".midi")):
             continue
         try:
-            song = extract(os.path.join(song_dir, name), picks.get(name, {}))
+            song = write_song(song_dir, out_dir, name, picks)
         except Exception as error:
             print(f"[X] {name}: {error}")
             continue
-        out_name = os.path.splitext(name)[0] + ".json"
-        with open(os.path.join(out_dir, out_name), "w", encoding="ascii", newline="\n") as handle:
-            json.dump(song, handle, separators=(",", ":"))
         names = [inspect_midi.note_name(n[0]) for n in song["notes"][:8]]
         part = song["part"]
-        print(f"[OK] {name}: {len(song['notes'])} notes from trk {part['track']} ch {part['channel']}"
-              f", starts {' '.join(names)}")
+        source = "canon" if read_canon(song_dir, name) else f"trk {part['track']} ch {part['channel']}"
+        print(f"[OK] {name}: {len(song['notes'])} notes from {source}, starts {' '.join(names)}")
 
 
 if __name__ == "__main__":

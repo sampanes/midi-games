@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#14111c">
+  <title>Song Editor</title>
+  <link rel="stylesheet" href="/song-editor/styles.css">
+</head>
+<body>
+  <header class="bar top">
+    <button id="songButton" class="song-button" type="button">
+      <span id="songTitle" class="song-title">Pick a song</span>
+      <span id="songSub" class="song-sub"></span>
+    </button>
+    <span id="count" class="count"></span>
+    <button id="saveButton" class="primary" type="button" disabled>Save</button>
+  </header>
+
+  <nav class="bar tools" aria-label="Playback">
+    <button id="playButton" class="play" type="button" disabled>Play</button>
+    <div class="seg" id="listen" role="group" aria-label="What plays">
+      <button type="button" data-listen="tune" class="on">Tune</button>
+      <button type="button" data-listen="all">All</button>
+    </div>
+    <button id="undoButton" type="button" disabled>Undo</button>
+    <button id="zoomOut" type="button" aria-label="Zoom out">-</button>
+    <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
+    <button id="partsButton" type="button" disabled>Parts</button>
+  </nav>
+
+  <nav class="bar seg modes" id="modes" role="group" aria-label="What a touch does">
+    <button type="button" data-mode="tap" class="on">Tap</button>
+    <button type="button" data-mode="keep">Keep</button>
+    <button type="button" data-mode="drop">Drop</button>
+    <button type="button" data-mode="add">Add</button>
+  </nav>
+  <div id="hint" class="hint"></div>
+
+  <main id="rollWrap" class="roll-wrap">
+    <canvas id="roll"></canvas>
+    <div id="scroller" class="scroller"><div id="spacer"></div></div>
+    <div id="empty" class="empty">Pick a song to start.</div>
+  </main>
+
+  <footer class="keys">
+    <button id="octDown" type="button" aria-label="Octave down">&lt;</button>
+    <div id="piano" class="piano"></div>
+    <button id="octUp" type="button" aria-label="Octave up">&gt;</button>
+  </footer>
+
+  <section id="songSheet" class="sheet" hidden>
+    <div class="sheet-head">
+      <input id="songSearch" type="search" placeholder="Find a song" autocomplete="off">
+      <button class="close" type="button" data-close>Close</button>
+    </div>
+    <div id="songList" class="sheet-body"></div>
+  </section>
+
+  <section id="partsSheet" class="sheet" hidden>
+    <div class="sheet-head">
+      <h2>Parts</h2>
+      <button class="close" type="button" data-close>Close</button>
+    </div>
+    <div class="sheet-body">
+      <div id="partList"></div>
+      <div class="sheet-actions">
+        <button id="autoButton" type="button">Start over from the auto pick</button>
+        <button id="clearButton" type="button">Clear the tune</button>
+        <button id="midiButton" type="button">Use a MIDI keyboard</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="saveSheet" class="sheet" hidden>
+    <div class="sheet-head">
+      <h2>Save the tune</h2>
+      <button class="close" type="button" data-close>Close</button>
+    </div>
+    <div class="sheet-body">
+      <label>Title <input id="saveTitle" type="text" autocomplete="off"></label>
+      <label>Group <input id="saveGroup" type="text" list="groupList" autocomplete="off"></label>
+      <datalist id="groupList"></datalist>
+      <p id="saveNote" class="note"></p>
+      <button id="saveConfirm" class="primary wide" type="button">Save</button>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="/song-editor/app.js"></script>
+</body>
+</html>

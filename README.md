@@ -270,6 +270,43 @@ header documents the options (track, channel, skip, max_notes, min_note,
 lowest, title, group, transpose). Songs stop after 200 notes unless an
 override says otherwise.
 
+#### Song editor (pick the tune by hand)
+
+When the script's pick is not quite the tune, the song editor lets you
+choose the notes yourself, on a phone or the PC:
+
+```bat
+scripts\start-song-editor.bat -Phone
+```
+
+It starts a small server on this PC (`scripts/song-editor.py`, listening on
+127.0.0.1:8766 only), runs `adb reverse` for every phone adb can see, and
+opens `http://localhost:8766/` in Chrome on the phone (`-Browser brave` for
+Brave, `-Pc` to open it on the PC too). `scripts\song-editor-status.bat`
+says whether it is running; `scripts\stop-song-editor.bat` stops it.
+
+The page lists the MIDI files in `private/songs` and in your Downloads
+folder and shows a song as a piano roll: every note of every part in grey,
+the tune in color (the script's pick, until you save your own).
+
+- Tap: tap a note to keep it in the tune or drop it. The tune is one note at
+  a time, so keeping a chord note drops whatever the tune had there.
+- Keep / Drop: drag across notes to keep or drop many at once.
+- Add: for a tune that is only sung over chords. Tap a spot or press a key
+  (on screen, on the computer as in Key Games, or on a MIDI keyboard). The
+  note starts on the nearest lyric syllable or note start in the song and
+  lasts until the next tune note (or syllable), no longer than the chord
+  under it, so nothing needs dragging. When stopped, each key press moves
+  the start point on to the next syllable, so a line can be typed in note by
+  note; while playing, notes land where you play them.
+- Play plays the tune, or All plays the tune over the rest of the song.
+  Parts shows and hides parts and keeps or drops a whole part.
+
+Save writes the chosen notes to `private/songs/canon/<name>.json` (a file
+from Downloads is copied into `private/songs` first) and rebuilds that
+song's melody; build the app to play it. A canon file replaces the
+script's pick for that song.
+
 ### Ear Notes
 
 A mystery note plays and the child finds it by sound alone: the keyboard
