@@ -9,6 +9,7 @@ import 'package:key_games/games/rush_page.dart';
 import 'package:key_games/games/rush_rules.dart';
 import 'package:key_games/midi/midi_input.dart';
 import 'package:key_games/songs/song.dart';
+import 'package:key_games/widgets/piano_strip.dart';
 
 void main() {
   test('easy keys are the four middle keys, never the same twice, never far', () {
@@ -141,10 +142,18 @@ void main() {
     }
     expect(find.text('3'), findsOneWidget);
 
-    // C is not next (F is): a miss, and the score stays.
+    // Clicking the keyboard picture plays too (testing without a keyboard):
+    // F is next.
+    final strip = tester.getRect(find.byType(PianoStrip));
+    final f = keyColumn(60, 67, strip.width, 65);
+    await tester.tapAt(Offset(strip.left + f.left + f.width / 2, strip.bottom - 10));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('4'), findsOneWidget);
+
+    // C is not next (D is): a miss, and the score stays.
     await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('4'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
