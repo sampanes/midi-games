@@ -159,28 +159,6 @@ Results go to ignored `private/midi/auto-probe-*.json`; recordings to
 `private/tmp/auto-probe/`. Pass `-SkipProgramChange` to avoid leaving the
 synth on program 0.
 
-## Game: Color Keys (couch MVP)
-
-A big colored circle shows a color name and plays its note. Press any key or
-pad whose note has that color (any octave counts) to earn a star; eight stars
-wins a round with a fanfare. Wrong notes still play and sparkle, so there is
-no way to lose. Colors: C red, D orange, E yellow, F green, G blue, A purple,
-B pink.
-
-It listens to every MIDI input on any channel, so it works over USB or
-Bluetooth whatever controller preset the keyboard is on. If the keyboard is on
-USB and Bluetooth at once, duplicate messages are filtered out. Sound comes
-from the computer (Web Audio), so it streams to the TV with the picture.
-
-```bat
-scripts\start-color-keys.bat
-```
-
-Opens full screen (F11 toggles). Stop with Ctrl+C in that window or
-`scripts\stop-midi-listener.bat`. Without the keyboard, typing `a s d f g h j`
-plays C D E F G A B. If a "Click to turn on sound" button appears, the browser
-profile was already open without the autoplay flag; click once.
-
 ## App: Key Games (Flutter, phone and PC)
 
 `apps/key_games` is the same Color Keys game as a native app for Android and
@@ -228,7 +206,7 @@ flutter build windows --release
 Windows: `scripts\start-key-games.bat` opens it borderless full screen (add
 `--windowed` for a normal window); `scripts\stop-key-games.bat` or Alt+F4
 quits. The app keeps the screen awake, since keyboard play is not screen
-activity. `apps/keys_spike` is the earlier latency test app.
+activity.
 
 ### Song mode
 

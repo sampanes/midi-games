@@ -2,7 +2,7 @@
 // user keeps (and the ones they add) become the song's canon tune for the
 // Key Games song mode. Rules live in roll.js; this file draws and listens.
 
-import { PITCH_CLASSES, pitchClass } from "../games/color-keys.js";
+import { PITCH_CLASSES, pitchClass } from "../midi/pitch-classes.js";
 import {
   addNote,
   dropNote,

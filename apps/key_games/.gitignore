@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# FVM-managed Flutter SDK link (the pin is .fvmrc)
+.fvm/
