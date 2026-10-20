@@ -10,8 +10,8 @@
 // itself, and a wrong key plays itself and then the right note and freezes
 // scoring for that moment.
 //
-// At the end: score, best score this session, and the song name. Keys at
-// the end: C plays again, E goes back to the menu.
+// At the end: score, the best score on the device, and the song name. Keys
+// at the end: C plays again, E goes back to the menu.
 
 import 'dart:async';
 import 'dart:math';
@@ -19,21 +19,21 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/services.dart';
+import '../app/settings.dart';
+import '../app/theme.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
-import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
 import '../songs/song.dart';
-import '../widgets/key_nav.dart';
-import '../widgets/keyboard_status.dart';
+import '../widgets/game_page.dart';
+import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import 'color_keys_rules.dart';
 import 'difficulty.dart';
 import 'rush_rules.dart';
 
-const _background = Color(0xFF14111C);
-const _starGold = Color(0xFFFFD84A);
 const _countdownStepMs = 700;
 
 const rushLevels = {
@@ -42,23 +42,15 @@ const rushLevels = {
 };
 const rushLabels = {Difficulty.medium: 'Real'};
 
-// Best score per level, for this session.
-final Map<Difficulty, int> _best = {};
-
 enum _Phase { countdown, playing, done }
 
 class RushPage extends StatefulWidget {
   const RushPage({
     super.key,
-    required this.synth,
-    required this.midi,
     this.difficulty = Difficulty.easy,
     this.random,
     this.songs,
   });
-
-  final Synth synth;
-  final MidiInput midi;
 
   // Easy, or anything else for Real.
   final Difficulty difficulty;
@@ -72,6 +64,8 @@ class RushPage extends StatefulWidget {
 }
 
 class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
+  late final Synth _synth = AppServices.of(context).synth;
+  late final Settings _settings = AppServices.of(context).settings;
   late final Random _random = widget.random ?? Random();
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _boardKey = GlobalKey();
@@ -79,9 +73,8 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       AnimationController(vsync: this, duration: const Duration(milliseconds: 140), value: 1);
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
-  late final MissEcho _echo = MissEcho(widget.synth);
+  late final MissEcho _echo = MissEcho(_synth);
   final List<Timer> _timers = [];
-  StreamSubscription<NoteEvent>? _noteSub;
   Timer? _clock;
 
   RushState _state = const RushState(upcoming: []);
@@ -99,6 +92,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
 
   Difficulty get _level => widget.difficulty;
   bool get _real => _level != Difficulty.easy;
+  String get _bestKey => 'rush.${_level.name}';
 
   // Real: the keyboard's octave buttons move everything by whole octaves.
   int get _shift => _real ? _base - 48 : 0;
@@ -112,8 +106,6 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _noteSub = widget.midi.notes.listen(_onNote);
-    HardwareKeyboard.instance.addHandler(_onKey);
     final given = widget.songs;
     if (given != null) {
       _songs = given;
@@ -128,22 +120,18 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKey);
-    unawaited(_noteSub?.cancel());
     _clock?.cancel();
     _echo.cancel();
     for (final timer in _timers) {
       timer.cancel();
     }
     for (final note in _held) {
-      widget.synth.noteOff(note);
+      _synth.noteOff(note);
     }
     _slide.dispose();
     _shake.dispose();
     super.dispose();
   }
-
-  bool _onKey(KeyEvent event) => handleComputerKey(event, _onNote);
 
   void _later(Duration delay, void Function() action) {
     _timers.add(Timer(delay, () {
@@ -172,14 +160,14 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     for (var i = 0; i < 3; i++) {
       _later(Duration(milliseconds: 400 + i * _countdownStepMs), () {
         setState(() => _count = 3 - i);
-        widget.synth.blip(72, velocity: 70, lengthMs: 150);
+        _synth.blip(72, velocity: 70, lengthMs: 150);
       });
     }
     _later(const Duration(milliseconds: 400 + 3 * _countdownStepMs), _go);
   }
 
   void _go() {
-    widget.synth.blip(84, velocity: 90, lengthMs: 300);
+    _synth.blip(84, velocity: 90, lengthMs: 300);
     setState(() {
       _phase = _Phase.playing;
       // Picked now, not at the start, so the songs have finished loading.
@@ -199,13 +187,11 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   void _finish() {
     _clock?.cancel();
     _echo.cancel();
-    final best = _best[_level] ?? 0;
     setState(() {
       _phase = _Phase.done;
-      _newBest = _state.score > best;
-      if (_newBest) _best[_level] = _state.score;
+      _newBest = _settings.recordBest(_bestKey, _state.score);
     });
-    widget.synth.tune([72, 76, 79, 84], stepMs: 120, lengthMs: 220);
+    _synth.tune([72, 76, 79, 84], stepMs: 120, lengthMs: 220);
     // A moment before the end keys work, so the last hits do not restart it.
     _later(const Duration(milliseconds: 1500), () => setState(() => _canPick = true));
   }
@@ -213,7 +199,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
     if (!event.on) {
-      widget.synth.noteOff(event.note);
+      _synth.noteOff(event.note);
       setState(() => _held.remove(event.note));
       return;
     }
@@ -222,7 +208,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       if (_real) _base = fitBase(_base, event.note);
     });
     if (_phase != _Phase.playing) {
-      widget.synth.noteOn(event.note, event.velocity);
+      _synth.noteOn(event.note, event.velocity);
       return;
     }
     final target = _state.target;
@@ -232,25 +218,25 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       case RushResult.hit:
         _echo.cancel();
         if (_real) {
-          widget.synth.noteOn(event.note, event.velocity);
+          _synth.noteOn(event.note, event.velocity);
         } else {
           _smash();
         }
         _slide.forward(from: 0);
         _sparksKey.currentState?.burst(
           _tileCenter(target + _shift),
-          [Color(pitchClasses[pitchClass(target)].argb), _starGold],
+          [noteColor(target), AppColors.starGold],
           count: 16,
           speed: 380,
         );
       case RushResult.miss:
         _shake.forward(from: 0);
         if (_real) {
-          widget.synth.noteOn(event.note, event.velocity);
+          _synth.noteOn(event.note, event.velocity);
           _echo.play(event.note, target + _shift);
         }
       case RushResult.frozen || RushResult.over:
-        if (_real) widget.synth.noteOn(event.note, event.velocity);
+        if (_real) _synth.noteOn(event.note, event.velocity);
     }
   }
 
@@ -259,7 +245,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     final notes = _song.notes;
     final n = notes[_songIndex % notes.length];
     _songIndex++;
-    widget.synth.blip(n.note, velocity: 100, lengthMs: n.lengthMs.clamp(150, 700));
+    _synth.blip(n.note, velocity: 100, lengthMs: n.lengthMs.clamp(150, 700));
   }
 
   // Middle of the bottom-row tile for [note], in the sparks' coordinates.
@@ -283,88 +269,69 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final playing = _phase == _Phase.playing;
     final span = _span;
-    return Scaffold(
-      backgroundColor: _background,
-      body: KeyNav(
-        midi: widget.midi,
-        picks: _phase == _Phase.done && _canPick
-            ? {0: _startRound, 4: () => Navigator.maybePop(context)}
-            : const {},
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            SafeArea(
-              child: Column(
+    return GamePage(
+      picks: _phase == _Phase.done && _canPick
+          ? {0: _startRound, 4: () => Navigator.maybePop(context)}
+          : const {},
+      onNote: _onNote,
+      header: [
+        const Icon(Icons.star_rounded, color: AppColors.starGold, size: 40),
+        const SizedBox(width: 4),
+        Text('${_state.score}',
+            style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: _state.timeLeft,
+              minHeight: 14,
+              color: _state.timeLeft < 0.17 ? AppColors.red : AppColors.starGold,
+              backgroundColor: Colors.white12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+      ],
+      body: _phase == _Phase.done
+          ? Center(child: _buildEnd())
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-                    child: Row(
-                      children: [
-                        if (Navigator.canPop(context)) const BackButton(),
-                        const Icon(Icons.star_rounded, color: _starGold, size: 40),
-                        const SizedBox(width: 4),
-                        Text('${_state.score}',
-                            style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: LinearProgressIndicator(
-                              value: _state.timeLeft,
-                              minHeight: 14,
-                              color: _state.timeLeft < 0.17 ? const Color(0xFFFF3B3B) : _starGold,
-                              backgroundColor: Colors.white12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Flexible(child: KeyboardStatus(midi: widget.midi)),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: _phase == _Phase.done
-                        ? Center(child: _buildEnd())
-                        : Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                _buildBoard(span, playing),
-                                if (_phase == _Phase.countdown) Center(child: _buildCountdown()),
-                              ],
-                            ),
-                          ),
-                  ),
-                  Text(
-                    _phase == _Phase.countdown ? 'Get ready!' : 'Song: ${_song.title}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white54, fontSize: 16),
-                  ),
-                  // Hidden at the end, so the end choices fit a landscape phone.
-                  if (_phase != _Phase.done)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: SizedBox(
-                        height: min(180, MediaQuery.sizeOf(context).height * 0.24),
-                        child: PianoStrip(
-                          base: _base,
-                          span: span,
-                          targetNote: playing && !_state.frozen ? _state.target + _shift : null,
-                          held: _shownHeld,
-                          onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                          onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
-                        ),
-                      ),
-                    ),
+                  _buildBoard(span, playing),
+                  if (_phase == _Phase.countdown) Center(child: _buildCountdown()),
                 ],
               ),
             ),
-            Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
-          ],
+      footer: [
+        Text(
+          _phase == _Phase.countdown ? 'Get ready!' : 'Song: ${_song.title}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white54, fontSize: 16),
         ),
-      ),
+        // Hidden at the end, so the end choices fit a landscape phone.
+        if (_phase != _Phase.done)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: SizedBox(
+              height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+              child: PianoStrip(
+                base: _base,
+                span: span,
+                targetNote: playing && !_state.frozen ? _state.target + _shift : null,
+                held: _shownHeld,
+                onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+              ),
+            ),
+          ),
+      ],
+      overlays: [
+        Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
+      ],
     );
   }
 
@@ -399,13 +366,13 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
       child: Text(
         '$_count',
-        style: const TextStyle(fontSize: 160, fontWeight: FontWeight.w900, color: _starGold),
+        style: const TextStyle(fontSize: 160, fontWeight: FontWeight.w900, color: AppColors.starGold),
       ),
     );
   }
 
   Widget _buildEnd() {
-    final best = _best[_level] ?? 0;
+    final best = _settings.best(_bestKey);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -414,7 +381,8 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
           const Text("Time's up!", style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
           Text('${_state.score} keys',
-              style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w900, color: _starGold)),
+              style: const TextStyle(
+                  fontSize: 56, fontWeight: FontWeight.w900, color: AppColors.starGold)),
           Text(
             _newBest ? 'New best!' : 'Best: $best',
             style: const TextStyle(fontSize: 22, color: Colors.white70),
@@ -512,8 +480,7 @@ class _BoardPainter extends CustomPainter {
             // Two letters (F#) on a narrow black-key tile need a smaller size.
             fontSize: min(rect.width * (info.name.length > 1 ? 0.34 : 0.5), rect.height * 0.45),
             fontWeight: FontWeight.w900,
-            color: (dark ? const Color(0xFF2A2233) : Colors.white)
-                .withValues(alpha: frozen ? 0.4 : 1),
+            color: (dark ? AppColors.ink : Colors.white).withValues(alpha: frozen ? 0.4 : 1),
           ),
         ),
         textDirection: TextDirection.ltr,

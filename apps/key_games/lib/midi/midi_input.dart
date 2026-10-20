@@ -1,6 +1,7 @@
 // Finds MIDI keyboards and connects to them without any taps: every Bluetooth
 // LE MIDI device the scan finds, plus every wired device that has an input
-// port. Notes from all of them arrive on one stream, de-duplicated.
+// port. Notes from all of them arrive on one stream, de-duplicated; pad and
+// button presses that come as control changes arrive on another.
 //
 // On Android, connect over Bluetooth only from inside the app. A keyboard
 // paired in the phone's Bluetooth settings can be treated as an audio device,
@@ -16,11 +17,23 @@ import 'package:flutter_midi_command_ble/flutter_midi_command_ble.dart';
 import 'mirror_filter.dart';
 
 class NoteEvent {
-  const NoteEvent(this.note, this.velocity, {required this.on});
+  const NoteEvent(this.note, this.velocity, {required this.on, this.channel = 0});
 
   final int note;
   final int velocity;
   final bool on;
+
+  // MIDI channel 0-15. Pads often sit on another channel than the keys.
+  final int channel;
+}
+
+// A pad or panel button that sends a control change instead of a note.
+class ButtonEvent {
+  const ButtonEvent(this.channel, this.controller, this.value);
+
+  final int channel;
+  final int controller;
+  final int value;
 }
 
 class MidiInput {
@@ -30,6 +43,7 @@ class MidiInput {
   final MidiCommand _midi = MidiCommand();
   final MirrorFilter _mirror = MirrorFilter();
   final StreamController<NoteEvent> _notes = StreamController.broadcast();
+  final StreamController<ButtonEvent> _buttons = StreamController.broadcast();
 
   // Names of connected devices; empty while still looking.
   final ValueNotifier<List<String>> connected = ValueNotifier(const []);
@@ -46,6 +60,7 @@ class MidiInput {
   bool _busy = false;
 
   Stream<NoteEvent> get notes => _notes.stream;
+  Stream<ButtonEvent> get buttons => _buttons.stream;
 
   Future<void> start() async {
     _midi.configureBleTransport(UniversalBleMidiTransport());
@@ -74,6 +89,13 @@ class MidiInput {
     _midi.disconnectDevice(device);
     unawaited(_refresh());
   }
+
+  // Delivers an event as if the keyboard had sent it.
+  @visibleForTesting
+  void feed(NoteEvent event) => _notes.add(event);
+
+  @visibleForTesting
+  void feedButton(ButtonEvent event) => _buttons.add(event);
 
   Future<void> _refresh() async {
     if (_busy) return;
@@ -130,18 +152,25 @@ class MidiInput {
 
   void _onData(MidiDataReceivedEvent event) {
     final message = event.message;
-    final NoteEvent note;
-    if (message is NoteOnMessage) {
-      note = NoteEvent(message.note, message.velocity, on: message.velocity > 0);
-    } else if (message is NoteOffMessage) {
-      note = NoteEvent(message.note, message.velocity, on: false);
-    } else {
-      return;
+    final device = event.device.id;
+    final at = DateTime.now().millisecondsSinceEpoch;
+    switch (message) {
+      case NoteOnMessage(:final channel, :final note, :final velocity):
+        _note(device, NoteEvent(note, velocity, on: velocity > 0, channel: channel), at);
+      case NoteOffMessage(:final channel, :final note, :final velocity):
+        _note(device, NoteEvent(note, velocity, on: false, channel: channel), at);
+      case CCMessage(:final channel, :final controller, :final value):
+        if (_mirror.accept(device, 'cc/$channel/$controller/$value', at)) {
+          _buttons.add(ButtonEvent(channel, controller, value));
+        }
+      default:
+        return;
     }
-    final key = '${note.on}/${note.note}/${note.velocity}';
-    if (_mirror.accept(event.device.id, key, DateTime.now().millisecondsSinceEpoch)) {
-      _notes.add(note);
-    }
+  }
+
+  void _note(String device, NoteEvent note, int at) {
+    final key = '${note.on}/${note.channel}/${note.note}/${note.velocity}';
+    if (_mirror.accept(device, key, at)) _notes.add(note);
   }
 
   void dispose() {
@@ -150,5 +179,6 @@ class MidiInput {
     unawaited(_setupSub?.cancel());
     if (_scanning) _midi.stopScanningForBluetoothDevices();
     unawaited(_notes.close());
+    unawaited(_buttons.close());
   }
 }

@@ -4,16 +4,15 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
 import '../games/color_keys_rules.dart';
-
-Color _pitchColor(int pc) => Color(pitchClasses[pc].argb);
 
 class WinBanner extends StatelessWidget {
   const WinBanner({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final rainbow = [for (final pc in whitePitchClasses) _pitchColor(pc)];
+    final rainbow = [for (final pc in whitePitchClasses) pitchColor(pc)];
     return IgnorePointer(
       child: Center(
         child: TweenAnimationBuilder<double>(

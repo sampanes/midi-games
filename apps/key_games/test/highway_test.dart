@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:key_games/audio/synth.dart';
 import 'package:key_games/games/difficulty.dart';
 import 'package:key_games/games/highway_page.dart';
 import 'package:key_games/games/highway_rules.dart';
 import 'package:key_games/games/rush_page.dart';
-import 'package:key_games/midi/midi_input.dart';
 import 'package:key_games/songs/song.dart';
 import 'package:key_games/widgets/piano_strip.dart';
+
+import 'helpers.dart';
 
 // A made-up tune: up the C scale and back, half a second a note.
 final _scale = Song('Test scale', [
@@ -128,17 +128,11 @@ void main() {
   });
 
   testWidgets('note highway counts down, hits on time, ends, and C plays again', (tester) async {
-    tester.view.physicalSize = const Size(1080, 2316);
-    tester.view.devicePixelRatio = 2.625;
-    addTearDown(tester.view.reset);
-
+    usePhone(tester);
     const song = Song('Four notes', [
       SongNote(60, 0, 300), SongNote(62, 600, 300), SongNote(64, 1200, 300), SongNote(65, 1800, 300),
     ]);
-    // The synth is never started here, so it stays silent.
-    await tester.pumpWidget(MaterialApp(
-      home: HighwayPage(song: song, synth: Synth(), midi: MidiInput()),
-    ));
+    await pumpApp(tester, const HighwayPage(song: song));
     // Easy: 3.8 s lead-in, the count starts 2.1 s before the first note.
     await tester.pump(const Duration(milliseconds: 2000));
     expect(find.text('3'), findsOneWidget);
@@ -158,6 +152,7 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('Song done!'), findsOneWidget);
     expect(find.text('4 of 4 notes'), findsOneWidget);
+    expect(find.text('New best!'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 2));
     await tester.sendKeyEvent(LogicalKeyboardKey.keyA); // C: play again
@@ -183,26 +178,16 @@ void main() {
   }
 
   // Larger text (a phone setting) must fit too.
-  Widget bigText(Widget home) => MaterialApp(
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.3)),
-          child: child!,
-        ),
-        home: home,
-      );
-
   testWidgets('end screens fit a landscape phone', (tester) async {
-    tester.view.physicalSize = const Size(2316, 1080);
-    tester.view.devicePixelRatio = 2.625;
-    addTearDown(tester.view.reset);
+    usePhone(tester, landscape: true);
 
     const song = Song('Two notes', [SongNote(60, 0, 300), SongNote(62, 600, 300)]);
-    await tester.pumpWidget(bigText(HighwayPage(song: song, synth: Synth(), midi: MidiInput())));
+    await pumpApp(tester, const HighwayPage(song: song), textScale: 1.3);
     await tester.pump(const Duration(seconds: 8));
     expect(find.text('Nice try!'), findsOneWidget);
     await expectEndFits(tester);
 
-    await tester.pumpWidget(bigText(RushPage(synth: Synth(), midi: MidiInput(), songs: const [])));
+    await pumpApp(tester, const RushPage(songs: []), textScale: 1.3);
     await tester.pump(const Duration(seconds: 3));
     await tester.pump(const Duration(seconds: 61));
     expect(find.text("Time's up!"), findsOneWidget);

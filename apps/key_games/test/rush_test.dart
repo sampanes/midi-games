@@ -3,13 +3,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:key_games/audio/synth.dart';
 import 'package:key_games/games/difficulty.dart';
 import 'package:key_games/games/rush_page.dart';
 import 'package:key_games/games/rush_rules.dart';
-import 'package:key_games/midi/midi_input.dart';
 import 'package:key_games/songs/song.dart';
 import 'package:key_games/widgets/piano_strip.dart';
+
+import 'helpers.dart';
 
 void main() {
   test('easy keys are the four middle keys, never the same twice, never far', () {
@@ -79,20 +79,8 @@ void main() {
   });
 
   Future<void> pumpRush(WidgetTester tester, Difficulty difficulty, List<Song> songs) async {
-    tester.view.physicalSize = const Size(1080, 2316);
-    tester.view.devicePixelRatio = 2.625;
-    addTearDown(tester.view.reset);
-
-    // The synth is never started here, so it stays silent.
-    await tester.pumpWidget(MaterialApp(
-      home: RushPage(
-        synth: Synth(),
-        midi: MidiInput(),
-        difficulty: difficulty,
-        random: Random(5),
-        songs: songs,
-      ),
-    ));
+    usePhone(tester);
+    await pumpApp(tester, RushPage(difficulty: difficulty, random: Random(5), songs: songs));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('3'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 2200));

@@ -3,7 +3,8 @@
 // note of a song (song smash), so a good run makes the melody come out. The
 // keys work as buttons here; see runner_rules.dart for what each level uses.
 //
-// Keys at the end: C plays again, E goes back to the menu.
+// Keys at the end: C plays again, E goes back to the menu. The best coin
+// count per level is kept on the device.
 
 import 'dart:async';
 import 'dart:math';
@@ -12,21 +13,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
+import '../app/services.dart';
+import '../app/settings.dart';
+import '../app/theme.dart';
 import '../audio/synth.dart';
-import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
 import '../songs/song.dart';
-import '../widgets/key_nav.dart';
-import '../widgets/keyboard_status.dart';
+import '../widgets/game_page.dart';
+import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import 'color_keys_rules.dart';
 import 'difficulty.dart';
 import 'runner_rules.dart';
 
-const _background = Color(0xFF14111C);
-const _letterOnly = Color(0xFF4A4360);
-const _starGold = Color(0xFFFFD84A);
 const _countdownStepMs = 700;
 
 // Easy lanes: low, middle and high part of the keyboard.
@@ -40,23 +40,16 @@ const runnerLevelsText = {
   Difficulty.expert: 'Fast, letters only, they change often',
 };
 
-// Best coins per difficulty, for this session.
-final Map<Difficulty, int> _best = {};
-
 enum _Phase { countdown, playing, done }
 
 class RunnerPage extends StatefulWidget {
   const RunnerPage({
     super.key,
-    required this.synth,
-    required this.midi,
     this.difficulty = Difficulty.easy,
     this.random,
     this.songs,
   });
 
-  final Synth synth;
-  final MidiInput midi;
   final Difficulty difficulty;
 
   // Fixed in tests.
@@ -68,15 +61,16 @@ class RunnerPage extends StatefulWidget {
 }
 
 class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateMixin {
+  late final Synth _synth = AppServices.of(context).synth;
+  late final Settings _settings = AppServices.of(context).settings;
   late final Random _random = widget.random ?? Random();
-  late final RunnerLevel _settings = runnerLevels[widget.difficulty]!;
-  late RunnerRun _run = RunnerRun(_settings, _random);
+  late final RunnerLevel _rules = runnerLevels[widget.difficulty]!;
+  late RunnerRun _run = RunnerRun(_rules, _random);
   late final Ticker _ticker = createTicker(_onFrame);
   final ValueNotifier<int> _frame = ValueNotifier(0);
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _roadKey = GlobalKey();
   final List<Timer> _timers = [];
-  StreamSubscription<NoteEvent>? _noteSub;
 
   _Phase _phase = _Phase.countdown;
   int _count = 3;
@@ -103,6 +97,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   Difficulty get _level => widget.difficulty;
   bool get _zones => _level == Difficulty.easy;
   bool get _colored => _level != Difficulty.expert;
+  String get _bestKey => 'runner.${_level.name}';
 
   List<int> _startKeys() => switch (_level) {
         Difficulty.easy || Difficulty.medium => runnerMediumKeys,
@@ -112,8 +107,6 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _noteSub = widget.midi.notes.listen(_onNote);
-    HardwareKeyboard.instance.addHandler(_onKey);
     final given = widget.songs;
     if (given != null) {
       _songs = given;
@@ -127,18 +120,14 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKey);
-    unawaited(_noteSub?.cancel());
     _ticker.dispose();
     _frame.dispose();
     _cancelTimers();
     for (final note in _held) {
-      widget.synth.noteOff(note);
+      _synth.noteOff(note);
     }
     super.dispose();
   }
-
-  bool _onKey(KeyEvent event) => handleComputerKey(event, _onNote);
 
   void _cancelTimers() {
     for (final timer in _timers) {
@@ -157,7 +146,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
     _ticker.stop();
     _cancelTimers();
     setState(() {
-      _run = RunnerRun(_settings, _random);
+      _run = RunnerRun(_rules, _random);
       _phase = _Phase.countdown;
       _count = 3;
       _canPick = false;
@@ -176,14 +165,14 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
     for (var i = 0; i < 3; i++) {
       _later(Duration(milliseconds: 400 + i * _countdownStepMs), () {
         setState(() => _count = 3 - i);
-        widget.synth.blip(72, velocity: 70, lengthMs: 150);
+        _synth.blip(72, velocity: 70, lengthMs: 150);
       });
     }
     _later(const Duration(milliseconds: 400 + 3 * _countdownStepMs), _go);
   }
 
   void _go() {
-    widget.synth.blip(84, velocity: 90, lengthMs: 300);
+    _synth.blip(84, velocity: 90, lengthMs: 300);
     setState(() {
       _phase = _Phase.playing;
       // Picked now, not at the start, so the songs have finished loading.
@@ -205,11 +194,11 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
       switch (event) {
         case RunnerEvent.coin:
           _smash();
-          _sparksKey.currentState?.burst(_runnerCenter(), const [_starGold, Colors.white],
+          _sparksKey.currentState?.burst(_runnerCenter(), const [AppColors.starGold, Colors.white],
               count: 10, speed: 260);
         case RunnerEvent.crash:
-          widget.synth.blip(40, velocity: 110, lengthMs: 220);
-          widget.synth.blip(41, velocity: 110, lengthMs: 220);
+          _synth.blip(40, velocity: 110, lengthMs: 220);
+          _synth.blip(41, velocity: 110, lengthMs: 220);
           _show('Ouch!');
       }
     }
@@ -223,7 +212,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   void _changeSigns() {
     _signs = _run.signs;
     setState(() => _keys = pickLaneKeys(_random, allPitchClasses, _keys));
-    widget.synth.tune([for (final pc in _keys) 60 + pc], stepMs: 160, lengthMs: 200);
+    _synth.tune([for (final pc in _keys) 60 + pc], stepMs: 160, lengthMs: 200);
     _show('New letters!');
   }
 
@@ -232,18 +221,16 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
     final notes = _song.notes;
     final n = notes[_songIndex % notes.length];
     _songIndex++;
-    widget.synth.blip(n.note, velocity: 100, lengthMs: n.lengthMs.clamp(150, 600));
+    _synth.blip(n.note, velocity: 100, lengthMs: n.lengthMs.clamp(150, 600));
   }
 
   void _finish() {
     _ticker.stop();
-    final best = _best[_level] ?? 0;
     setState(() {
       _phase = _Phase.done;
-      _newBest = _run.coins > best;
-      if (_newBest) _best[_level] = _run.coins;
+      _newBest = _settings.recordBest(_bestKey, _run.coins);
     });
-    widget.synth.tune([72, 76, 79, 84], stepMs: 120, lengthMs: 220);
+    _synth.tune([72, 76, 79, 84], stepMs: 120, lengthMs: 220);
     _later(const Duration(milliseconds: 1500), () => setState(() => _canPick = true));
   }
 
@@ -259,7 +246,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
     if (!event.on) {
-      widget.synth.noteOff(event.note);
+      _synth.noteOff(event.note);
       setState(() => _held.remove(event.note));
       return;
     }
@@ -268,11 +255,11 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
       _base = fitBase(_base, event.note);
     });
     if (_phase != _Phase.playing) {
-      widget.synth.noteOn(event.note, event.velocity);
+      _synth.noteOn(event.note, event.velocity);
       return;
     }
     // A quiet click of the key; coins carry the tune.
-    widget.synth.blip(event.note, velocity: 40, lengthMs: 90);
+    _synth.blip(event.note, velocity: 40, lengthMs: 90);
     final lane = _laneFor(event.note);
     if (lane != null) setState(() => _run.moveTo(lane));
   }
@@ -291,96 +278,75 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
 
   List<Color> get _laneColors => _zones
       ? _zoneColors
-      : [for (final pc in _keys) _colored ? Color(pitchClasses[pc].argb) : _letterOnly];
+      : [for (final pc in _keys) _colored ? pitchColor(pc) : AppColors.plain];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _background,
-      body: KeyNav(
-        midi: widget.midi,
-        picks: _phase == _Phase.done && _canPick
-            ? {0: _restart, 4: () => Navigator.maybePop(context)}
-            : const {},
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildTop(),
-                  Expanded(
-                    child: _phase == _Phase.done
-                        ? Center(child: _buildEnd())
-                        : Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ValueListenableBuilder<int>(
-                                valueListenable: _frame,
-                                builder: (context, frame, child) => CustomPaint(
-                                  key: _roadKey,
-                                  painter: _RoadPainter(
-                                    run: _run,
-                                    lane: _drawnLane,
-                                    labels: _labels,
-                                    colors: _laneColors,
-                                    moving: _phase == _Phase.playing,
-                                  ),
-                                ),
-                              ),
-                              if (_phase == _Phase.countdown) _buildCountdown(),
-                              _buildPopup(),
-                            ],
-                          ),
+    return GamePage(
+      picks: _phase == _Phase.done && _canPick
+          ? {0: _restart, 4: () => Navigator.maybePop(context)}
+          : const {},
+      onNote: _onNote,
+      header: _header(),
+      body: _phase == _Phase.done
+          ? Center(child: _buildEnd())
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                ValueListenableBuilder<int>(
+                  valueListenable: _frame,
+                  builder: (context, frame, child) => CustomPaint(
+                    key: _roadKey,
+                    painter: _RoadPainter(
+                      run: _run,
+                      lane: _drawnLane,
+                      labels: _labels,
+                      colors: _laneColors,
+                      moving: _phase == _Phase.playing,
+                    ),
                   ),
-                  // Hidden at the end, so the end choices fit a landscape phone.
-                  if (_phase != _Phase.done) ..._buildKeyboard(context),
-                ],
-              ),
+                ),
+                if (_phase == _Phase.countdown) _buildCountdown(),
+                _buildPopup(),
+              ],
             ),
-            Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
-          ],
-        ),
-      ),
+      // Hidden at the end, so the end choices fit a landscape phone.
+      footer: [if (_phase != _Phase.done) ..._buildKeyboard(context)],
+      overlays: [
+        Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
+      ],
     );
   }
 
-  Widget _buildTop() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
-      child: Row(
-        children: [
-          if (Navigator.canPop(context)) const BackButton(),
-          const Icon(Icons.monetization_on_rounded, color: _starGold, size: 34),
-          const SizedBox(width: 4),
-          Text('${_run.coins}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
-          const SizedBox(width: 14),
-          if (_run.timed)
-            Expanded(
-              child: ValueListenableBuilder<int>(
-                valueListenable: _frame,
-                builder: (context, frame, child) => ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: _run.timeLeft,
-                    minHeight: 12,
-                    color: _starGold,
-                    backgroundColor: Colors.white12,
-                  ),
-                ),
+  List<Widget> _header() {
+    return [
+      const Icon(Icons.monetization_on_rounded, color: AppColors.starGold, size: 34),
+      const SizedBox(width: 4),
+      Text('${_run.coins}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+      const SizedBox(width: 14),
+      if (_run.timed)
+        Expanded(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _frame,
+            builder: (context, frame, child) => ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: _run.timeLeft,
+                minHeight: 12,
+                color: AppColors.starGold,
+                backgroundColor: Colors.white12,
               ),
-            )
-          else ...[
-            for (var i = 0; i < _settings.hearts; i++)
-              Icon(Icons.favorite_rounded,
-                  size: 30, color: i < _run.hearts ? const Color(0xFFFF3B3B) : Colors.white24),
-            const Spacer(),
-          ],
-          const SizedBox(width: 12),
-          Flexible(child: KeyboardStatus(midi: widget.midi)),
-        ],
-      ),
-    );
+            ),
+          ),
+        )
+      else ...[
+        for (var i = 0; i < _rules.hearts; i++)
+          Icon(Icons.favorite_rounded,
+              size: 30, color: i < _run.hearts ? AppColors.red : Colors.white24),
+        const Spacer(),
+      ],
+      const SizedBox(width: 12),
+    ];
   }
 
   List<Widget> _buildKeyboard(BuildContext context) {
@@ -405,8 +371,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(_zoneNames[i],
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900, color: Color(0xFF2A2233))),
+                        style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
                   ),
                 ),
             ],
@@ -438,7 +403,8 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
           duration: const Duration(milliseconds: 300),
           builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
           child: Text('$_count',
-              style: const TextStyle(fontSize: 140, fontWeight: FontWeight.w900, color: _starGold)),
+              style: const TextStyle(
+                  fontSize: 140, fontWeight: FontWeight.w900, color: AppColors.starGold)),
         ),
       ),
     );
@@ -465,7 +431,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   }
 
   Widget _buildEnd() {
-    final best = _best[_level] ?? 0;
+    final best = _settings.best(_bestKey);
     final seconds = _run.nowMs ~/ 1000;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -476,7 +442,8 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
               style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
           Text('${_run.coins} coins',
-              style: const TextStyle(fontSize: 52, fontWeight: FontWeight.w900, color: _starGold)),
+              style: const TextStyle(
+                  fontSize: 52, fontWeight: FontWeight.w900, color: AppColors.starGold)),
           Text(
             '${_newBest ? 'New best!' : 'Best: $best'}   Ran $seconds seconds',
             style: const TextStyle(fontSize: 20, color: Colors.white70),
@@ -568,7 +535,7 @@ class _RoadPainter extends CustomPainter {
     fill.shader = const LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [Color(0xFF241A3A), Color(0xFF14111C)],
+      colors: [Color(0xFF241A3A), AppColors.background],
     ).createShader(Rect.fromLTWH(0, 0, size.width, g.horizonY));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, g.horizonY), fill);
     fill.shader = null;
@@ -626,7 +593,7 @@ class _RoadPainter extends CustomPainter {
     for (var i = 0; i < laneCount; i++) {
       final center = Offset(g.laneX(i.toDouble(), 1), g.signY);
       final here = run.lane == i;
-      fill.color = here ? colors[i] : Color.lerp(colors[i], _background, 0.5)!;
+      fill.color = here ? colors[i] : Color.lerp(colors[i], AppColors.background, 0.5)!;
       final wide = labels[i].length > 2;
       final rect = Rect.fromCenter(
           center: center, width: g.signRadius * (wide ? 3.4 : 2), height: g.signRadius * 2);
@@ -662,7 +629,7 @@ class _RoadPainter extends CustomPainter {
     final squash = 0.35 + 0.65 * cos(now / 180).abs();
     final rect = Rect.fromCenter(center: center.translate(0, -r * 1.4), width: r * 2 * squash, height: r * 2);
     canvas.drawOval(rect, Paint()..color = const Color(0xFFE0A800));
-    canvas.drawOval(rect.deflate(r * 0.25), Paint()..color = _starGold);
+    canvas.drawOval(rect.deflate(r * 0.25), Paint()..color = AppColors.starGold);
   }
 
   // A round little runner with eyes and running feet.
@@ -679,8 +646,8 @@ class _RoadPainter extends CustomPainter {
         Rect.fromCenter(center: feet.translate(r * 0.45, -r * 0.15 - step * r * 0.18), width: r * 0.6, height: r * 0.34),
         foot);
     final blink = stumbling && (now ~/ 100).isEven;
-    canvas.drawCircle(body, r, Paint()..color = blink ? const Color(0xFFFF6A6A) : _starGold);
-    final eye = Paint()..color = const Color(0xFF2A2233);
+    canvas.drawCircle(body, r, Paint()..color = blink ? const Color(0xFFFF6A6A) : AppColors.starGold);
+    final eye = Paint()..color = AppColors.ink;
     canvas.drawCircle(body.translate(-r * 0.32, -r * 0.2), r * 0.13, eye);
     canvas.drawCircle(body.translate(r * 0.32, -r * 0.2), r * 0.13, eye);
     canvas.drawArc(
@@ -691,7 +658,7 @@ class _RoadPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = r * 0.09
-        ..color = const Color(0xFF2A2233),
+        ..color = AppColors.ink,
     );
   }
 
@@ -703,7 +670,7 @@ class _RoadPainter extends CustomPainter {
         style: TextStyle(
           fontSize: size,
           fontWeight: FontWeight.w900,
-          color: dark ? const Color(0xFF2A2233) : Colors.white,
+          color: dark ? AppColors.ink : Colors.white,
         ),
       ),
       textDirection: TextDirection.ltr,

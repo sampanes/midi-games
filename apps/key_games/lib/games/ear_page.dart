@@ -4,21 +4,20 @@
 // compare by ear; after two wrong tries the answer lights up.
 // Tap the big circle to hear the note again.
 //
-// Input: any connected MIDI keyboard (auto-connected), touching the keyboard
-// picture, and the computer keys A S D F G H J K.
+// Input: the keyboard and the computer keys, through the key router, plus
+// touching the keyboard picture.
 
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../app/services.dart';
+import '../app/theme.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
-import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
-import '../widgets/key_nav.dart';
-import '../widgets/keyboard_status.dart';
+import '../widgets/game_page.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import '../widgets/win_banner.dart';
@@ -26,17 +25,12 @@ import 'color_keys_rules.dart';
 import 'difficulty.dart';
 import 'ear_rules.dart';
 
-const _background = Color(0xFF14111C);
-const _mystery = Color(0xFF3A3448);
-const _starGold = Color(0xFFFFD84A);
 const _hitDelay = Duration(milliseconds: 1300);
 const _levelUpDelay = Duration(milliseconds: 3000);
 const _idleReplay = Duration(seconds: 7);
 
 // The mystery note is played around middle C.
 const _mysteryOctave = 60;
-
-Color _pitchColor(int pc) => Color(pitchClasses[pc].argb);
 
 // Difficulty picks the starting level; stars still move up from there.
 const earStartLevel = {
@@ -56,14 +50,10 @@ const earLevelsText = {
 class EarPage extends StatefulWidget {
   const EarPage({
     super.key,
-    required this.synth,
-    required this.midi,
     this.difficulty = Difficulty.easy,
     this.random,
   });
 
-  final Synth synth;
-  final MidiInput midi;
   final Difficulty difficulty;
 
   // Fixed in tests.
@@ -74,6 +64,7 @@ class EarPage extends StatefulWidget {
 }
 
 class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
+  late final Synth _synth = AppServices.of(context).synth;
   late final Random _random = widget.random ?? Random();
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _circleKey = GlobalKey();
@@ -82,8 +73,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   late EarState _state = EarState.start(earStartLevel[widget.difficulty]!, _random);
-  late final MissEcho _echo = MissEcho(widget.synth);
-  StreamSubscription<NoteEvent>? _noteSub;
+  late final MissEcho _echo = MissEcho(_synth);
   Timer? _advanceTimer;
   Timer? _replayTimer;
   bool _celebrating = false;
@@ -93,32 +83,26 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _noteSub = widget.midi.notes.listen(_onNote);
-    HardwareKeyboard.instance.addHandler(_onKey);
     // First note once the synth has had time to load.
     _scheduleReplay(const Duration(milliseconds: 1200));
   }
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKey);
-    unawaited(_noteSub?.cancel());
     _advanceTimer?.cancel();
     _replayTimer?.cancel();
     _echo.cancel();
     for (final note in _held) {
-      widget.synth.noteOff(note);
+      _synth.noteOff(note);
     }
     _pulse.dispose();
     _shake.dispose();
     super.dispose();
   }
 
-  bool _onKey(KeyEvent event) => handleComputerKey(event, _onNote);
-
   void _playMystery() {
     if (!mounted) return;
-    widget.synth.blip(_mysteryOctave + _state.target, velocity: 85, lengthMs: 600);
+    _synth.blip(_mysteryOctave + _state.target, velocity: 85, lengthMs: 600);
     _scheduleReplay(_idleReplay);
   }
 
@@ -134,11 +118,11 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
     if (!event.on) {
-      widget.synth.noteOff(event.note);
+      _synth.noteOff(event.note);
       setState(() => _held.remove(event.note));
       return;
     }
-    widget.synth.noteOn(event.note, event.velocity);
+    _synth.noteOn(event.note, event.velocity);
     final result = pressEarNote(_state, event.note);
     setState(() {
       _state = result.state;
@@ -171,19 +155,19 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
     _echo.cancel();
     _pulse.forward(from: 0);
     final pc = _state.target;
-    final color = _pitchColor(pc);
+    final color = pitchColor(pc);
     _sparksKey.currentState?.burst(
       _circleCenter(),
-      big ? [color, Colors.white, _starGold] : [color, Colors.white],
+      big ? [color, Colors.white, AppColors.starGold] : [color, Colors.white],
       count: big ? 40 : 18,
       speed: big ? 520 : 320,
     );
-    if (big) widget.synth.tune([84 + pc, 91 + pc], stepMs: 70, lengthMs: 150);
+    if (big) _synth.tune([84 + pc, 91 + pc], stepMs: 70, lengthMs: 150);
   }
 
   void _celebrateLevelUp() {
     setState(() => _celebrating = true);
-    final rainbow = [for (final pc in whitePitchClasses) _pitchColor(pc)];
+    final rainbow = [for (final pc in whitePitchClasses) pitchColor(pc)];
     final size = MediaQuery.sizeOf(context);
     final sparks = _sparksKey.currentState;
     for (var i = 0; i < 5; i++) {
@@ -196,7 +180,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
         sparks?.burst(at, rainbow, count: 50, speed: 650);
       });
     }
-    widget.synth.tune([84, 88, 91, 96, 91, 96], stepMs: 130, lengthMs: 200);
+    _synth.tune([84, 88, 91, 96, 91, 96], stepMs: 130, lengthMs: 200);
   }
 
   void _scheduleAdvance(Duration delay) {
@@ -232,74 +216,57 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final show = _state.locked || _state.revealed;
-    final color = show ? _pitchColor(_state.target) : _mystery;
-    return Scaffold(
-      backgroundColor: _background,
-      body: KeyNav(
-        midi: widget.midi,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [color.withValues(alpha: show ? 0.28 : 0.4), _background],
-                  radius: 0.9,
-                ),
-              ),
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Row(
-                      children: [
-                        if (Navigator.canPop(context)) const BackButton(),
-                        Expanded(child: _StarRow(stars: _state.stars)),
-                        const SizedBox(width: 8),
-                        ActionChip(
-                          avatar: const Icon(Icons.trending_up, size: 18),
-                          label: Text('Level ${_state.level + 1}'),
-                          onPressed: _nextLevel,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(child: KeyboardStatus(midi: widget.midi)),
-                      ],
-                    ),
-                  ),
-                  Expanded(child: Center(child: _buildCircle(show, color))),
-                  _ChoiceRow(choices: _state.choices),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                    child: SizedBox(
-                      height: min(180, MediaQuery.sizeOf(context).height * 0.24),
-                      child: PianoStrip(
-                        base: _base,
-                        target: show ? _state.target : null,
-                        plain: true,
-                        choices: _state.choices,
-                        held: _held,
-                        onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                        onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
-            if (_celebrating) const WinBanner(),
-          ],
+    final color = show ? pitchColor(_state.target) : AppColors.mystery;
+    return GamePage(
+      onNote: _onNote,
+      backdrop: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            colors: [color.withValues(alpha: show ? 0.28 : 0.4), AppColors.background],
+            radius: 0.9,
+          ),
         ),
       ),
+      header: [
+        Expanded(child: _StarRow(stars: _state.stars)),
+        const SizedBox(width: 8),
+        ActionChip(
+          avatar: const Icon(Icons.trending_up, size: 18),
+          label: Text('Level ${_state.level + 1}'),
+          onPressed: _nextLevel,
+        ),
+        const SizedBox(width: 8),
+      ],
+      body: Center(child: _buildCircle(show, color)),
+      footer: [
+        _ChoiceRow(choices: _state.choices),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          child: SizedBox(
+            height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+            child: PianoStrip(
+              base: _base,
+              target: show ? _state.target : null,
+              plain: true,
+              choices: _state.choices,
+              held: _held,
+              onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+              onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+            ),
+          ),
+        ),
+      ],
+      overlays: [
+        Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
+        if (_celebrating) const WinBanner(),
+      ],
     );
   }
 
   Widget _buildCircle(bool show, Color color) {
     final darkText = show && color.computeLuminance() > 0.5;
-    final ink = darkText ? const Color(0xFF2A2233) : Colors.white;
+    final ink = darkText ? AppColors.ink : Colors.white;
     return LayoutBuilder(
       builder: (context, constraints) {
         final diameter = min(constraints.maxWidth, constraints.maxHeight) * 0.72;
@@ -409,7 +376,7 @@ class _StarRow extends StatelessWidget {
                 child: Icon(
                   Icons.star_rounded,
                   size: size,
-                  color: i < stars ? _starGold : Colors.white24,
+                  color: i < stars ? AppColors.starGold : Colors.white24,
                 ),
               ),
           ],

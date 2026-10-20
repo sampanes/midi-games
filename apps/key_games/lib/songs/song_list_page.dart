@@ -10,20 +10,16 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../audio/synth.dart';
-import '../games/color_keys_rules.dart';
+import '../app/theme.dart';
 import '../games/difficulty.dart';
-import '../midi/midi_input.dart';
-import '../widgets/key_nav.dart';
-import '../widgets/keyboard_status.dart';
+import '../widgets/game_page.dart';
+import '../widgets/key_badge.dart';
 import 'song.dart';
 import 'song_play_page.dart';
 
 class SongListPage extends StatefulWidget {
   const SongListPage({
     super.key,
-    required this.synth,
-    required this.midi,
     this.difficulty = Difficulty.easy,
     this.title = 'Songs',
     this.play,
@@ -32,8 +28,6 @@ class SongListPage extends StatefulWidget {
     this.levels = true,
   });
 
-  final Synth synth;
-  final MidiInput midi;
   final Difficulty difficulty;
   final String title;
 
@@ -115,8 +109,6 @@ class _SongListPageState extends State<SongListPage> {
       context,
       MaterialPageRoute<void>(
         builder: (_) => SongListPage(
-          synth: widget.synth,
-          midi: widget.midi,
           difficulty: widget.difficulty,
           title: widget.title,
           play: widget.play,
@@ -133,49 +125,19 @@ class _SongListPageState extends State<SongListPage> {
       context,
       MaterialPageRoute<void>(
         builder: (_) =>
-            widget.play?.call(song) ??
-            SongPlayPage(
-              song: song,
-              synth: widget.synth,
-              midi: widget.midi,
-              difficulty: widget.difficulty,
-            ),
+            widget.play?.call(song) ?? SongPlayPage(song: song, difficulty: widget.difficulty),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF14111C),
-      body: KeyNav(
-        midi: widget.midi,
-        picks: _picks,
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
-                child: Row(
-                  children: [
-                    const BackButton(),
-                    Expanded(
-                      child: Text(
-                          '${widget.title}: '
-                          '${widget.group ?? (widget.levels ? widget.difficulty.label : 'All songs')}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-                    ),
-                    Flexible(child: KeyboardStatus(midi: widget.midi)),
-                  ],
-                ),
-              ),
-              Expanded(child: _buildSongs()),
-            ],
-          ),
-        ),
-      ),
+    return GamePage(
+      title: '${widget.title}: '
+          '${widget.group ?? (widget.levels ? widget.difficulty.label : 'All songs')}',
+      headerPadding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
+      picks: _picks,
+      body: _buildSongs(),
     );
   }
 
@@ -232,7 +194,7 @@ class _SongCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF241F30),
+      color: AppColors.card,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -269,7 +231,7 @@ class _SongCard extends StatelessWidget {
                               padding: const EdgeInsets.only(right: 5),
                               child: CircleAvatar(
                                 radius: 9,
-                                backgroundColor: Color(pitchClasses[pitchClass(n.note)].argb),
+                                backgroundColor: noteColor(n.note),
                               ),
                             ),
                         ],
@@ -299,7 +261,7 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF2B2440),
+      color: AppColors.groupCard,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -347,7 +309,7 @@ class _NextPageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF1B1724),
+      color: AppColors.quietCard,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),

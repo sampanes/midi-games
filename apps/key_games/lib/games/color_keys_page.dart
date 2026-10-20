@@ -10,34 +10,30 @@
 // picture; Hard adds the black keys on a plain picture (read the letter);
 // Expert shows the letter alone, with no color and no sound hint.
 //
-// Input: any connected MIDI keyboard (auto-connected), touching the keyboard
-// picture, and the computer keys A S D F G H J K.
+// Input: the keyboard and the computer keys, through the key router, plus
+// touching the keyboard picture.
 
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../app/services.dart';
+import '../app/theme.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
-import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
-import '../widgets/key_nav.dart';
-import '../widgets/keyboard_status.dart';
+import '../widgets/game_page.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import '../widgets/win_banner.dart';
 import 'color_keys_rules.dart';
 import 'difficulty.dart';
 
-const _background = Color(0xFF14111C);
-const _starGold = Color(0xFFFFD84A);
 const _hitDelay = Duration(milliseconds: 650);
 const _winDelay = Duration(milliseconds: 2800);
 const _chordWindow = Duration(milliseconds: 250);
 const _chordResetDelay = Duration(seconds: 1);
-const _letterOnly = Color(0xFF4A4360);
 
 const colorKeysLevels = {
   Difficulty.easy: 'The right keys glow',
@@ -46,19 +42,13 @@ const colorKeysLevels = {
   Difficulty.expert: 'Letter only, no hints',
 };
 
-Color pitchColor(int pc) => Color(pitchClasses[pc].argb);
-
 class ColorKeysPage extends StatefulWidget {
   const ColorKeysPage({
     super.key,
-    required this.synth,
-    required this.midi,
     this.difficulty = Difficulty.easy,
     this.random,
   });
 
-  final Synth synth;
-  final MidiInput midi;
   final Difficulty difficulty;
   final Random? random;
 
@@ -68,6 +58,7 @@ class ColorKeysPage extends StatefulWidget {
 
 class _ColorKeysPageState extends State<ColorKeysPage>
     with TickerProviderStateMixin {
+  late final Synth _synth = AppServices.of(context).synth;
   late final Random _random = widget.random ?? Random();
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _circleKey = GlobalKey();
@@ -85,8 +76,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
   bool get _colored => _level != Difficulty.expert;
   List<int> get _choices => _plain ? allPitchClasses : whitePitchClasses;
   late ColorKeysState _state = ColorKeysState.start(_random, _choices);
-  late final MissEcho _echo = MissEcho(widget.synth);
-  StreamSubscription<NoteEvent>? _noteSub;
+  late final MissEcho _echo = MissEcho(_synth);
   Timer? _advanceTimer;
   Timer? _attemptTimer;
   Timer? _chordResetTimer;
@@ -103,8 +93,6 @@ class _ColorKeysPageState extends State<ColorKeysPage>
   @override
   void initState() {
     super.initState();
-    _noteSub = widget.midi.notes.listen(_onNote);
-    HardwareKeyboard.instance.addHandler(_onKey);
     // Play the first color's note once the synth has had time to load.
     _advanceTimer = Timer(const Duration(milliseconds: 1200), _playTarget);
   }
@@ -115,10 +103,10 @@ class _ColorKeysPageState extends State<ColorKeysPage>
       _stopHint();
       final note = 72 + _state.target;
       _hintNote = note;
-      widget.synth.noteOn(note, 70);
+      _synth.noteOn(note, 70);
       _hintOffTimer = Timer(const Duration(milliseconds: 350), () {
         if (_hintNote != note) return;
-        widget.synth.noteOff(note);
+        _synth.noteOff(note);
         _hintOffTimer = Timer(Synth.releaseLength, () {
           if (_hintNote != note) return;
           _hintNote = null;
@@ -133,33 +121,29 @@ class _ColorKeysPageState extends State<ColorKeysPage>
     _hintOffTimer = null;
     final note = _hintNote;
     _hintNote = null;
-    if (note != null) widget.synth.noteOffNow(note);
+    if (note != null) _synth.noteOffNow(note);
   }
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKey);
-    unawaited(_noteSub?.cancel());
     _advanceTimer?.cancel();
     _attemptTimer?.cancel();
     _chordResetTimer?.cancel();
     _stopHint();
     _echo.cancel();
     for (final note in _held) {
-      widget.synth.noteOff(note);
+      _synth.noteOff(note);
     }
     _pulse.dispose();
     _shake.dispose();
     super.dispose();
   }
 
-  bool _onKey(KeyEvent event) => handleComputerKey(event, _onNote);
-
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
     if (!event.on) {
       final muted = _mutedUntilRelease.remove(event.note);
-      if (!muted) widget.synth.noteOff(event.note);
+      if (!muted) _synth.noteOff(event.note);
       setState(() {
         _held.remove(event.note);
         _chordHeld.remove(event.note);
@@ -189,7 +173,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
     _stopHint();
     _echo.cancel();
     _mutedUntilRelease.remove(event.note);
-    widget.synth.noteOn(event.note, event.velocity);
+    _synth.noteOn(event.note, event.velocity);
     setState(() {
       _base = fitBase(_base, event.note);
       _held.add(event.note);
@@ -235,7 +219,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
           _shake.forward(from: 0);
           _sparksKey.currentState?.burst(
             _circleCenter(),
-            [pitchColor(pitchClass(played))],
+            [noteColor(played)],
             count: 12,
             speed: 300,
           );
@@ -253,7 +237,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
           // Note Off messages must not cut off the correction if it has the same
           // pitch as one of the chord notes.
           for (final note in {...notes, ..._held}) {
-            widget.synth.noteOffNow(note);
+            _synth.noteOffNow(note);
           }
           _mutedUntilRelease.addAll(_held);
           _echo.playRightOnly(right);
@@ -289,9 +273,9 @@ class _ColorKeysPageState extends State<ColorKeysPage>
     _sparksKey.currentState?.burst(_circleCenter(), [
       color,
       Colors.white,
-      _starGold,
+      AppColors.starGold,
     ]);
-    widget.synth.tune([84 + pc, 91 + pc], stepMs: 70, lengthMs: 150);
+    _synth.tune([84 + pc, 91 + pc], stepMs: 70, lengthMs: 150);
   }
 
   void _celebrateWin() {
@@ -309,7 +293,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
         sparks?.burst(at, rainbow, count: 50, speed: 650);
       });
     }
-    widget.synth.tune([84, 88, 91, 96, 91, 96], stepMs: 130, lengthMs: 200);
+    _synth.tune([84, 88, 91, 96, 91, 96], stepMs: 130, lengthMs: 200);
   }
 
   void _scheduleAdvance(Duration delay) {
@@ -335,64 +319,45 @@ class _ColorKeysPageState extends State<ColorKeysPage>
   @override
   Widget build(BuildContext context) {
     final target = pitchClasses[_state.target];
-    final color = _colored ? Color(target.argb) : _letterOnly;
-    return Scaffold(
-      backgroundColor: _background,
-      body: KeyNav(
-        midi: widget.midi,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [color.withValues(alpha: 0.28), _background],
-                  radius: 0.9,
-                ),
-              ),
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Row(
-                      children: [
-                        if (Navigator.canPop(context)) const BackButton(),
-                        Expanded(child: _StarRow(stars: _state.stars)),
-                        Flexible(child: KeyboardStatus(midi: widget.midi)),
-                      ],
-                    ),
-                  ),
-                  Expanded(child: Center(child: _buildCircle(target, color))),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                    child: SizedBox(
-                      height: min(
-                        180,
-                        MediaQuery.sizeOf(context).height * 0.24,
-                      ),
-                      child: PianoStrip(
-                        base: _base,
-                        target: _state.locked || !_glow ? null : _state.target,
-                        plain: _plain,
-                        held: _held,
-                        onNoteOn: (note) =>
-                            _onNote(NoteEvent(note, 100, on: true)),
-                        onNoteOff: (note) =>
-                            _onNote(NoteEvent(note, 0, on: false)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned.fill(child: Sparks(key: _sparksKey)),
-            if (_celebrating) const WinBanner(),
-          ],
+    final color = _colored ? Color(target.argb) : AppColors.plain;
+    return GamePage(
+      onNote: _onNote,
+      backdrop: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            colors: [color.withValues(alpha: 0.28), AppColors.background],
+            radius: 0.9,
+          ),
         ),
       ),
+      header: [Expanded(child: _StarRow(stars: _state.stars))],
+      body: Center(child: _buildCircle(target, color)),
+      footer: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          child: SizedBox(
+            height: min(
+              180,
+              MediaQuery.sizeOf(context).height * 0.24,
+            ),
+            child: PianoStrip(
+              base: _base,
+              target: _state.locked || !_glow ? null : _state.target,
+              plain: _plain,
+              held: _held,
+              onNoteOn: (note) =>
+                  _onNote(NoteEvent(note, 100, on: true)),
+              onNoteOff: (note) =>
+                  _onNote(NoteEvent(note, 0, on: false)),
+            ),
+          ),
+        ),
+      ],
+      overlays: [
+        Positioned.fill(child: Sparks(key: _sparksKey)),
+        if (_celebrating) const WinBanner(),
+      ],
     );
   }
 
@@ -437,7 +402,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
                   style: TextStyle(
                     fontSize: diameter * 0.42,
                     fontWeight: FontWeight.w900,
-                    color: darkText ? const Color(0xFF2A2233) : Colors.white,
+                    color: darkText ? AppColors.ink : Colors.white,
                   ),
                 ),
               ),
@@ -469,7 +434,7 @@ class _StarRow extends StatelessWidget {
                 child: Icon(
                   Icons.star_rounded,
                   size: size,
-                  color: i < stars ? _starGold : Colors.white24,
+                  color: i < stars ? AppColors.starGold : Colors.white24,
                 ),
               ),
           ],

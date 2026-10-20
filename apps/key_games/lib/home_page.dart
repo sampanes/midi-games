@@ -1,34 +1,30 @@
 // Home menu: game categories, each a letter menu of its games, and every game
 // starts with a difficulty picker (Easy to Expert). Everything is picked by
 // pressing a note letter on the keyboard, so no touch screen is needed (TV):
-// C C C always reaches the first game on Easy.
+// C C C always reaches the first game on Easy. G is Settings.
 
 import 'package:flutter/material.dart';
 
-import 'audio/synth.dart';
 import 'games/color_keys_page.dart';
 import 'games/difficulty.dart';
 import 'games/ear_page.dart';
 import 'games/highway_page.dart';
 import 'games/runner_page.dart';
 import 'games/rush_page.dart';
-import 'midi/midi_input.dart';
+import 'settings/settings_page.dart';
 import 'songs/song_list_page.dart';
 import 'songs/song_listen_page.dart';
 import 'songs/song_play_page.dart' show songLevels;
 import 'widgets/menu_page.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, required this.synth, required this.midi});
+  const HomePage({super.key});
 
-  final Synth synth;
-  final MidiInput midi;
-
-  void _go(BuildContext context, Widget page) {
+  static void _go(BuildContext context, Widget page) {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => page));
   }
 
-  MenuItem _game(
+  static MenuItem _game(
     String title,
     String subtitle,
     IconData icon,
@@ -44,18 +40,12 @@ class HomePage extends StatelessWidget {
       colors: colors,
       onPick: (context) => _go(
         context,
-        difficultyPage(
-          title: title,
-          midi: midi,
-          descriptions: levels,
-          labels: labels,
-          game: game,
-        ),
+        difficultyPage(title: title, descriptions: levels, labels: labels, game: game),
       ),
     );
   }
 
-  MenuItem _category(
+  static MenuItem _category(
     String title,
     String subtitle,
     IconData icon,
@@ -67,7 +57,7 @@ class HomePage extends StatelessWidget {
       subtitle: subtitle,
       icon: icon,
       colors: colors,
-      onPick: (context) => _go(context, MenuPage(title: title, midi: midi, items: games)),
+      onPick: (context) => _go(context, MenuPage(title: title, items: games)),
     );
   }
 
@@ -79,7 +69,7 @@ class HomePage extends StatelessWidget {
       Icons.palette,
       const [Color(0xFFFF3B3B), Color(0xFFFFE81F), Color(0xFF2FA8FF)],
       colorKeysLevels,
-      (d) => ColorKeysPage(synth: synth, midi: midi, difficulty: d),
+      (d) => ColorKeysPage(difficulty: d),
     );
     final ear = _game(
       'Ear Notes',
@@ -87,7 +77,7 @@ class HomePage extends StatelessWidget {
       Icons.hearing,
       const [Color(0xFF22C9A0), Color(0xFF2FA8FF), Color(0xFF4A6BFF)],
       earLevelsText,
-      (d) => EarPage(synth: synth, midi: midi, difficulty: d),
+      (d) => EarPage(difficulty: d),
     );
     final steps = _game(
       'Song Steps',
@@ -95,7 +85,7 @@ class HomePage extends StatelessWidget {
       Icons.music_note,
       const [Color(0xFF8A4DFF), Color(0xFFFF5EC8), Color(0xFFFF9A1F)],
       songLevels,
-      (d) => SongListPage(synth: synth, midi: midi, difficulty: d, title: 'Song Steps'),
+      (d) => SongListPage(difficulty: d, title: 'Song Steps'),
     );
     final highway = _game(
       'Note Highway',
@@ -104,11 +94,9 @@ class HomePage extends StatelessWidget {
       const [Color(0xFF2FA8FF), Color(0xFF8A4DFF), Color(0xFFFF5EC8)],
       highwayLevelsText,
       (d) => SongListPage(
-        synth: synth,
-        midi: midi,
         difficulty: d,
         title: 'Note Highway',
-        play: (song) => HighwayPage(song: song, synth: synth, midi: midi, difficulty: d),
+        play: (song) => HighwayPage(song: song, difficulty: d),
       ),
     );
     // No levels: straight to the song list.
@@ -120,11 +108,9 @@ class HomePage extends StatelessWidget {
       onPick: (context) => _go(
         context,
         SongListPage(
-          synth: synth,
-          midi: midi,
           title: 'Song Box',
           levels: false,
-          play: (song) => SongListenPage(song: song, synth: synth, midi: midi),
+          play: (song) => SongListenPage(song: song),
         ),
       ),
     );
@@ -134,7 +120,7 @@ class HomePage extends StatelessWidget {
       Icons.bolt,
       const [Color(0xFFFFD84A), Color(0xFFFF6A2B), Color(0xFFFF3B3B)],
       rushLevels,
-      (d) => RushPage(synth: synth, midi: midi, difficulty: d),
+      (d) => RushPage(difficulty: d),
       labels: rushLabels,
     );
     final runner = _game(
@@ -143,11 +129,17 @@ class HomePage extends StatelessWidget {
       Icons.directions_run,
       const [Color(0xFF22C9A0), Color(0xFFFFD84A), Color(0xFFFF5EC8)],
       runnerLevelsText,
-      (d) => RunnerPage(synth: synth, midi: midi, difficulty: d),
+      (d) => RunnerPage(difficulty: d),
+    );
+    final settings = MenuItem(
+      title: 'Settings',
+      subtitle: 'Pick a Back pad',
+      icon: Icons.settings,
+      colors: const [Color(0xFF4A4360), Color(0xFF2B2440)],
+      onPick: (context) => _go(context, const SettingsPage()),
     );
     return MenuPage(
       title: 'Key Games',
-      midi: midi,
       items: [
         _category('Look', 'Find the glowing note', Icons.visibility,
             const [Color(0xFFFF3B3B), Color(0xFFFF9A1F)], [colorKeys]),
@@ -157,9 +149,8 @@ class HomePage extends StatelessWidget {
             const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)], [steps, highway, songBox]),
         _category('Arcade', 'Fast games against the clock', Icons.sports_esports,
             const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [rush, runner]),
+        settings,
       ],
-      footer: 'Press a letter on the keyboard to pick. '
-          'Hold the lowest and highest C together to go back.',
     );
   }
 }

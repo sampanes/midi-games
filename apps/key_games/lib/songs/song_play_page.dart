@@ -18,29 +18,25 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../app/services.dart';
+import '../app/theme.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
 import '../games/color_keys_rules.dart';
 import '../games/difficulty.dart';
-import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
-import '../widgets/key_nav.dart';
-import '../widgets/keyboard_status.dart';
+import '../widgets/game_page.dart';
+import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import '../widgets/win_banner.dart';
 import 'song.dart';
 
-const _background = Color(0xFF14111C);
 const _hintEvery = Duration(seconds: 5);
 const _slide = Duration(milliseconds: 280);
 const _upcoming = 6;
 const _playbackCapMs = 45000;
-
-Color _noteColor(int note) => Color(pitchClasses[pitchClass(note)].argb);
-const _neutral = Color(0xFF4A4360);
 
 const songLevels = {
   Difficulty.easy: 'The next key glows',
@@ -53,29 +49,25 @@ class SongPlayPage extends StatefulWidget {
   const SongPlayPage({
     super.key,
     required this.song,
-    required this.synth,
-    required this.midi,
     this.difficulty = Difficulty.easy,
   });
 
   final Song song;
   final Difficulty difficulty;
-  final Synth synth;
-  final MidiInput midi;
 
   @override
   State<SongPlayPage> createState() => _SongPlayPageState();
 }
 
 class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderStateMixin {
+  late final Synth _synth = AppServices.of(context).synth;
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
   late SongRun _run = SongRun(widget.song);
-  late final MissEcho _echo = MissEcho(widget.synth);
+  late final MissEcho _echo = MissEcho(_synth);
   final Set<int> _held = {};
   final List<Timer> _timers = [];
-  StreamSubscription<NoteEvent>? _noteSub;
   Timer? _hintTimer;
   Size _laneSize = Size.zero;
   bool _celebrating = false;
@@ -89,7 +81,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   bool get _glow => widget.difficulty == Difficulty.easy;
   bool get _colored => !widget.difficulty.atLeast(Difficulty.hard);
   bool get _hidden => widget.difficulty == Difficulty.expert;
-  Color _bubbleColor(int note) => _colored ? _noteColor(note) : _neutral;
+  Color _bubbleColor(int note) => _colored ? noteColor(note) : AppColors.plain;
 
   late final int _lowest = widget.song.notes.map((n) => n.note).reduce(min);
   late final int _highest = widget.song.notes.map((n) => n.note).reduce(max);
@@ -99,16 +91,12 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _noteSub = widget.midi.notes.listen(_onNote);
-    HardwareKeyboard.instance.addHandler(_onKey);
     _later(const Duration(milliseconds: 700), _hint);
     _armHint();
   }
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKey);
-    unawaited(_noteSub?.cancel());
     _hintTimer?.cancel();
     _nudgeTimer?.cancel();
     _echo.cancel();
@@ -116,13 +104,11 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
       timer.cancel();
     }
     for (final note in _held) {
-      widget.synth.noteOff(note);
+      _synth.noteOff(note);
     }
     _shake.dispose();
     super.dispose();
   }
-
-  bool _onKey(KeyEvent event) => handleComputerKey(event, _onNote);
 
   void _later(Duration delay, void Function() action) {
     _timers.add(Timer(delay, () {
@@ -138,17 +124,17 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   void _hint() {
     final want = _run.current;
     if (want == null || _listening) return;
-    widget.synth.blip(want.note + _shift, velocity: 55, lengthMs: 450);
+    _synth.blip(want.note + _shift, velocity: 55, lengthMs: 450);
   }
 
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
     if (!event.on) {
-      widget.synth.noteOff(event.note);
+      _synth.noteOff(event.note);
       setState(() => _held.remove(event.note));
       return;
     }
-    widget.synth.noteOn(event.note, event.velocity);
+    _synth.noteOn(event.note, event.velocity);
     setState(() {
       _held.add(event.note);
       _base = fitBase(_base, event.note);
@@ -205,7 +191,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   void _finish() {
     _hintTimer?.cancel();
     setState(() => _celebrating = true);
-    final rainbow = [for (final pc in whitePitchClasses) Color(pitchClasses[pc].argb)];
+    final rainbow = [for (final pc in whitePitchClasses) pitchColor(pc)];
     for (var i = 0; i < 4; i++) {
       _later(Duration(milliseconds: 250 * i), () {
         final at = Offset(
@@ -229,11 +215,11 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
       if (n.startMs > _playbackCapMs) break;
       final length = max(80, n.lengthMs - 20);
       _later(Duration(milliseconds: n.startMs), () {
-        widget.synth.noteOn(n.note, 85);
+        _synth.noteOn(n.note, 85);
         setState(() => _held.add(n.note));
       });
       _later(Duration(milliseconds: n.startMs + length), () {
-        widget.synth.noteOff(n.note);
+        _synth.noteOff(n.note);
         setState(() => _held.remove(n.note));
       });
       endMs = max(endMs, n.startMs + length);
@@ -275,82 +261,63 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     final color = want == null ? Colors.white : _bubbleColor(want.note);
     final total = widget.song.notes.length;
     final ended = want == null && !_listening && !_celebrating;
-    return Scaffold(
-      backgroundColor: _background,
-      body: KeyNav(
-        midi: widget.midi,
-        picks: ended ? {0: _restart, 2: _playBack, 4: _moreSongs} : const {},
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(-0.45, 0),
-                  colors: [color.withValues(alpha: 0.22), _background],
-                  radius: 0.9,
-                ),
-              ),
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-                    child: Row(
-                      children: [
-                        const BackButton(),
-                        Expanded(
-                          flex: 3,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(widget.song.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                              const SizedBox(height: 6),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  value: _run.index / total,
-                                  minHeight: 8,
-                                  color: color,
-                                  backgroundColor: Colors.white12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Flexible(flex: 2, child: KeyboardStatus(midi: widget.midi)),
-                      ],
-                    ),
-                  ),
-                  Expanded(child: _buildLane()),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: SizedBox(
-                      height: min(180, MediaQuery.sizeOf(context).height * 0.24),
-                      child: PianoStrip(
-                        base: _base,
-                        span: _span,
-                        targetNote: _listening || want == null || !_glow ? null : want.note + _shift,
-                        plain: !_colored,
-                        held: _held,
-                        onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                        onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_celebrating) const WinBanner(),
-          ],
+    return GamePage(
+      picks: ended ? {0: _restart, 2: _playBack, 4: _moreSongs} : const {},
+      onNote: _onNote,
+      backdrop: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(-0.45, 0),
+            colors: [color.withValues(alpha: 0.22), AppColors.background],
+            radius: 0.9,
+          ),
         ),
       ),
+      header: [
+        Expanded(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _run.index / total,
+                  minHeight: 8,
+                  color: color,
+                  backgroundColor: Colors.white12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+      ],
+      body: _buildLane(),
+      footer: [
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: SizedBox(
+            height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+            child: PianoStrip(
+              base: _base,
+              span: _span,
+              targetNote: _listening || want == null || !_glow ? null : want.note + _shift,
+              plain: !_colored,
+              held: _held,
+              onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+              onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
+            ),
+          ),
+        ),
+      ],
+      overlays: [if (_celebrating) const WinBanner()],
     );
   }
 
@@ -443,7 +410,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
                   _hidden ? '?' : pitchClasses[pitchClass(note)].name,
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: dark ? const Color(0xFF2A2233) : Colors.white,
+                    color: dark ? AppColors.ink : Colors.white,
                   ),
                 ),
               ),

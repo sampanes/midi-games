@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -9,56 +8,7 @@ import 'package:key_games/games/color_keys_page.dart';
 import 'package:key_games/games/color_keys_rules.dart';
 import 'package:key_games/midi/midi_input.dart';
 
-class _RecordingSynth extends Synth {
-  final List<String> events = [];
-  final Set<int> sounding = {};
-
-  @override
-  void noteOn(int note, int velocity) {
-    events.add('on $note');
-    sounding.add(note);
-  }
-
-  @override
-  void noteOff(int note) {
-    events.add('off $note');
-    sounding.remove(note);
-  }
-
-  @override
-  void noteOffNow(int note) {
-    events.add('cut $note');
-    sounding.remove(note);
-  }
-
-  @override
-  void blip(int note, {int velocity = 90, int lengthMs = 160}) {
-    events.add('blip $note');
-  }
-
-  @override
-  void tune(List<int> notes, {int stepMs = 110, int lengthMs = 220}) {
-    events.add('tune ${notes.join(',')}');
-  }
-}
-
-class _TestMidiInput extends MidiInput {
-  final StreamController<NoteEvent> _events =
-      StreamController<NoteEvent>.broadcast(sync: true);
-
-  @override
-  Stream<NoteEvent> get notes => _events.stream;
-
-  void send(int note, {required bool on, int velocity = 100}) {
-    _events.add(NoteEvent(note, velocity, on: on));
-  }
-
-  @override
-  void dispose() {
-    unawaited(_events.close());
-    super.dispose();
-  }
-}
+import 'helpers.dart';
 
 final _computerNotes = {
   LogicalKeyboardKey.keyA: 60,
@@ -71,22 +21,9 @@ final _computerNotes = {
 };
 
 void main() {
-  Future<void> showGame(
-    WidgetTester tester,
-    _RecordingSynth synth,
-    int seed, [
-    MidiInput? midi,
-  ]) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ColorKeysPage(
-          synth: synth,
-          midi: midi ?? MidiInput(),
-          random: Random(seed),
-        ),
-      ),
-    );
-    await tester.pump();
+  Future<MidiInput> showGame(WidgetTester tester, RecordingSynth synth, int seed) async {
+    final services = await pumpApp(tester, ColorKeysPage(random: Random(seed)), synth: synth);
+    return services.midi;
   }
 
   testWidgets('a wrong key sounds once, followed only by the right key', (
@@ -97,7 +34,7 @@ void main() {
     final wrong = _computerNotes.entries.firstWhere(
       (entry) => pitchClass(entry.value) != target,
     );
-    final synth = _RecordingSynth();
+    final synth = RecordingSynth();
     await showGame(tester, synth, seed);
 
     await tester.sendKeyDownEvent(wrong.key);
@@ -138,7 +75,7 @@ void main() {
     final wrong = _computerNotes.entries.firstWhere(
       (entry) => pitchClass(entry.value) != target,
     );
-    final synth = _RecordingSynth();
+    final synth = RecordingSynth();
     await showGame(tester, synth, seed);
 
     // Correct first would score immediately without the 250 ms chord gate.
@@ -168,7 +105,7 @@ void main() {
     final right = _computerNotes.entries.firstWhere(
       (entry) => pitchClass(entry.value) == target,
     );
-    final synth = _RecordingSynth();
+    final synth = RecordingSynth();
     await showGame(tester, synth, seed);
 
     await tester.sendKeyDownEvent(right.key);
@@ -191,13 +128,12 @@ void main() {
     final target = pickNextTarget(null, Random(seed), whitePitchClasses);
     final wrong = [for (var note = minGameNote; note < 24; note++) note]
         .firstWhere((note) => pitchClass(note) != target);
-    final synth = _RecordingSynth();
-    final midi = _TestMidiInput();
-    await showGame(tester, synth, seed, midi);
+    final synth = RecordingSynth();
+    final midi = await showGame(tester, synth, seed);
 
-    midi.send(wrong, on: true);
+    midi.feed(NoteEvent(wrong, 100, on: true));
     await tester.pump(const Duration(milliseconds: 100));
-    midi.send(wrong, on: false, velocity: 0);
+    midi.feed(NoteEvent(wrong, 0, on: false));
     await tester.pump(const Duration(milliseconds: 150));
 
     final right = nearestOfClassInRange(wrong, target, Synth.lowestNote, 48);
@@ -205,7 +141,6 @@ void main() {
     expect(synth.events, contains('on $right'));
 
     await tester.pumpWidget(const SizedBox());
-    midi.dispose();
   });
 
   testWidgets('an active target hint is cut before an answer starts', (
@@ -217,7 +152,7 @@ void main() {
     final wrong = _computerNotes.entries.firstWhere(
       (entry) => pitchClass(entry.value) != target,
     );
-    final synth = _RecordingSynth();
+    final synth = RecordingSynth();
     await showGame(tester, synth, seed);
 
     await tester.pump(const Duration(milliseconds: 1200));
@@ -248,21 +183,19 @@ void main() {
         .firstWhere((note) => pitchClass(note) != target);
     final later = [for (var note = 60; note < 72; note++) note]
         .firstWhere((note) => note != targetNote && note != wrong);
-    final synth = _RecordingSynth();
-    final midi = _TestMidiInput();
-    await showGame(tester, synth, seed, midi);
+    final synth = RecordingSynth();
+    final midi = await showGame(tester, synth, seed);
 
-    midi.send(targetNote, on: true);
+    midi.feed(NoteEvent(targetNote, 100, on: true));
     await tester.pump(const Duration(milliseconds: 100));
-    midi.send(wrong, on: true);
+    midi.feed(NoteEvent(wrong, 100, on: true));
     await tester.pump(const Duration(seconds: 1));
 
-    midi.send(later, on: true);
+    midi.feed(NoteEvent(later, 100, on: true));
     await tester.pump();
     expect(synth.events, contains('on $later'));
 
-    midi.send(later, on: false, velocity: 0);
+    midi.feed(NoteEvent(later, 0, on: false));
     await tester.pumpWidget(const SizedBox());
-    midi.dispose();
   });
 }

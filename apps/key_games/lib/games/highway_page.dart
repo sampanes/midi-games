@@ -14,30 +14,29 @@
 // only the keys the song uses on the keyboard picture, in the octave last
 // played.
 //
-// Keys at the end: C plays again, E goes back to the songs.
+// Keys at the end: C plays again, E goes back to the songs. The best score
+// per song and level is kept on the device.
 
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 
+import '../app/services.dart';
+import '../app/settings.dart';
+import '../app/theme.dart';
 import '../audio/synth.dart';
-import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
 import '../songs/song.dart';
-import '../widgets/key_nav.dart';
-import '../widgets/keyboard_status.dart';
+import '../widgets/game_page.dart';
+import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import 'color_keys_rules.dart';
 import 'difficulty.dart';
 import 'highway_rules.dart';
 
-const _background = Color(0xFF14111C);
-const _letterOnly = Color(0xFF4A4360);
-const _starGold = Color(0xFFFFD84A);
 const _countdownStepMs = 700;
 const _flashMs = 260;
 
@@ -54,14 +53,10 @@ class HighwayPage extends StatefulWidget {
   const HighwayPage({
     super.key,
     required this.song,
-    required this.synth,
-    required this.midi,
     this.difficulty = Difficulty.easy,
   });
 
   final Song song;
-  final Synth synth;
-  final MidiInput midi;
   final Difficulty difficulty;
 
   @override
@@ -69,18 +64,20 @@ class HighwayPage extends StatefulWidget {
 }
 
 class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStateMixin {
-  late final HighwayLevel _settings = highwayLevels[widget.difficulty]!;
+  late final Synth _synth = AppServices.of(context).synth;
+  late final Settings _settings = AppServices.of(context).settings;
+  late final HighwayLevel _rules = highwayLevels[widget.difficulty]!;
   late final Chart _chart = buildChart(widget.song, widget.difficulty);
-  late HighwayRun _run = HighwayRun(_chart, _settings.windowMs);
+  late HighwayRun _run = HighwayRun(_chart, _rules.windowMs);
   late final Ticker _ticker = createTicker(_onFrame);
   final ValueNotifier<int> _now = ValueNotifier(0);
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _highwayKey = GlobalKey();
   final List<Timer> _timers = [];
-  StreamSubscription<NoteEvent>? _noteSub;
 
   _Phase _phase = _Phase.playing;
   bool _canPick = false;
+  bool _newBest = false;
   int _base = 48;
   // The octave (its C) of the last key played, for the small picture.
   int _octave = 60;
@@ -98,31 +95,26 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   Difficulty get _level => widget.difficulty;
   bool get _colored => _level != Difficulty.expert;
   bool get _plain => _level.atLeast(Difficulty.hard);
-  int get _leadInMs => max(_settings.lookAheadMs, 3 * _countdownStepMs) + 600;
+  int get _leadInMs => max(_rules.lookAheadMs, 3 * _countdownStepMs) + 600;
+  String get _bestKey => 'highway.${_level.name}.${widget.song.title}';
 
   @override
   void initState() {
     super.initState();
-    _noteSub = widget.midi.notes.listen(_onNote);
-    HardwareKeyboard.instance.addHandler(_onKey);
     _now.value = -_leadInMs;
     unawaited(_ticker.start());
   }
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKey);
-    unawaited(_noteSub?.cancel());
     _ticker.dispose();
     _now.dispose();
     _cancelTimers();
     for (final note in _held) {
-      widget.synth.noteOff(note);
+      _synth.noteOff(note);
     }
     super.dispose();
   }
-
-  bool _onKey(KeyEvent event) => handleComputerKey(event, _onNote);
 
   void _cancelTimers() {
     for (final timer in _timers) {
@@ -141,9 +133,10 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     _ticker.stop();
     _cancelTimers();
     setState(() {
-      _run = HighwayRun(_chart, _settings.windowMs);
+      _run = HighwayRun(_chart, _rules.windowMs);
       _phase = _Phase.playing;
       _canPick = false;
+      _newBest = false;
       _autoNext = 0;
       _hitAt.clear();
       _missAt.clear();
@@ -160,14 +153,14 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     // 3, 2, 1 beeps while the first notes come down.
     for (var i = 3; i >= 1; i--) {
       final at = -i * _countdownStepMs;
-      if (before < at && now >= at) widget.synth.blip(72, velocity: 70, lengthMs: 150);
+      if (before < at && now >= at) _synth.blip(72, velocity: 70, lengthMs: 150);
     }
     // The song notes that are not the player's play on their own.
     final autos = _chart.autoNotes;
     while (_autoNext < autos.length && autos[_autoNext].timeMs <= now) {
       final n = autos[_autoNext++];
       if (n.timeMs >= now - 200) {
-        widget.synth.blip(n.sound, velocity: 80, lengthMs: n.lengthMs.clamp(100, 900));
+        _synth.blip(n.sound, velocity: 80, lengthMs: n.lengthMs.clamp(100, 900));
       }
     }
     final missed = _run.advance(now);
@@ -183,15 +176,18 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
 
   void _finish() {
     _ticker.stop();
-    setState(() => _phase = _Phase.done);
-    if (_run.stars > 0) widget.synth.tune([72, 76, 79, 84], stepMs: 120, lengthMs: 220);
+    setState(() {
+      _phase = _Phase.done;
+      _newBest = _settings.recordBest(_bestKey, _run.score);
+    });
+    if (_run.stars > 0) _synth.tune([72, 76, 79, 84], stepMs: 120, lengthMs: 220);
     _later(const Duration(milliseconds: 1500), () => setState(() => _canPick = true));
   }
 
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
     if (!event.on) {
-      widget.synth.noteOff(event.note);
+      _synth.noteOff(event.note);
       setState(() => _held.remove(event.note));
       return;
     }
@@ -201,8 +197,8 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
       _octave = event.note - pitchClass(event.note);
     });
     final now = _now.value;
-    if (_phase != _Phase.playing || now < -_settings.windowMs) {
-      widget.synth.noteOn(event.note, event.velocity);
+    if (_phase != _Phase.playing || now < -_rules.windowMs) {
+      _synth.noteOn(event.note, event.velocity);
       return;
     }
     final step = _run.press(event.note, now);
@@ -210,26 +206,26 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     switch (step.result) {
       case HighwayResult.perfect || HighwayResult.good:
         final n = _chart.notes[index!];
-        widget.synth.blip(n.sound, velocity: 100, lengthMs: n.lengthMs.clamp(120, 900));
+        _synth.blip(n.sound, velocity: 100, lengthMs: n.lengthMs.clamp(120, 900));
         _hitAt[n.lane] = now;
         _show(step.result == HighwayResult.perfect ? 'Great!' : 'Good!');
         final lane = _chart.lanes[n.lane];
         _sparksKey.currentState?.burst(
           _laneCenter(n.lane),
-          [_colored ? Color(pitchClasses[lane.pc].argb) : Colors.white, _starGold],
+          [_colored ? pitchColor(lane.pc) : Colors.white, AppColors.starGold],
           count: 14,
           speed: 300,
         );
       case HighwayResult.wrong:
         // Your note, then the right one.
         final n = _chart.notes[index!];
-        widget.synth.blip(event.note, velocity: 55, lengthMs: 150);
+        _synth.blip(event.note, velocity: 55, lengthMs: 150);
         _later(const Duration(milliseconds: 200),
-            () => widget.synth.blip(n.sound, velocity: 85, lengthMs: 260));
+            () => _synth.blip(n.sound, velocity: 85, lengthMs: 260));
         _missAt[n.lane] = now;
         _show('Oops');
       case HighwayResult.stray:
-        widget.synth.blip(event.note, velocity: 50, lengthMs: 150);
+        _synth.blip(event.note, velocity: 50, lengthMs: 150);
     }
   }
 
@@ -268,108 +264,89 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final lanePcs = {for (final lane in _chart.lanes) lane.pc}.toList();
-    return Scaffold(
-      backgroundColor: _background,
-      body: KeyNav(
-        midi: widget.midi,
-        picks: _phase == _Phase.done && _canPick
-            ? {0: _restart, 4: () => Navigator.maybePop(context)}
-            : const {},
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildTop(),
-                  Expanded(
-                    child: _phase == _Phase.done
-                        ? Center(child: _buildEnd())
-                        : Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ValueListenableBuilder<int>(
-                                valueListenable: _now,
-                                builder: (context, now, _) => CustomPaint(
-                                  key: _highwayKey,
-                                  painter: _HighwayPainter(
-                                    chart: _chart,
-                                    marks: _run.marks,
-                                    now: now,
-                                    lookAheadMs: _settings.lookAheadMs,
-                                    colored: _colored,
-                                    held: _held,
-                                    hitAt: _hitAt,
-                                    missAt: _missAt,
-                                  ),
-                                ),
-                              ),
-                              _buildCountdown(),
-                              _buildPopup(),
-                            ],
-                          ),
-                  ),
-                  // Hidden at the end, so the end choices fit a landscape phone.
-                  if (_phase == _Phase.playing)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: SizedBox(
-                        height: min(140, MediaQuery.sizeOf(context).height * 0.18),
-                        child: PianoStrip(
-                          base: _base,
-                          span: _span(lanePcs),
-                          target: _nextKey,
-                          plain: _plain,
-                          choices: _level == Difficulty.expert ? null : lanePcs,
-                          held: _held,
-                          onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
-                          onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
-                        ),
-                      ),
+    return GamePage(
+      picks: _phase == _Phase.done && _canPick
+          ? {0: _restart, 4: () => Navigator.maybePop(context)}
+          : const {},
+      onNote: _onNote,
+      header: _header(),
+      body: _phase == _Phase.done
+          ? Center(child: _buildEnd())
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                ValueListenableBuilder<int>(
+                  valueListenable: _now,
+                  builder: (context, now, _) => CustomPaint(
+                    key: _highwayKey,
+                    painter: _HighwayPainter(
+                      chart: _chart,
+                      marks: _run.marks,
+                      now: now,
+                      lookAheadMs: _rules.lookAheadMs,
+                      colored: _colored,
+                      held: _held,
+                      hitAt: _hitAt,
+                      missAt: _missAt,
                     ),
-                ],
+                  ),
+                ),
+                _buildCountdown(),
+                _buildPopup(),
+              ],
+            ),
+      footer: [
+        // Hidden at the end, so the end choices fit a landscape phone.
+        if (_phase == _Phase.playing)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: SizedBox(
+              height: min(140, MediaQuery.sizeOf(context).height * 0.18),
+              child: PianoStrip(
+                base: _base,
+                span: _span(lanePcs),
+                target: _nextKey,
+                plain: _plain,
+                choices: _level == Difficulty.expert ? null : lanePcs,
+                held: _held,
+                onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
+                onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
               ),
             ),
-            Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
-          ],
-        ),
-      ),
+          ),
+      ],
+      overlays: [
+        Positioned.fill(child: IgnorePointer(child: Sparks(key: _sparksKey))),
+      ],
     );
   }
 
-  Widget _buildTop() {
+  List<Widget> _header() {
     final multiplier = multiplierFor(_run.streak);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
-      child: Row(
-        children: [
-          if (Navigator.canPop(context)) const BackButton(),
-          const Icon(Icons.star_rounded, color: _starGold, size: 36),
-          const SizedBox(width: 4),
-          Text('${_run.score}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
-          const SizedBox(width: 10),
-          if (multiplier > 1)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                color: _starGold,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text('x$multiplier',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF2A2233))),
-            ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(widget.song.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 18, color: Colors.white70)),
+    return [
+      const Icon(Icons.star_rounded, color: AppColors.starGold, size: 36),
+      const SizedBox(width: 4),
+      Text('${_run.score}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+      const SizedBox(width: 10),
+      if (multiplier > 1)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.starGold,
+            borderRadius: BorderRadius.circular(12),
           ),
-          Flexible(child: KeyboardStatus(midi: widget.midi)),
-        ],
+          child: Text('x$multiplier',
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.ink)),
+        ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(widget.song.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 18, color: Colors.white70)),
       ),
-    );
+    ];
   }
 
   Widget _buildCountdown() {
@@ -381,7 +358,8 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
         return IgnorePointer(
           child: Center(
             child: Text('$count',
-                style: const TextStyle(fontSize: 140, fontWeight: FontWeight.w900, color: _starGold)),
+                style: const TextStyle(
+                    fontSize: 140, fontWeight: FontWeight.w900, color: AppColors.starGold)),
           ),
         );
       },
@@ -407,7 +385,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
             style: TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.w900,
-              color: oops ? Colors.white54 : _starGold,
+              color: oops ? Colors.white54 : AppColors.starGold,
             ),
           ),
         ),
@@ -416,6 +394,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   }
 
   Widget _buildEnd() {
+    final best = _settings.best(_bestKey);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -429,12 +408,14 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
             children: [
               for (var i = 0; i < 3; i++)
                 Icon(Icons.star_rounded,
-                    size: 64, color: i < _run.stars ? _starGold : Colors.white24),
+                    size: 64, color: i < _run.stars ? AppColors.starGold : Colors.white24),
             ],
           ),
           Text('${_run.hits} of ${_run.total} notes',
               style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
           Text('Score ${_run.score}   Best streak ${_run.bestStreak}',
+              style: const TextStyle(fontSize: 18, color: Colors.white70)),
+          Text(_newBest ? 'New best!' : 'Best: $best',
               style: const TextStyle(fontSize: 18, color: Colors.white70)),
           const SizedBox(height: 20),
           Wrap(
@@ -507,7 +488,7 @@ class _HighwayPainter extends CustomPainter {
   final Map<int, int> hitAt;
   final Map<int, int> missAt;
 
-  Color _laneColor(Lane lane) => colored ? Color(pitchClasses[lane.pc].argb) : _letterOnly;
+  Color _laneColor(Lane lane) => colored ? pitchColor(lane.pc) : AppColors.plain;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -519,7 +500,7 @@ class _HighwayPainter extends CustomPainter {
     // Lanes: dark columns tinted with their color, a line between them.
     for (var i = 0; i < chart.lanes.length; i++) {
       final x = g.left + g.laneWidth * i;
-      fill.color = Color.lerp(_laneColor(chart.lanes[i]), _background, 0.88)!;
+      fill.color = Color.lerp(_laneColor(chart.lanes[i]), AppColors.background, 0.88)!;
       canvas.drawRect(Rect.fromLTWH(x + 1, 0, g.laneWidth - 2, size.height), fill);
     }
     fill.color = Colors.white24;
@@ -563,7 +544,7 @@ class _HighwayPainter extends CustomPainter {
       final center = g.button(i);
       final color = _laneColor(lane);
       final down = held.any(lane.matches);
-      fill.color = down ? color : Color.lerp(color, _background, 0.55)!;
+      fill.color = down ? color : Color.lerp(color, AppColors.background, 0.55)!;
       canvas.drawCircle(center, g.buttonRadius, fill);
       final hit = _flash(hitAt[i]);
       final miss = _flash(missAt[i]);
@@ -571,7 +552,7 @@ class _HighwayPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3 + 5 * max(hit, miss)
         ..color = miss > hit
-            ? const Color(0xFFFF3B3B).withValues(alpha: 0.4 + 0.6 * miss)
+            ? AppColors.red.withValues(alpha: 0.4 + 0.6 * miss)
             : Colors.white.withValues(alpha: 0.5 + 0.5 * hit);
       canvas.drawCircle(center, g.buttonRadius * (1 + 0.2 * hit), ring);
       _text(canvas, _laneLabel(lane), center, g.buttonRadius * 0.8, down ? color : null);
@@ -593,7 +574,7 @@ class _HighwayPainter extends CustomPainter {
         style: TextStyle(
           fontSize: size,
           fontWeight: FontWeight.w900,
-          color: dark ? const Color(0xFF2A2233) : Colors.white,
+          color: dark ? AppColors.ink : Colors.white,
         ),
       ),
       textDirection: TextDirection.ltr,

@@ -4,7 +4,6 @@
 
 import 'package:flutter/material.dart';
 
-import '../midi/midi_input.dart';
 import '../widgets/menu_page.dart';
 
 enum Difficulty {
@@ -29,14 +28,12 @@ enum Difficulty {
 // whose levels are different ways to play (Key Rush: Easy and Real).
 Widget difficultyPage({
   required String title,
-  required MidiInput midi,
   required Map<Difficulty, String> descriptions,
   Map<Difficulty, String> labels = const {},
   required Widget Function(Difficulty difficulty) game,
 }) {
   return MenuPage(
     title: title,
-    midi: midi,
     items: [
       for (final d in Difficulty.values)
         if (descriptions.containsKey(d))

@@ -3,15 +3,14 @@
 
 import 'package:flutter/material.dart';
 
-import '../midi/midi_input.dart';
+import '../app/services.dart';
 
 class KeyboardStatus extends StatelessWidget {
-  const KeyboardStatus({super.key, required this.midi});
-
-  final MidiInput midi;
+  const KeyboardStatus({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final midi = AppServices.of(context).midi;
     return ValueListenableBuilder<List<String>>(
       valueListenable: midi.connected,
       builder: (context, connected, _) {
@@ -25,7 +24,7 @@ class KeyboardStatus extends StatelessWidget {
           ),
           onPressed: () => showModalBottomSheet<void>(
             context: context,
-            builder: (_) => DeviceSheet(midi: midi),
+            builder: (_) => const DeviceSheet(),
           ),
         );
       },
@@ -35,12 +34,11 @@ class KeyboardStatus extends StatelessWidget {
 
 // Lists MIDI devices with manual connect/disconnect, for troubleshooting.
 class DeviceSheet extends StatelessWidget {
-  const DeviceSheet({super.key, required this.midi});
-
-  final MidiInput midi;
+  const DeviceSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final midi = AppServices.of(context).midi;
     return SafeArea(
       child: ValueListenableBuilder(
         valueListenable: midi.devices,

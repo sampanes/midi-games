@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:key_games/audio/synth.dart';
-import 'package:key_games/midi/midi_input.dart';
 import 'package:key_games/songs/song.dart';
 import 'package:key_games/songs/song_play_page.dart';
+
+import 'helpers.dart';
 
 // C D E: the computer keys A, S, D.
 const _song = Song('Three Notes', [
@@ -22,14 +22,8 @@ Future<void> _tapKey(WidgetTester tester, LogicalKeyboardKey key) async {
 
 void main() {
   testWidgets('song screen walks through the notes and plays back at the end', (tester) async {
-    tester.view.physicalSize = const Size(1080, 2316);
-    tester.view.devicePixelRatio = 2.625;
-    addTearDown(tester.view.reset);
-
-    // The synth is never started here, so it stays silent.
-    await tester.pumpWidget(MaterialApp(
-      home: SongPlayPage(song: _song, synth: Synth(), midi: MidiInput()),
-    ));
+    usePhone(tester);
+    await pumpApp(tester, const SongPlayPage(song: _song));
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('Three Notes'), findsOneWidget);
     expect(find.text('C'), findsWidgets);

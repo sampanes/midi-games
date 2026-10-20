@@ -1,7 +1,24 @@
 # MIDI Games
 
-An early workspace for small games and experiments controlled by a USB MIDI
-keyboard. The concrete game, language, and runtime are intentionally undecided.
+Kids' games played on a MIDI keyboard. The game is **Key Games**
+(`apps/key_games`), a Flutter app for Android, Android TV and Windows: see
+"App: Key Games" below. The rest of this repository is the bench that was
+built first and still feeds it: a browser MIDI census and output lab for
+learning what a keyboard sends and accepts, and a song editor that turns MIDI
+files into the melodies the games play.
+
+## Toolchain, tests and checks
+
+| Part | Needs | Run |
+|---|---|---|
+| Key Games app | Flutter pinned in `apps/key_games/.fvmrc` (install with [FVM](https://fvm.app): `fvm install` in that folder, then `fvm flutter ...`) | `npm run test:app`, or `fvm flutter analyze` and `fvm flutter test` in `apps/key_games` |
+| MIDI bench (browser pages and analysis) | Node 20+ | `npm test` |
+| Song editor server | Python 3.12+ (no packages) | `npm run test:py` |
+
+GitHub Actions (`.github/workflows/ci.yml`) runs all three on every push and
+pull request, plus a check that nothing under `private/` is tracked. The same
+privacy check runs locally as a Git hook; wire it once per clone with
+`npm run hooks` (or `npm install`, which does the same).
 
 ## First experiment: identify the keyboard
 
@@ -186,9 +203,23 @@ letter and pressing any key of that letter picks it, so C C C reaches the
 first game on Easy (songs: first a group such as Kids or Classical, then a
 song, C to A, B for the next page; end of a song:
 C again, D listen, E more songs; end of Key Rush, Key Runner or Note Highway:
-C again, E back). Holding the lowest and highest C together
-goes back, as do Escape and the remote's back button. The Android build also
-lists itself on Android TV home screens (banner, no touch screen required).
+C again, E back). Going back: the on-screen back button, Escape, the remote's
+back button, or a **Back pad**: in Settings (G on the home menu, then C),
+press any pad or panel button on the keyboard and it goes back from every
+page from then on; it never reaches a game or makes a sound. The pad is
+remembered on the device. A key that opens a page cannot also pick something
+on it: the app ignores menu picks for a moment after every page change. The
+Android build also lists itself on Android TV home screens (banner, no touch
+screen required).
+
+How the app is put together: one key router (`lib/input/key_router.dart`)
+owns every key the player presses (MIDI notes, the computer keys, Escape, the
+Back pad) and hands them to the page on top only; every screen is a
+`GamePage` (`lib/widgets/game_page.dart`) that supplies its header, body,
+keyboard picture and overlays; the synth, the MIDI input, the router and the
+settings live in `AppServices` (`lib/app/services.dart`) and are read with
+`AppServices.of(context)`; colors are in `lib/app/theme.dart`; and each game
+keeps its rules in a pure `*_rules.dart` file with its own unit tests.
 
 In Color Keys, a wrong key sounds once from the player's press and then the
 right note sounds once by itself. The guided song and arcade games repeat the
@@ -312,7 +343,7 @@ moves the tiles down a row. Two ways to play:
   and each key sounds as itself. A wrong key plays itself and then the right
   note and freezes scoring for that moment while the clock runs.
 
-Best scores are kept per level for the session.
+Best scores are kept per level on the device.
 
 ### Note Highway (Songs)
 

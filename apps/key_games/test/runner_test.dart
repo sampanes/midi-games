@@ -3,13 +3,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:key_games/audio/synth.dart';
 import 'package:key_games/games/color_keys_rules.dart';
 import 'package:key_games/games/difficulty.dart';
 import 'package:key_games/games/runner_page.dart';
 import 'package:key_games/games/runner_rules.dart';
-import 'package:key_games/midi/midi_input.dart';
 import 'package:key_games/widgets/piano_strip.dart';
+
+import 'helpers.dart';
 
 RunnerRun _emptyRun(Difficulty d) {
   final run = RunnerRun(runnerLevels[d]!, Random(1));
@@ -96,14 +96,8 @@ void main() {
   });
 
   testWidgets('key runner counts down, runs a minute on easy, and C plays again', (tester) async {
-    tester.view.physicalSize = const Size(2316, 1080);
-    tester.view.devicePixelRatio = 2.625;
-    addTearDown(tester.view.reset);
-
-    // The synth is never started here, so it stays silent.
-    await tester.pumpWidget(MaterialApp(
-      home: RunnerPage(synth: Synth(), midi: MidiInput(), random: Random(3), songs: const []),
-    ));
+    usePhone(tester, landscape: true);
+    await pumpApp(tester, RunnerPage(random: Random(3), songs: const []));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('3'), findsOneWidget);
     expect(find.text('Middle'), findsOneWidget);
