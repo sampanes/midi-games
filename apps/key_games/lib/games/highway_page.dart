@@ -324,7 +324,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   List<Widget> _header() {
     final multiplier = multiplierFor(_run.streak);
     return [
-      const Icon(Icons.star_rounded, color: AppColors.starGold, size: 36),
+      Icon(Icons.star_rounded, color: AppColors.starGold, size: 36 * uiScale(context)),
       const SizedBox(width: 4),
       Text('${_run.score}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
       const SizedBox(width: 10),

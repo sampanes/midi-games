@@ -319,8 +319,9 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   }
 
   List<Widget> _header() {
+    final scale = uiScale(context);
     return [
-      const Icon(Icons.monetization_on_rounded, color: AppColors.starGold, size: 34),
+      Icon(Icons.monetization_on_rounded, color: AppColors.starGold, size: 34 * scale),
       const SizedBox(width: 4),
       Text('${_run.coins}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
       const SizedBox(width: 14),
@@ -332,7 +333,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
               borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
                 value: _run.timeLeft,
-                minHeight: 12,
+                minHeight: 12 * scale,
                 color: AppColors.starGold,
                 backgroundColor: Colors.white12,
               ),
@@ -342,7 +343,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
       else ...[
         for (var i = 0; i < _rules.hearts; i++)
           Icon(Icons.favorite_rounded,
-              size: 30, color: i < _run.hearts ? AppColors.red : Colors.white24),
+              size: 30 * scale, color: i < _run.hearts ? AppColors.red : Colors.white24),
         const Spacer(),
       ],
       const SizedBox(width: 12),

@@ -1,4 +1,4 @@
-// The app's colors and theme in one place. Note colors come from the
+// The app's colors, type and theme in one place. Note colors come from the
 // pitch-class table in color_keys_rules.dart; everything else is here.
 
 import 'package:flutter/material.dart';
@@ -28,8 +28,19 @@ Color pitchColor(int pc) => Color(pitchClasses[pc].argb);
 
 Color noteColor(int note) => pitchColor(pitchClass(note));
 
+// How much bigger than a phone the screen is: 1 on a phone, 1.5 on a 1080p
+// TV box, 2 on a full-screen PC. Headers, chips, badges, hints and menu
+// tiles grow with it so they read from a couch. Game boards and keyboard
+// pictures already size themselves from the screen and do not use it.
+double uiScale(BuildContext context) =>
+    (MediaQuery.sizeOf(context).shortestSide / 480).clamp(1.0, 2.0);
+
+// The bundled typeface (assets/fonts, SIL Open Font License).
+const fontFamily = 'Nunito';
+
 ThemeData keyGamesTheme() => ThemeData(
       brightness: Brightness.dark,
       useMaterial3: true,
+      fontFamily: fontFamily,
       scaffoldBackgroundColor: AppColors.background,
     );

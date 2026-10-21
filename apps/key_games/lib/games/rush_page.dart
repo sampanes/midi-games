@@ -275,7 +275,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
           : const {},
       onNote: _onNote,
       header: [
-        const Icon(Icons.star_rounded, color: AppColors.starGold, size: 40),
+        Icon(Icons.star_rounded, color: AppColors.starGold, size: 40 * uiScale(context)),
         const SizedBox(width: 4),
         Text('${_state.score}',
             style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
@@ -285,7 +285,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: _state.timeLeft,
-              minHeight: 14,
+              minHeight: 14 * uiScale(context),
               color: _state.timeLeft < 0.17 ? AppColors.red : AppColors.starGold,
               backgroundColor: Colors.white12,
             ),

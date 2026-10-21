@@ -1,12 +1,14 @@
-// Songs for song mode: melody note lists made by scripts/extract-melodies.py
-// and bundled as assets/songs/*.json (local builds only, never committed).
-// The rules here are pure so they are unit tested on their own.
+// Songs for song mode: the built-in tunes (builtin_songs.dart) plus melody
+// note lists made by scripts/extract-melodies.py and bundled as
+// assets/songs/*.json (local builds only, never committed). The rules here
+// are pure so they are unit tested on their own.
 
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
 import '../games/color_keys_rules.dart' show pitchClass;
+import 'builtin_songs.dart';
 
 class SongNote {
   const SongNote(this.note, this.startMs, this.lengthMs);
@@ -55,12 +57,13 @@ const scaleSong = Song('Scale', [
   SongNote(64, 0, 300), SongNote(62, 0, 300), SongNote(60, 0, 500),
 ]);
 
+// The built-in tunes and any bundled from private/songs, by title.
 Future<List<Song>> loadSongs(AssetBundle bundle) async {
   final manifest = await AssetManifest.loadFromAssetBundle(bundle);
   final paths = manifest
       .listAssets()
       .where((path) => path.startsWith('assets/songs/') && path.endsWith('.json'));
-  final songs = <Song>[];
+  final songs = <Song>[...builtinSongs];
   for (final path in paths) {
     final json = jsonDecode(await bundle.loadString(path)) as Map<String, dynamic>;
     final song = Song.fromJson(json);

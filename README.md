@@ -193,13 +193,15 @@ Phone: connect the keyboard from inside the app only. If it is paired in the
 phone's Bluetooth settings, Android may treat it as an audio device and send
 the game's sound to it instead of the speaker.
 
-Menus: home has categories (C Look, D Listen, E Songs, F Arcade), each
-category lists its games, and every game starts with a difficulty picker:
-C Easy (ages 3+), D Medium (5+), E Hard (8+), F Expert (grown-ups). Each game
-decides what the levels change (glowing keys, colors, black keys, hints).
+Menus: home has categories (C Look, D Listen, E Songs, F Arcade; G is
+Settings, a button in the header), each category lists its games (a category
+with one game opens it straight away), and every game starts with a
+difficulty picker: C Easy (ages 3+), D Medium (5+), E Hard (8+), F Expert
+(grown-ups). Each game decides what the levels change (glowing keys, colors,
+black keys, hints).
 
 Keyboard only (TV boxes, no touch screen): every menu choice wears a note
-letter and pressing any key of that letter picks it, so C C C reaches the
+letter and pressing any key of that letter picks it, so C C reaches the
 first game on Easy (songs: first a group such as Kids or Classical, then a
 song, C to A, B for the next page; end of a song:
 C again, D listen, E more songs; end of Key Rush, Key Runner or Note Highway:
@@ -218,8 +220,17 @@ Back pad) and hands them to the page on top only; every screen is a
 `GamePage` (`lib/widgets/game_page.dart`) that supplies its header, body,
 keyboard picture and overlays; the synth, the MIDI input, the router and the
 settings live in `AppServices` (`lib/app/services.dart`) and are read with
-`AppServices.of(context)`; colors are in `lib/app/theme.dart`; and each game
-keeps its rules in a pure `*_rules.dart` file with its own unit tests.
+`AppServices.of(context)`; colors, the typeface and the screen scale are in
+`lib/app/theme.dart`; and each game keeps its rules in a pure `*_rules.dart`
+file with its own unit tests.
+
+Screens from a phone to a TV: `uiScale` (1 on a phone, 1.5 on a 1080p TV
+box, 2 on a full-screen PC) grows every page's header, chips, badges and
+hints, and menu tiles are cards that never grow wider than a hand-sized card
+at that scale, with everything drawn on them scaling with the tile. Game
+boards and keyboard pictures size themselves from the screen. The typeface is
+Nunito, bundled in `apps/key_games/assets/fonts` under the SIL Open Font
+License (the license is in the app's licenses page too).
 
 In Color Keys, a wrong key sounds once from the player's press and then the
 right note sounds once by itself. The guided song and arcade games repeat the
@@ -259,7 +270,10 @@ Song Box (no levels) plays a picked song's melody, exactly the notes the
 games use, at real speed with the keys lighting up: a quick way to hear
 whether a song came out right. C plays it again, D stops, Back returns.
 
-Songs come from your own MIDI files and are never committed:
+Ten old tunes are built in (`apps/key_games/lib/songs/builtin_songs.dart`,
+all public domain: Twinkle Twinkle, Mary Had a Little Lamb, Ode to Joy and
+friends), so the Songs games work in any build. More songs come from your
+own MIDI files and are never committed:
 
 ```bat
 python scripts\extract-melodies.py

@@ -423,7 +423,7 @@ class _StarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = min(52.0, constraints.maxWidth / starsPerRound);
+        final size = min(52.0 * uiScale(context), constraints.maxWidth / starsPerRound);
         return Row(
           children: [
             for (var i = 0; i < starsPerRound; i++)

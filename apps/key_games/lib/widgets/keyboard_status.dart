@@ -1,9 +1,14 @@
-// Corner chip showing whether a keyboard is connected; tapping it opens a
-// device list for manual connect/disconnect.
+// Corner chip showing whether a keyboard is connected: a quiet green piano
+// once one is, a labeled chip while looking (just the amber piano on a
+// narrow phone). Tapping it opens a device list for manual
+// connect/disconnect.
 
 import 'package:flutter/material.dart';
 
 import '../app/services.dart';
+
+// Below this width (a phone held upright) header buttons drop their labels.
+const narrowHeaderWidth = 600.0;
 
 class KeyboardStatus extends StatelessWidget {
   const KeyboardStatus({super.key});
@@ -11,21 +16,26 @@ class KeyboardStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final midi = AppServices.of(context).midi;
+    final narrow = MediaQuery.sizeOf(context).width < narrowHeaderWidth;
+    void openSheet() => showModalBottomSheet<void>(
+          context: context,
+          builder: (_) => const DeviceSheet(),
+        );
     return ValueListenableBuilder<List<String>>(
       valueListenable: midi.connected,
       builder: (context, connected, _) {
         final ready = connected.isNotEmpty;
+        if (ready || narrow) {
+          return IconButton(
+            tooltip: ready ? 'Keyboard ready' : 'Looking for keyboard...',
+            icon: Icon(Icons.piano, color: ready ? Colors.greenAccent : Colors.amber),
+            onPressed: openSheet,
+          );
+        }
         return ActionChip(
-          avatar: Icon(Icons.piano, color: ready ? Colors.greenAccent : Colors.amber),
-          label: Text(
-            ready ? 'Keyboard ready' : 'Looking for keyboard...',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          onPressed: () => showModalBottomSheet<void>(
-            context: context,
-            builder: (_) => const DeviceSheet(),
-          ),
+          avatar: const Icon(Icons.piano, color: Colors.amber),
+          label: const Text('Looking for keyboard...', maxLines: 1, overflow: TextOverflow.ellipsis),
+          onPressed: openSheet,
         );
       },
     );

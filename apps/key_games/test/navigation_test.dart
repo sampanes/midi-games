@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:key_games/games/color_keys_page.dart';
 import 'package:key_games/games/color_keys_rules.dart';
 import 'package:key_games/input/back_control.dart';
 import 'package:key_games/input/key_router.dart';
@@ -40,19 +41,18 @@ void main() {
     await tester.pump(keySettle);
     expect(find.text('Listen'), findsOneWidget);
 
-    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen
+    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen, one game: its levels
     expect(find.text('Ear Notes'), findsOneWidget);
-    await _press(tester, LogicalKeyboardKey.keyA); // C: Ear Notes
     expect(find.text('Expert'), findsOneWidget);
     await _press(tester, LogicalKeyboardKey.keyD); // E: Hard
     expect(find.text('Level 4'), findsOneWidget);
 
-    // The difficulty picker was replaced by the game, so back is the menu.
+    // The difficulty picker was replaced by the game, so back is home.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('Level 4'), findsNothing);
-    expect(find.text('Ear Notes'), findsOneWidget);
+    expect(find.text('Listen'), findsOneWidget);
   });
 
   testWidgets('two Cs pressed together on the home menu open one page, not two', (tester) async {
@@ -60,8 +60,8 @@ void main() {
     final services = await pumpApp(tester, null);
     await tester.pump(keySettle);
 
-    // Low C opens Look; the high C that lands a moment later must not then
-    // pick Color Keys on the page that just opened.
+    // Low C opens Look (Color Keys' levels); the high C that lands a moment
+    // later must not then pick Easy on the page that just opened.
     services.midi.feed(const NoteEvent(48, 100, on: true));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 60));
@@ -72,8 +72,9 @@ void main() {
     services.midi.feed(const NoteEvent(84, 0, on: false));
     await tester.pump();
 
-    expect(find.text('Color Keys'), findsOneWidget); // the Look menu
-    expect(find.text('Easy'), findsNothing); // not its difficulty picker
+    expect(find.text('Color Keys'), findsOneWidget); // the difficulty picker
+    expect(find.text('Easy'), findsOneWidget); // still offered: nothing was picked
+    expect(find.byType(ColorKeysPage), findsNothing);
   });
 
   testWidgets('the Back pad leaves a game and never sounds in it', (tester) async {
@@ -83,8 +84,7 @@ void main() {
     await services.settings.setBackControl(const BackControl(ControlKind.note, 9, 36));
     await tester.pump(keySettle);
 
-    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen
-    await _press(tester, LogicalKeyboardKey.keyA); // C: Ear Notes
+    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen, Ear Notes' levels
     await _press(tester, LogicalKeyboardKey.keyA); // C: Easy
     expect(find.text('Level 1'), findsOneWidget);
 
@@ -94,7 +94,7 @@ void main() {
     services.midi.feed(const NoteEvent(36, 0, on: false, channel: 9));
     await tester.pump();
     expect(find.text('Level 1'), findsNothing);
-    expect(find.text('Ear Notes'), findsOneWidget);
+    expect(find.text('Listen'), findsOneWidget);
     expect(synth.events, isNot(contains('on 36')));
 
     // The same note on another channel is just a key.

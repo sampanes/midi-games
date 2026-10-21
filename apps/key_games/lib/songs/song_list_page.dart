@@ -149,24 +149,22 @@ class _SongListPageState extends State<SongListPage> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
-          child: Text(
-            'No songs in this build. Put .mid files in private/songs, run '
-            'scripts/extract-melodies.py, and rebuild the app.',
-            textAlign: TextAlign.center,
-          ),
+          child: Text('No songs yet.', textAlign: TextAlign.center, style: TextStyle(fontSize: 22)),
         ),
       );
     }
     final items = _pageItems.toList();
+    final scale = uiScale(context);
     return GridView(
       // Fixed height: two-line titles must fit on narrow phone columns too.
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 360,
-        mainAxisExtent: 124,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+      // Cards grow with the screen like the header does.
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 360 * scale,
+        mainAxisExtent: 124 * scale,
+        mainAxisSpacing: 12 * scale,
+        crossAxisSpacing: 12 * scale,
       ),
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12 * scale),
       children: [
         for (var i = 0; i < items.length; i++)
           if (_picksGroup)
@@ -193,27 +191,29 @@ class _SongCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = uiScale(context);
     return Material(
       color: AppColors.card,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(18 * s),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18 * s),
         onTap: onTap,
+        focusColor: Colors.white24,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(14 * s),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  KeyBadge(pc: pc, size: 40),
-                  const SizedBox(width: 12),
+                  KeyBadge(pc: pc, size: 40 * s),
+                  SizedBox(width: 12 * s),
                   Expanded(
                     child: Text(song.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                        style: TextStyle(fontSize: 18 * s, fontWeight: FontWeight.w800)),
                   ),
                 ],
               ),
@@ -228,9 +228,9 @@ class _SongCard extends StatelessWidget {
                         children: [
                           for (final n in song.notes.take(min(8, song.notes.length)))
                             Padding(
-                              padding: const EdgeInsets.only(right: 5),
+                              padding: EdgeInsets.only(right: 5 * s),
                               child: CircleAvatar(
-                                radius: 9,
+                                radius: 9 * s,
                                 backgroundColor: noteColor(n.note),
                               ),
                             ),
@@ -238,8 +238,9 @@ class _SongCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text('${song.notes.length} notes', style: const TextStyle(color: Colors.white54)),
+                  SizedBox(width: 8 * s),
+                  Text('${song.notes.length} notes',
+                      style: TextStyle(fontSize: 14 * s, color: Colors.white54)),
                 ],
               ),
             ],
@@ -260,36 +261,39 @@ class _GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = uiScale(context);
     return Material(
       color: AppColors.groupCard,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(18 * s),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18 * s),
         onTap: onTap,
+        focusColor: Colors.white24,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(14 * s),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  KeyBadge(pc: pc, size: 40),
-                  const SizedBox(width: 12),
+                  KeyBadge(pc: pc, size: 40 * s),
+                  SizedBox(width: 12 * s),
                   Expanded(
                     child: Text(group,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                        style: TextStyle(fontSize: 22 * s, fontWeight: FontWeight.w900)),
                   ),
-                  const Icon(Icons.library_music_rounded, size: 28, color: Colors.white54),
+                  Icon(Icons.library_music_rounded, size: 28 * s, color: Colors.white54),
                 ],
               ),
               Text(
-                '${songs.length} songs: ${songs.map((s) => s.title).join(', ')}',
+                '${songs.length} ${songs.length == 1 ? 'song' : 'songs'}: '
+                '${songs.map((s) => s.title).join(', ')}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white60),
+                style: TextStyle(fontSize: 14 * s, color: Colors.white60),
               ),
             ],
           ),
@@ -308,23 +312,29 @@ class _NextPageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = uiScale(context);
     return Material(
       color: AppColors.quietCard,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(18 * s),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18 * s),
         onTap: onTap,
+        focusColor: Colors.white24,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(14 * s),
           child: Row(
             children: [
-              const KeyBadge(pc: _nextPagePc, size: 40),
-              const SizedBox(width: 12),
+              KeyBadge(pc: _nextPagePc, size: 40 * s),
+              SizedBox(width: 12 * s),
               Expanded(
-                child: Text('More (page ${page + 1} of $pages)',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white70)),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text('More (page ${page + 1} of $pages)',
+                      style: TextStyle(fontSize: 18 * s, fontWeight: FontWeight.w800, color: Colors.white70)),
+                ),
               ),
-              const Icon(Icons.arrow_forward_rounded, size: 32, color: Colors.white70),
+              Icon(Icons.arrow_forward_rounded, size: 32 * s, color: Colors.white70),
             ],
           ),
         ),

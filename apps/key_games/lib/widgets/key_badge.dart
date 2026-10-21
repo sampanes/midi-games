@@ -27,6 +27,8 @@ class KeyBadge extends StatelessWidget {
       ),
       child: Text(
         pitchClasses[pc].name,
+        // The letter is sized by [size] alone, even inside a scaled header.
+        textScaler: TextScaler.noScaling,
         style: TextStyle(
           fontSize: size * 0.5,
           fontWeight: FontWeight.w900,

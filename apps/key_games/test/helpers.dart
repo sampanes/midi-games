@@ -90,3 +90,10 @@ void usePhone(WidgetTester tester, {bool landscape = false}) {
   tester.view.devicePixelRatio = 2.625;
   addTearDown(tester.view.reset);
 }
+
+// A 1080p screen at 1:1: a full-screen PC, or a 4K TV at 2x.
+void useTv(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1920, 1080);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}

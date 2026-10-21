@@ -232,7 +232,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
         Expanded(child: _StarRow(stars: _state.stars)),
         const SizedBox(width: 8),
         ActionChip(
-          avatar: const Icon(Icons.trending_up, size: 18),
+          avatar: Icon(Icons.trending_up, size: 18 * uiScale(context)),
           label: Text('Level ${_state.level + 1}'),
           onPressed: _nextLevel,
         ),
@@ -365,7 +365,7 @@ class _StarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = min(48.0, constraints.maxWidth / earStarsPerLevel);
+        final size = min(48.0 * uiScale(context), constraints.maxWidth / earStarsPerLevel);
         return Row(
           children: [
             for (var i = 0; i < earStarsPerLevel; i++)
