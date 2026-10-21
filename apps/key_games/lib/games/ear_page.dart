@@ -244,7 +244,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
           child: SizedBox(
-            height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+            height: pianoStripHeight(context),
             child: PianoStrip(
               base: _base,
               target: show ? _state.target : null,
@@ -344,8 +344,8 @@ class _ChoiceRow extends StatelessWidget {
         fit: BoxFit.scaleDown,
         child: Text(
           [for (final pc in choices) pitchClasses[pc].name].join('   '),
-          style: const TextStyle(
-            fontSize: 26,
+          style: TextStyle(
+            fontSize: 26 * uiScale(context),
             fontWeight: FontWeight.w800,
             color: Colors.white54,
             letterSpacing: 1,

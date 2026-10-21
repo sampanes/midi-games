@@ -310,14 +310,14 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
           _phase == _Phase.countdown ? 'Get ready!' : 'Song: ${_song.title}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white54, fontSize: 16),
+          style: TextStyle(color: Colors.white54, fontSize: 16 * uiScale(context)),
         ),
         // Hidden at the end, so the end choices fit a landscape phone.
         if (_phase != _Phase.done)
           Padding(
             padding: const EdgeInsets.all(8),
             child: SizedBox(
-              height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+              height: pianoStripHeight(context),
               child: PianoStrip(
                 base: _base,
                 span: span,
@@ -358,57 +358,69 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     );
   }
 
+  // The countdown and the end panel are chrome: phone-sized text grown with
+  // the screen.
   Widget _buildCountdown() {
-    return TweenAnimationBuilder<double>(
-      key: ValueKey(_count),
-      tween: Tween(begin: 1.6, end: 1),
-      duration: const Duration(milliseconds: 300),
-      builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-      child: Text(
-        '$_count',
-        style: const TextStyle(fontSize: 160, fontWeight: FontWeight.w900, color: AppColors.starGold),
+    return ScaledChrome(
+      scale: uiScale(context),
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey(_count),
+        tween: Tween(begin: 1.6, end: 1),
+        duration: const Duration(milliseconds: 300),
+        builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+        child: Text(
+          '$_count',
+          style: const TextStyle(fontSize: 160, fontWeight: FontWeight.w900, color: AppColors.starGold),
+        ),
       ),
     );
   }
 
   Widget _buildEnd() {
     final best = _settings.best(_bestKey);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text("Time's up!", style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          Text('${_state.score} keys',
-              style: const TextStyle(
-                  fontSize: 56, fontWeight: FontWeight.w900, color: AppColors.starGold)),
-          Text(
-            _newBest ? 'New best!' : 'Best: $best',
-            style: const TextStyle(fontSize: 22, color: Colors.white70),
-          ),
-          const SizedBox(height: 4),
-          Text(_real ? 'You played ${_song.title}!' : 'You smashed out ${_song.title}!',
-              textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, color: Colors.white70)),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: [
-              FilledButton.icon(
-                onPressed: _startRound,
-                icon: const KeyBadge(pc: 0, size: 30),
-                label: const Text('Play again'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.maybePop(context),
-                icon: const KeyBadge(pc: 4, size: 30),
-                label: const Text('Menu'),
-              ),
-            ],
-          ),
-        ],
+    final s = uiScale(context);
+    return ScaledChrome(
+      scale: s,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16 * s),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Time's up!", style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8 * s),
+            Text('${_state.score} keys',
+                style: const TextStyle(
+                    fontSize: 56, fontWeight: FontWeight.w900, color: AppColors.starGold)),
+            Text(
+              _newBest ? 'New best!' : 'Best: $best',
+              style: const TextStyle(fontSize: 22, color: Colors.white70),
+            ),
+            SizedBox(height: 4 * s),
+            Text(_real ? 'You played ${_song.title}!' : 'You smashed out ${_song.title}!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, color: Colors.white70)),
+            SizedBox(height: 20 * s),
+            Wrap(
+              spacing: 16 * s,
+              runSpacing: 12 * s,
+              alignment: WrapAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: _startRound,
+                  style: keyButtonStyle(s),
+                  icon: KeyBadge(pc: 0, size: 30 * s),
+                  label: const Text('Play again'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.maybePop(context),
+                  style: keyButtonStyle(s),
+                  icon: KeyBadge(pc: 4, size: 30 * s),
+                  label: const Text('Menu'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -477,6 +489,7 @@ class _BoardPainter extends CustomPainter {
         text: TextSpan(
           text: info.name,
           style: TextStyle(
+            fontFamily: fontFamily,
             // Two letters (F#) on a narrow black-key tile need a smaller size.
             fontSize: min(rect.width * (info.name.length > 1 ? 0.34 : 0.5), rect.height * 0.45),
             fontWeight: FontWeight.w900,

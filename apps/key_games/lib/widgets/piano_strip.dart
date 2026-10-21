@@ -10,6 +10,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
 import '../games/color_keys_rules.dart';
 
 const pianoKeyCount = 37;
@@ -117,6 +118,7 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final scale = uiScale(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
@@ -130,6 +132,7 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
               size: size,
               painter: _PianoPainter(
                 layout: _layout(size),
+                scale: scale,
                 target: widget.target,
                 targetNote: widget.targetNote,
                 plain: widget.plain,
@@ -198,6 +201,7 @@ class _PianoLayout {
 class _PianoPainter extends CustomPainter {
   _PianoPainter({
     required this.layout,
+    required this.scale,
     required this.target,
     required this.targetNote,
     required this.plain,
@@ -207,6 +211,9 @@ class _PianoPainter extends CustomPainter {
   });
 
   final _PianoLayout layout;
+
+  // Grows the phone-sized caps on the letters and dots (uiScale).
+  final double scale;
   final int? target;
   final int? targetNote;
   final bool plain;
@@ -303,7 +310,7 @@ class _PianoPainter extends CustomPainter {
       fill.color = color;
       canvas.drawCircle(
         Offset(rect.center.dx, rect.bottom - layout.blackUnit * 0.45),
-        min(layout.blackUnit * 0.26, 9),
+        min(layout.blackUnit * 0.26, 9 * scale),
         fill,
       );
     }
@@ -317,7 +324,8 @@ class _PianoPainter extends CustomPainter {
       text: TextSpan(
         text: letter,
         style: TextStyle(
-          fontSize: min(unit * 0.6, 22),
+          fontFamily: fontFamily,
+          fontSize: min(unit * 0.6, 22 * scale),
           fontWeight: FontWeight.w800,
           color: litColor == null ? Colors.white60 : (dark ? const Color(0xFF2A2233) : Colors.white),
         ),

@@ -66,34 +66,38 @@ class _LearnBackPageState extends State<LearnBackPage> {
   @override
   Widget build(BuildContext context) {
     final learned = _learned;
+    final scale = uiScale(context);
     return GamePage(
       title: 'Back pad',
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                learned == null ? Icons.touch_app_rounded : Icons.check_circle_rounded,
-                size: 96,
-                color: learned == null ? Colors.white70 : AppColors.starGold,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                learned == null
-                    ? 'Press the pad or button you want to use for Back.'
-                    : 'Back is now ${learned.label}.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Not a piano key: that key would leave every game.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.white54),
-              ),
-            ],
+      body: ScaledChrome(
+        scale: scale,
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24 * scale),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  learned == null ? Icons.touch_app_rounded : Icons.check_circle_rounded,
+                  size: 96 * scale,
+                  color: learned == null ? Colors.white70 : AppColors.starGold,
+                ),
+                SizedBox(height: 16 * scale),
+                Text(
+                  learned == null
+                      ? 'Press the pad or button you want to use for Back.'
+                      : 'Back is now ${learned.label}.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                ),
+                SizedBox(height: 12 * scale),
+                const Text(
+                  'Not a piano key: that key would leave every game.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, color: Colors.white54),
+                ),
+              ],
+            ),
           ),
         ),
       ),

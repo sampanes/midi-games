@@ -289,7 +289,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: _run.index / total,
-                  minHeight: 8,
+                  minHeight: 8 * uiScale(context),
                   color: color,
                   backgroundColor: Colors.white12,
                 ),
@@ -304,7 +304,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
         Padding(
           padding: const EdgeInsets.all(8),
           child: SizedBox(
-            height: min(180, MediaQuery.sizeOf(context).height * 0.24),
+            height: pianoStripHeight(context),
             child: PianoStrip(
               base: _base,
               span: _span,
@@ -350,23 +350,26 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     );
   }
 
-  // "Higher!" / "Lower!" above the current bubble, with an arrow.
+  // "Higher!" / "Lower!" above the current bubble, with an arrow, at phone
+  // size grown with the screen.
   Widget _buildNudge(int note) {
     final rect = _bubbleRect(0, note, note, _laneSize);
     final up = _nudge == 'Higher!';
-    final width = min(_laneSize.width, 320.0);
+    final s = uiScale(context);
+    final width = min(_laneSize.width, 320.0 * s);
+    final height = 60 * s;
     return Positioned(
       left: (rect.center.dx - width / 2).clamp(0, _laneSize.width - width),
       width: width,
-      height: 60,
-      top: up ? max(0, rect.top - 64) : min(_laneSize.height - 60, rect.bottom + 4),
+      height: height,
+      top: up ? max(0, rect.top - height - 4) : min(_laneSize.height - height, rect.bottom + 4),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, size: 44),
-            Text(_nudge!, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+            Icon(up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, size: 44 * s),
+            Text(_nudge!, style: TextStyle(fontSize: 34 * s, fontWeight: FontWeight.w900)),
           ],
         ),
       ),
@@ -421,48 +424,60 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     );
   }
 
+  // The end panel is chrome: phone-sized text grown with the screen.
   Widget _endPanel() {
     if (_celebrating) return const SizedBox.shrink();
+    final s = uiScale(context);
     if (_listening) {
-      return const Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.hearing, size: 72, color: Colors.white70),
-          SizedBox(height: 8),
-          Text('Listen to your song!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-        ],
-      );
-    }
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('You played ${widget.song.title}!',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 20),
-        Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          alignment: WrapAlignment.center,
+      return ScaledChrome(
+        scale: s,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            FilledButton.icon(
-              onPressed: _restart,
-              icon: const KeyBadge(pc: 0, size: 30),
-              label: const Text('Play again'),
-            ),
-            FilledButton.tonalIcon(
-              onPressed: _playBack,
-              icon: const KeyBadge(pc: 2, size: 30),
-              label: const Text('Listen again'),
-            ),
-            OutlinedButton.icon(
-              onPressed: _moreSongs,
-              icon: const KeyBadge(pc: 4, size: 30),
-              label: const Text('More songs'),
-            ),
+            Icon(Icons.hearing, size: 72 * s, color: Colors.white70),
+            SizedBox(height: 8 * s),
+            const Text('Listen to your song!',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
           ],
         ),
-      ],
+      );
+    }
+    return ScaledChrome(
+      scale: s,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('You played ${widget.song.title}!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+          SizedBox(height: 20 * s),
+          Wrap(
+            spacing: 16 * s,
+            runSpacing: 12 * s,
+            alignment: WrapAlignment.center,
+            children: [
+              FilledButton.icon(
+                onPressed: _restart,
+                style: keyButtonStyle(s),
+                icon: KeyBadge(pc: 0, size: 30 * s),
+                label: const Text('Play again'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: _playBack,
+                style: keyButtonStyle(s),
+                icon: KeyBadge(pc: 2, size: 30 * s),
+                label: const Text('Listen again'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _moreSongs,
+                style: keyButtonStyle(s),
+                icon: KeyBadge(pc: 4, size: 30 * s),
+                label: const Text('More songs'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

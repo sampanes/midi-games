@@ -5,18 +5,23 @@
 # posting key messages to the Flutter view, and saves one PNG per page.
 #
 #   flutter build windows --debug
-#   .\tool\shoot-windows.ps1 -W 1920 -H 1080            # a 1080p TV box (1.5x: 1280x720 logical)
-#   .\tool\shoot-windows.ps1 -W 2880 -H 1620 -Monitor 2 # 1920x1080 logical on a 150% monitor
+#   .\tool\shoot-windows.ps1 -ListMonitors                # which monitor is which
+#   .\tool\shoot-windows.ps1 -W 1920 -H 1080              # a 1080p TV box (1.5x: 1280x720 logical)
+#   .\tool\shoot-windows.ps1 -W 2880 -H 1620 -Monitor 2   # 1920x1080 logical on a 150% monitor
+#   .\tool\shoot-windows.ps1 -W 1323 -H 617 -Monitor 2    # a phone on its side (882x411 logical)
 #
 # The logical size Flutter lays out is W x H divided by the monitor's scale.
 # Pages are captured with PrintWindow, which gives a blank frame while the
-# displays are asleep, so a zero-pixel mouse move wakes them first.
+# displays are asleep, so a zero-pixel mouse move wakes them first. The
+# walk takes about four minutes: Key Rush and Key Runner each run a full
+# minute to reach their end screens.
 
 param(
   [string]$Out = "$PSScriptRoot\..\build\shots",
   [int]$Monitor = -1,
   [int]$W = 1920,
-  [int]$H = 1080
+  [int]$H = 1080,
+  [switch]$ListMonitors
 )
 $ErrorActionPreference = 'Stop'
 
@@ -78,6 +83,7 @@ for ($i = 0; $i -lt $mons.Count; $i++) {
   $m = $mons[$i]
   Write-Host ("monitor {0}: at {1},{2} size {3}x{4} dpi={5} primary={6}" -f $i, $m[0], $m[1], ($m[2]-$m[0]), ($m[3]-$m[1]), $m[4], $m[5])
 }
+if ($ListMonitors) { return }
 if ($Monitor -lt 0) {
   for ($j = 0; $j -lt $mons.Count; $j++) {
     $m = $mons[$j]
@@ -123,8 +129,12 @@ try {
     if ($sb.ToString() -eq 'FLUTTERVIEW') { $view = $c }
   }
 
+  # The computer keys the app plays: A S D F G H J K are the notes C D E F G
+  # A B C, so the menu letter E is the D key. A key code of 0 must never be
+  # posted: it leaves the app's key handling confused for a while.
   $vk = @{ A=0x41; S=0x53; D=0x44; F=0x46; G=0x47; H=0x48; J=0x4A; K=0x4B; ESC=0x1B }
   function Press($name) {
+    if (-not $vk.ContainsKey($name)) { throw "unknown key '$name' (use A S D F G H J K or ESC)" }
     $code = [int]$vk[$name]
     $scan = [int][W]::MapVirtualKey([uint32]$code, 0)
     $down = [int64](1 -bor ($scan -shl 16))
@@ -155,21 +165,39 @@ try {
     Write-Host "shot $name ($cw x $ch)"
   }
 
-  # From the home menu: Look (one game) opens Color Keys' levels straight away.
+  # From the home menu, in menu letters: A = C, S = D, D = E, F = F, G = G.
+  # Look (one game) opens Color Keys' levels straight away; a difficulty
+  # picker is replaced by its game, so Escape from a game returns to the menu
+  # above the picker. Songs pick a group (Kids), then a song: E (the D key)
+  # is Hot Cross Buns, the shortest, which the Song Steps walk plays to its
+  # end on the computer keys (E D C = D S A).
+  $hotCrossBuns = @('D', 'S', 'A', 'D', 'S', 'A', 'A', 'A', 'A', 'A', 'S', 'S', 'S', 'S', 'D', 'S', 'A')
   $steps = @(
     @{ name = 'home';               keys = @() },
     @{ name = 'difficulty-color';   keys = @('A') },
     @{ name = 'game-color-keys';    keys = @('A') },
     @{ name = 'menu-songs';         keys = @('ESC', 'ESC', 'D') },
-    @{ name = 'difficulty-highway'; keys = @('S') },
+    @{ name = 'difficulty-steps';   keys = @('A') },
+    @{ name = 'groups-steps';       keys = @('A') },
+    @{ name = 'songlist-steps';     keys = @('A') },
+    @{ name = 'game-steps';         keys = @('D'); wait = 1500 },
+    @{ name = 'end-steps';          keys = $hotCrossBuns; wait = 12000 },
+    @{ name = 'songbox-groups';     keys = @('ESC', 'ESC', 'ESC', 'D') },
+    @{ name = 'songbox';            keys = @('A', 'A'); wait = 1500 },
+    @{ name = 'difficulty-highway'; keys = @('ESC', 'ESC', 'ESC', 'S') },
+    @{ name = 'groups-highway';     keys = @('A') },
     @{ name = 'songlist-highway';   keys = @('A') },
-    @{ name = 'game-highway';       keys = @('A'); wait = 3500 },
-    @{ name = 'menu-arcade';        keys = @('ESC', 'ESC', 'ESC', 'F') },
+    @{ name = 'game-highway';       keys = @('D'); wait = 5000 },
+    @{ name = 'end-highway';        keys = @(); wait = 16000 },
+    @{ name = 'menu-arcade';        keys = @('ESC', 'ESC', 'ESC', 'ESC', 'F') },
     @{ name = 'game-rush';          keys = @('A', 'A'); wait = 3500 },
+    @{ name = 'end-rush';           keys = @(); wait = 60000 },
     @{ name = 'game-runner';        keys = @('ESC', 'S', 'A'); wait = 3500 },
+    @{ name = 'end-runner';         keys = @(); wait = 60000 },
     @{ name = 'game-ear';           keys = @('ESC', 'ESC', 'S', 'A'); wait = 1500 },
     @{ name = 'settings';           keys = @('ESC', 'ESC', 'G') },
-    @{ name = 'learn-back';         keys = @('A') }
+    @{ name = 'about';              keys = @('D') },
+    @{ name = 'learn-back';         keys = @('ESC', 'A') }
   )
   foreach ($s in $steps) {
     foreach ($k in $s.keys) { Press $k }

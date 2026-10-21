@@ -18,7 +18,8 @@ files into the melodies the games play.
 GitHub Actions (`.github/workflows/ci.yml`) runs all three on every push and
 pull request, plus a check that nothing under `private/` is tracked. The same
 privacy check runs locally as a Git hook; wire it once per clone with
-`npm run hooks` (or `npm install`, which does the same).
+`npm run hooks` (or `npm install`, which does the same). A version tag makes
+a release with the installable builds: see "Releases" under the app.
 
 ## First experiment: identify the keyboard
 
@@ -198,7 +199,8 @@ Settings, a button in the header), each category lists its games (a category
 with one game opens it straight away), and every game starts with a
 difficulty picker: C Easy (ages 3+), D Medium (5+), E Hard (8+), F Expert
 (grown-ups). Each game decides what the levels change (glowing keys, colors,
-black keys, hints).
+black keys, hints). Settings holds the Back pad (C, D forgets it) and About
+(E: the version and the licenses page).
 
 Keyboard only (TV boxes, no touch screen): every menu choice wears a note
 letter and pressing any key of that letter picks it, so C C reaches the
@@ -224,13 +226,20 @@ settings live in `AppServices` (`lib/app/services.dart`) and are read with
 `lib/app/theme.dart`; and each game keeps its rules in a pure `*_rules.dart`
 file with its own unit tests.
 
-Screens from a phone to a TV: `uiScale` (1 on a phone, 1.5 on a 1080p TV
-box, 2 on a full-screen PC) grows every page's header, chips, badges and
-hints, and menu tiles are cards that never grow wider than a hand-sized card
-at that scale, with everything drawn on them scaling with the tile. Game
-boards and keyboard pictures size themselves from the screen. The typeface is
-Nunito, bundled in `apps/key_games/assets/fonts` under the SIL Open Font
-License (the license is in the app's licenses page too).
+Screens from a phone to a TV: the two that matter are a phone on its side
+and a PC on a TV. `uiScale` (1 on a phone, 1.5 on a 1080p TV box, 2 on a
+full-screen PC) grows every page's header, chips, badges and hints, the
+countdowns, popups and end panels, and menu tiles are cards that never grow
+wider than a hand-sized card at that scale, with everything drawn on them
+scaling with the tile. Game boards fill the screen; the phone-sized caps on
+their parts (lane widths, the road, the letters on the keyboard picture, its
+height) grow with the same scale. The typeface is Nunito, bundled in
+`apps/key_games/assets/fonts` under the SIL Open Font License (the license is
+in the app's licenses page, Settings > About); text painted on a canvas
+names the family itself, since painters do not inherit the theme.
+`apps/key_games/tool/shoot-windows.ps1` screenshots every page of a debug
+build at any screen size, driving it with the computer keys, for judging a
+layout on a TV without one.
 
 In Color Keys, a wrong key sounds once from the player's press and then the
 right note sounds once by itself. The guided song and arcade games repeat the
@@ -249,6 +258,33 @@ Windows: `scripts\start-key-games.bat` opens it borderless full screen (add
 `--windowed` for a normal window); `scripts\stop-key-games.bat` or Alt+F4
 quits. The app keeps the screen awake, since keyboard play is not screen
 activity.
+
+### Releases
+
+Pushing a version tag builds the installable files and publishes them as a
+GitHub release (`.github/workflows/release.yml`): the Android APK, named
+`key-games-vX.Y.Z.apk`, and a Windows zip with the start and stop scripts
+beside the exe. Bump `version` in `apps/key_games/pubspec.yaml` first (the
+build number after `+` must grow, or Android refuses to install over the
+last one; `lib/app/about.dart` carries the same version and a test checks
+they match), then:
+
+```bat
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The APK is signed with a release key, once made with
+`scripts\make-android-key.ps1`. The script writes the keystore to
+`private/keys/` and `apps/key_games/android/key.properties` (both ignored by
+Git) and lists the four repository secrets the workflow needs
+(`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD`) in `private/keys/github-secrets.txt`, with a
+`set-github-secrets.ps1` that adds them through the GitHub CLI. Back up
+`private/keys`: a build signed with any other key, including the debug key a
+plain checkout uses, does not install over one signed with it. A local
+`flutter build apk --release` is signed with the same key once
+`key.properties` exists.
 
 ### Song mode
 

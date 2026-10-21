@@ -145,16 +145,17 @@ class _SongListPageState extends State<SongListPage> {
     if (_error != null) return Center(child: Text('Could not load songs: $_error'));
     final songs = _songs;
     if (songs == null) return const Center(child: CircularProgressIndicator());
+    final scale = uiScale(context);
     if (songs.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('No songs yet.', textAlign: TextAlign.center, style: TextStyle(fontSize: 22)),
+          padding: const EdgeInsets.all(24),
+          child: Text('No songs yet.',
+              textAlign: TextAlign.center, style: TextStyle(fontSize: 22 * scale)),
         ),
       );
     }
     final items = _pageItems.toList();
-    final scale = uiScale(context);
     return GridView(
       // Fixed height: two-line titles must fit on narrow phone columns too.
       // Cards grow with the screen like the header does.

@@ -8,6 +8,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../app/services.dart';
+import '../app/theme.dart';
 import '../audio/synth.dart';
 import '../widgets/game_page.dart';
 import '../widgets/key_badge.dart';
@@ -103,52 +104,57 @@ class _SongListenPageState extends State<SongListenPage> {
   @override
   Widget build(BuildContext context) {
     final at = min(_clock.elapsedMilliseconds, _endMs);
+    final s = uiScale(context);
     return GamePage(
       title: widget.song.title,
       headerPadding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
       picks: {_againPc: _play, _stopPc: () => setState(_stop)},
-      body: FittedBox(
-        // Scales down to fit a landscape phone.
-        fit: BoxFit.scaleDown,
-        child: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _playing ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
-                size: 56,
-                color: Colors.white70,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${widget.song.group}, ${widget.song.notes.length} notes',
-                style: const TextStyle(color: Colors.white60, fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              LinearProgressIndicator(value: _endMs == 0 ? 0 : at / _endMs, minHeight: 8),
-              const SizedBox(height: 8),
-              Text(
-                '${_time(at)} / ${_time(_endMs)}',
-                style: const TextStyle(color: Colors.white60),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 24,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: [
-                  _KeyHint(pc: _againPc, text: 'Play again', onTap: _play),
-                  _KeyHint(pc: _stopPc, text: 'Stop', onTap: () => setState(_stop)),
-                ],
-              ),
-            ],
+      // Phone-sized, grown with the screen, and scaled down to fit a
+      // landscape phone.
+      body: ScaledChrome(
+        scale: s,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: 480 * s,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _playing ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
+                  size: 56 * s,
+                  color: Colors.white70,
+                ),
+                SizedBox(height: 12 * s),
+                Text(
+                  '${widget.song.group}, ${widget.song.notes.length} notes',
+                  style: const TextStyle(color: Colors.white60, fontSize: 16),
+                ),
+                SizedBox(height: 16 * s),
+                LinearProgressIndicator(value: _endMs == 0 ? 0 : at / _endMs, minHeight: 8 * s),
+                SizedBox(height: 8 * s),
+                Text(
+                  '${_time(at)} / ${_time(_endMs)}',
+                  style: const TextStyle(color: Colors.white60),
+                ),
+                SizedBox(height: 20 * s),
+                Wrap(
+                  spacing: 24 * s,
+                  runSpacing: 12 * s,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _KeyHint(pc: _againPc, text: 'Play again', onTap: _play),
+                    _KeyHint(pc: _stopPc, text: 'Stop', onTap: () => setState(_stop)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
       footer: [
         SizedBox(
-          height: 150,
+          height: pianoStripHeight(context, design: 150),
           child: PianoStrip(
             base: 48,
             span: whiteSpan(_lowest, _highest),
@@ -171,16 +177,17 @@ class _KeyHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = uiScale(context);
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(12 * s),
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.all(6),
+        padding: EdgeInsets.all(6 * s),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            KeyBadge(pc: pc, size: 36),
-            const SizedBox(width: 8),
+            KeyBadge(pc: pc, size: 36 * s),
+            SizedBox(width: 8 * s),
             Text(text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           ],
         ),

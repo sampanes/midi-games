@@ -1,9 +1,11 @@
 // Settings: the Back pad. C picks (or changes) the pad or button that goes
-// back from any page; D forgets it. Reached from the home menu with G, so a
-// TV box with no touch screen can set it up from the keyboard alone.
+// back from any page; D forgets it; E shows the version and the licenses.
+// Reached from the home menu with G, so a TV box with no touch screen can
+// set it up from the keyboard alone.
 
 import 'package:flutter/material.dart';
 
+import '../app/about.dart';
 import '../app/services.dart';
 import '../input/back_control.dart';
 import '../widgets/menu_page.dart';
@@ -40,6 +42,13 @@ class SettingsPage extends StatelessWidget {
             icon: Icons.block,
             colors: const [Color(0xFF4A4360), Color(0xFF2B2440)],
             onPick: (_) => settings.setBackControl(null),
+          ),
+          MenuItem(
+            title: 'About',
+            subtitle: '$appName $appVersion. Licenses',
+            icon: Icons.info_outline_rounded,
+            colors: const [Color(0xFF22C9A0), Color(0xFF2FA8FF)],
+            onPick: showAbout,
           ),
         ],
         footer: back == null

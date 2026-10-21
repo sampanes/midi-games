@@ -268,7 +268,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
     final road = _roadKey.currentContext?.findRenderObject() as RenderBox?;
     final sparks = _sparksKey.currentContext?.findRenderObject() as RenderBox?;
     if (road == null || sparks == null) return Offset.zero;
-    final g = _Road(road.size);
+    final g = _Road(road.size, uiScale(context));
     return sparks.globalToLocal(road.localToGlobal(Offset(g.laneX(_drawnLane, 1), g.runnerY)));
   }
 
@@ -303,6 +303,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
                       labels: _labels,
                       colors: _laneColors,
                       moving: _phase == _Phase.playing,
+                      scale: uiScale(context),
                     ),
                   ),
                 ),
@@ -351,37 +352,40 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   }
 
   List<Widget> _buildKeyboard(BuildContext context) {
-    final height = min(130.0, MediaQuery.sizeOf(context).height * 0.17);
+    final s = uiScale(context);
     return [
       // Easy: which part of the keyboard is which lane. The thirds are 7, 7
       // and 8 white keys of the 37-key picture.
       if (_zones)
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-          child: Row(
-            children: [
-              for (var i = 0; i < laneCount; i++)
-                Expanded(
-                  flex: i == laneCount - 1 ? 8 : 7,
-                  child: Container(
-                    height: 22,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: _zoneColors[i],
-                      borderRadius: BorderRadius.circular(6),
+          child: ScaledChrome(
+            scale: s,
+            child: Row(
+              children: [
+                for (var i = 0; i < laneCount; i++)
+                  Expanded(
+                    flex: i == laneCount - 1 ? 8 : 7,
+                    child: Container(
+                      height: 22 * s,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _zoneColors[i],
+                        borderRadius: BorderRadius.circular(6 * s),
+                      ),
+                      child: Text(_zoneNames[i],
+                          style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
                     ),
-                    child: Text(_zoneNames[i],
-                        style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
         child: SizedBox(
-          height: height,
+          height: pianoStripHeight(context, design: 130, share: 0.17),
           child: PianoStrip(
             base: _base,
             plain: _zones || _level.atLeast(Difficulty.hard),
@@ -395,17 +399,22 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
     ];
   }
 
+  // The countdown, the popups and the end panel are chrome: phone-sized
+  // text grown with the screen.
   Widget _buildCountdown() {
     return IgnorePointer(
-      child: Center(
-        child: TweenAnimationBuilder<double>(
-          key: ValueKey(_count),
-          tween: Tween(begin: 1.6, end: 1),
-          duration: const Duration(milliseconds: 300),
-          builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-          child: Text('$_count',
-              style: const TextStyle(
-                  fontSize: 140, fontWeight: FontWeight.w900, color: AppColors.starGold)),
+      child: ScaledChrome(
+        scale: uiScale(context),
+        child: Center(
+          child: TweenAnimationBuilder<double>(
+            key: ValueKey(_count),
+            tween: Tween(begin: 1.6, end: 1),
+            duration: const Duration(milliseconds: 300),
+            builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+            child: Text('$_count',
+                style: const TextStyle(
+                    fontSize: 140, fontWeight: FontWeight.w900, color: AppColors.starGold)),
+          ),
         ),
       ),
     );
@@ -414,18 +423,21 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   Widget _buildPopup() {
     if (_popup.isEmpty) return const SizedBox.shrink();
     return IgnorePointer(
-      child: Align(
-        alignment: const Alignment(0, -0.35),
-        child: TweenAnimationBuilder<double>(
-          key: ValueKey(_popupId),
-          tween: Tween(begin: 1, end: 0),
-          duration: const Duration(milliseconds: 900),
-          builder: (context, t, child) => Opacity(
-            opacity: t,
-            child: Transform.translate(offset: Offset(0, -30 * (1 - t)), child: child),
+      child: ScaledChrome(
+        scale: uiScale(context),
+        child: Align(
+          alignment: const Alignment(0, -0.35),
+          child: TweenAnimationBuilder<double>(
+            key: ValueKey(_popupId),
+            tween: Tween(begin: 1, end: 0),
+            duration: const Duration(milliseconds: 900),
+            builder: (context, t, child) => Opacity(
+              opacity: t,
+              child: Transform.translate(offset: Offset(0, -30 * (1 - t)), child: child),
+            ),
+            child: Text(_popup,
+                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white)),
           ),
-          child: Text(_popup,
-              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white)),
         ),
       ),
     );
@@ -434,59 +446,69 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   Widget _buildEnd() {
     final best = _settings.best(_bestKey);
     final seconds = _run.nowMs ~/ 1000;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(_run.timed ? "Time's up!" : 'Out of hearts!',
-              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          Text('${_run.coins} coins',
-              style: const TextStyle(
-                  fontSize: 52, fontWeight: FontWeight.w900, color: AppColors.starGold)),
-          Text(
-            '${_newBest ? 'New best!' : 'Best: $best'}   Ran $seconds seconds',
-            style: const TextStyle(fontSize: 20, color: Colors.white70),
-          ),
-          const SizedBox(height: 4),
-          Text('Your coins played ${_song.title}!',
-              textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, color: Colors.white70)),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: [
-              FilledButton.icon(
-                onPressed: _restart,
-                icon: const KeyBadge(pc: 0, size: 30),
-                label: const Text('Play again'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.maybePop(context),
-                icon: const KeyBadge(pc: 4, size: 30),
-                label: const Text('Menu'),
-              ),
-            ],
-          ),
-        ],
+    final s = uiScale(context);
+    return ScaledChrome(
+      scale: s,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16 * s),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_run.timed ? "Time's up!" : 'Out of hearts!',
+                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8 * s),
+            Text('${_run.coins} coins',
+                style: const TextStyle(
+                    fontSize: 52, fontWeight: FontWeight.w900, color: AppColors.starGold)),
+            Text(
+              '${_newBest ? 'New best!' : 'Best: $best'}   Ran $seconds seconds',
+              style: const TextStyle(fontSize: 20, color: Colors.white70),
+            ),
+            SizedBox(height: 4 * s),
+            Text('Your coins played ${_song.title}!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, color: Colors.white70)),
+            SizedBox(height: 20 * s),
+            Wrap(
+              spacing: 16 * s,
+              runSpacing: 12 * s,
+              alignment: WrapAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: _restart,
+                  style: keyButtonStyle(s),
+                  icon: KeyBadge(pc: 0, size: 30 * s),
+                  label: const Text('Play again'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.maybePop(context),
+                  style: keyButtonStyle(s),
+                  icon: KeyBadge(pc: 4, size: 30 * s),
+                  label: const Text('Menu'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 // The road in perspective: narrow at the horizon, full width at the runner.
+// The phone-sized caps on its width and the signs grow with [scale]
+// (uiScale), so a TV gets a wide road and a big runner.
 class _Road {
-  _Road(this.size) {
-    signRadius = min(size.height * 0.09, 40);
+  _Road(this.size, this.scale) {
+    signRadius = min(size.height * 0.09, 40 * scale);
     signY = size.height - signRadius - 6;
     runnerY = signY - signRadius - size.height * 0.1;
     horizonY = size.height * 0.1;
-    width = min(size.width * 0.92, 3 * 220.0);
+    width = min(size.width * 0.92, 3 * 220.0 * scale);
   }
 
   final Size size;
+  final double scale;
   late final double signRadius;
   late final double signY;
   late final double runnerY;
@@ -516,6 +538,7 @@ class _RoadPainter extends CustomPainter {
     required this.labels,
     required this.colors,
     required this.moving,
+    required this.scale,
   });
 
   final RunnerRun run;
@@ -523,11 +546,12 @@ class _RoadPainter extends CustomPainter {
   final List<String> labels;
   final List<Color> colors;
   final bool moving;
+  final double scale;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.clipRect(Offset.zero & size);
-    final g = _Road(size);
+    final g = _Road(size, scale);
     final fill = Paint();
     final now = run.nowMs;
     final lookAhead = run.lookAheadMs;
@@ -669,6 +693,7 @@ class _RoadPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
+          fontFamily: fontFamily,
           fontSize: size,
           fontWeight: FontWeight.w900,
           color: dark ? AppColors.ink : Colors.white,

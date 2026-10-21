@@ -241,7 +241,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     final box = _highwayKey.currentContext?.findRenderObject() as RenderBox?;
     final sparks = _sparksKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || sparks == null) return Offset.zero;
-    final geometry = _Geometry(box.size, _chart.lanes.length);
+    final geometry = _Geometry(box.size, _chart.lanes.length, uiScale(context));
     return sparks.globalToLocal(box.localToGlobal(geometry.button(lane)));
   }
 
@@ -285,6 +285,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
                       now: now,
                       lookAheadMs: _rules.lookAheadMs,
                       colored: _colored,
+                      scale: uiScale(context),
                       held: _held,
                       hitAt: _hitAt,
                       missAt: _missAt,
@@ -301,7 +302,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
           Padding(
             padding: const EdgeInsets.all(8),
             child: SizedBox(
-              height: min(140, MediaQuery.sizeOf(context).height * 0.18),
+              height: pianoStripHeight(context, design: 140, share: 0.18),
               child: PianoStrip(
                 base: _base,
                 span: _span(lanePcs),
@@ -349,6 +350,8 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     ];
   }
 
+  // The countdown, the popups and the end panel are chrome: phone-sized
+  // text grown with the screen.
   Widget _buildCountdown() {
     return ValueListenableBuilder<int>(
       valueListenable: _now,
@@ -356,10 +359,13 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
         if (now >= 0 || now < -3 * _countdownStepMs) return const SizedBox.shrink();
         final count = (-now / _countdownStepMs).ceil();
         return IgnorePointer(
-          child: Center(
-            child: Text('$count',
-                style: const TextStyle(
-                    fontSize: 140, fontWeight: FontWeight.w900, color: AppColors.starGold)),
+          child: ScaledChrome(
+            scale: uiScale(context),
+            child: Center(
+              child: Text('$count',
+                  style: const TextStyle(
+                      fontSize: 140, fontWeight: FontWeight.w900, color: AppColors.starGold)),
+            ),
           ),
         );
       },
@@ -370,22 +376,25 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     if (_popup.isEmpty) return const SizedBox.shrink();
     final oops = _popup == 'Oops';
     return IgnorePointer(
-      child: Align(
-        alignment: const Alignment(0, 0.25),
-        child: TweenAnimationBuilder<double>(
-          key: ValueKey(_popupId),
-          tween: Tween(begin: 1, end: 0),
-          duration: const Duration(milliseconds: 700),
-          builder: (context, t, child) => Opacity(
-            opacity: t,
-            child: Transform.translate(offset: Offset(0, -30 * (1 - t)), child: child),
-          ),
-          child: Text(
-            _popup,
-            style: TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.w900,
-              color: oops ? Colors.white54 : AppColors.starGold,
+      child: ScaledChrome(
+        scale: uiScale(context),
+        child: Align(
+          alignment: const Alignment(0, 0.25),
+          child: TweenAnimationBuilder<double>(
+            key: ValueKey(_popupId),
+            tween: Tween(begin: 1, end: 0),
+            duration: const Duration(milliseconds: 700),
+            builder: (context, t, child) => Opacity(
+              opacity: t,
+              child: Transform.translate(offset: Offset(0, -30 * (1 - t)), child: child),
+            ),
+            child: Text(
+              _popup,
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.w900,
+                color: oops ? Colors.white54 : AppColors.starGold,
+              ),
             ),
           ),
         ),
@@ -395,63 +404,71 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
 
   Widget _buildEnd() {
     final best = _settings.best(_bestKey);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(_run.stars > 0 ? 'Song done!' : 'Nice try!',
-              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < 3; i++)
-                Icon(Icons.star_rounded,
-                    size: 64, color: i < _run.stars ? AppColors.starGold : Colors.white24),
-            ],
-          ),
-          Text('${_run.hits} of ${_run.total} notes',
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-          Text('Score ${_run.score}   Best streak ${_run.bestStreak}',
-              style: const TextStyle(fontSize: 18, color: Colors.white70)),
-          Text(_newBest ? 'New best!' : 'Best: $best',
-              style: const TextStyle(fontSize: 18, color: Colors.white70)),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: [
-              FilledButton.icon(
-                onPressed: _restart,
-                icon: const KeyBadge(pc: 0, size: 30),
-                label: const Text('Play again'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.maybePop(context),
-                icon: const KeyBadge(pc: 4, size: 30),
-                label: const Text('Songs'),
-              ),
-            ],
-          ),
-        ],
+    final s = uiScale(context);
+    return ScaledChrome(
+      scale: s,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16 * s),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_run.stars > 0 ? 'Song done!' : 'Nice try!',
+                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8 * s),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < 3; i++)
+                  Icon(Icons.star_rounded,
+                      size: 64 * s, color: i < _run.stars ? AppColors.starGold : Colors.white24),
+              ],
+            ),
+            Text('${_run.hits} of ${_run.total} notes',
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+            Text('Score ${_run.score}   Best streak ${_run.bestStreak}',
+                style: const TextStyle(fontSize: 18, color: Colors.white70)),
+            Text(_newBest ? 'New best!' : 'Best: $best',
+                style: const TextStyle(fontSize: 18, color: Colors.white70)),
+            SizedBox(height: 20 * s),
+            Wrap(
+              spacing: 16 * s,
+              runSpacing: 12 * s,
+              alignment: WrapAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: _restart,
+                  style: keyButtonStyle(s),
+                  icon: KeyBadge(pc: 0, size: 30 * s),
+                  label: const Text('Play again'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.maybePop(context),
+                  style: keyButtonStyle(s),
+                  icon: KeyBadge(pc: 4, size: 30 * s),
+                  label: const Text('Songs'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// Where the lanes and the hit line are.
+// Where the lanes and the hit line are. The phone-sized caps on the lane
+// width and the buttons grow with [scale] (uiScale), so a TV gets wide lanes.
 class _Geometry {
-  _Geometry(this.size, this.laneCount) {
-    laneWidth = min(150.0, size.width / max(1, laneCount));
+  _Geometry(this.size, this.laneCount, this.scale) {
+    laneWidth = min(150.0 * scale, size.width / max(1, laneCount));
     left = (size.width - laneWidth * laneCount) / 2;
-    buttonRadius = min(laneWidth * 0.4, 44);
-    lineY = size.height - buttonRadius - 16;
+    buttonRadius = min(laneWidth * 0.4, 44 * scale);
+    lineY = size.height - buttonRadius - 16 * scale;
   }
 
   final Size size;
   final int laneCount;
+  final double scale;
   late final double laneWidth;
   late final double left;
   late final double buttonRadius;
@@ -474,6 +491,7 @@ class _HighwayPainter extends CustomPainter {
     required this.now,
     required this.lookAheadMs,
     required this.colored,
+    required this.scale,
     required this.held,
     required this.hitAt,
     required this.missAt,
@@ -484,6 +502,7 @@ class _HighwayPainter extends CustomPainter {
   final int now;
   final int lookAheadMs;
   final bool colored;
+  final double scale;
   final Set<int> held;
   final Map<int, int> hitAt;
   final Map<int, int> missAt;
@@ -492,7 +511,7 @@ class _HighwayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final g = _Geometry(size, chart.lanes.length);
+    final g = _Geometry(size, chart.lanes.length, scale);
     final fill = Paint();
     // Notes past the line must not spill onto the keyboard picture.
     canvas.clipRect(Offset.zero & size);
@@ -508,7 +527,7 @@ class _HighwayPainter extends CustomPainter {
 
     // Notes: a head on the line at the note's time, a tail for its length.
     final gemWidth = g.laneWidth * 0.72;
-    final gemHeight = min(g.laneWidth * 0.42, 34.0);
+    final gemHeight = min(g.laneWidth * 0.42, 34.0 * scale);
     for (var i = 0; i < chart.notes.length; i++) {
       final n = chart.notes[i];
       if (marks[i] == NoteMark.hit) continue;
@@ -572,6 +591,7 @@ class _HighwayPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
+          fontFamily: fontFamily,
           fontSize: size,
           fontWeight: FontWeight.w900,
           color: dark ? AppColors.ink : Colors.white,

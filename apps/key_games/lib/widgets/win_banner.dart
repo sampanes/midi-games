@@ -25,7 +25,7 @@ class WinBanner extends StatelessWidget {
             child: Text(
               'YAY!',
               style: TextStyle(
-                fontSize: min(MediaQuery.sizeOf(context).width * 0.28, 220),
+                fontSize: min(MediaQuery.sizeOf(context).width * 0.28, 220 * uiScale(context)),
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
                 shadows: const [Shadow(color: Colors.black54, blurRadius: 24)],

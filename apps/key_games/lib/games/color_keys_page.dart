@@ -337,10 +337,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
           child: SizedBox(
-            height: min(
-              180,
-              MediaQuery.sizeOf(context).height * 0.24,
-            ),
+            height: pianoStripHeight(context),
             child: PianoStrip(
               base: _base,
               target: _state.locked || !_glow ? null : _state.target,
