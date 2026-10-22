@@ -19,14 +19,6 @@ RunnerRun _emptyRun(Difficulty d) {
 }
 
 void main() {
-  test('easy lanes are the low, middle and high part of the keyboard', () {
-    expect(zoneLane(50, 48), 0);
-    expect(zoneLane(62, 48), 1);
-    expect(zoneLane(80, 48), 2);
-    expect(zoneLane(84, 48), 2);
-    expect(zoneLane(40, 48), 0);
-  });
-
   test('letter lanes, and new letters differ from the old ones', () {
     expect(letterLane(64, runnerMediumKeys), 1);
     expect(letterLane(79, runnerMediumKeys), 2);

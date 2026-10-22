@@ -227,11 +227,12 @@ class _ColorKeysPageState extends State<ColorKeysPage>
             (note) => pitchClass(note) == _state.target,
             orElse: () => played,
           );
+          final picture = pictureKeys(context, _base);
           final right = nearestOfClassInRange(
             anchor,
             _state.target,
-            max(_base, Synth.lowestNote),
-            min(_base + pianoKeyCount - 1, Synth.highestNote),
+            max(picture.low, Synth.lowestNote),
+            min(picture.high, Synth.highestNote),
           );
           // End any still-held player notes before the correction. Their later
           // Note Off messages must not cut off the correction if it has the same

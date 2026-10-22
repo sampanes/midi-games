@@ -23,15 +23,13 @@ import '../widgets/game_page.dart';
 import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
+import '../widgets/zones.dart';
 import 'color_keys_rules.dart';
 import 'difficulty.dart';
 import 'runner_rules.dart';
 
 const _countdownStepMs = 700;
 
-// Easy lanes: low, middle and high part of the keyboard.
-const _zoneColors = [Color(0xFF22C9A0), Color(0xFFFFD84A), Color(0xFFFF5EC8)];
-const _zoneNames = ['Low', 'Middle', 'High'];
 
 const runnerLevelsText = {
   Difficulty.easy: 'Low, middle or high keys; one minute',
@@ -241,7 +239,8 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
     });
   }
 
-  int? _laneFor(int note) => _zones ? zoneLane(note, _base) : letterLane(note, _keys);
+  int? _laneFor(int note) =>
+      _zones ? zoneOf(note, pictureKeys(context, _base), laneCount) : letterLane(note, _keys);
 
   void _onNote(NoteEvent event) {
     if (!isGameNote(event.note)) return;
@@ -273,11 +272,11 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   }
 
   List<String> get _labels => _zones
-      ? _zoneNames
+      ? zoneNames(laneCount)
       : [for (final pc in _keys) pitchClasses[pc].name];
 
   List<Color> get _laneColors => _zones
-      ? _zoneColors
+      ? zoneColors(laneCount)
       : [for (final pc in _keys) _colored ? pitchColor(pc) : AppColors.plain];
 
   @override
@@ -352,35 +351,12 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   }
 
   List<Widget> _buildKeyboard(BuildContext context) {
-    final s = uiScale(context);
     return [
-      // Easy: which part of the keyboard is which lane. The thirds are 7, 7
-      // and 8 white keys of the 37-key picture.
+      // Easy: which part of the keyboard is which lane.
       if (_zones)
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-          child: ScaledChrome(
-            scale: s,
-            child: Row(
-              children: [
-                for (var i = 0; i < laneCount; i++)
-                  Expanded(
-                    flex: i == laneCount - 1 ? 8 : 7,
-                    child: Container(
-                      height: 22 * s,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: _zoneColors[i],
-                        borderRadius: BorderRadius.circular(6 * s),
-                      ),
-                      child: Text(_zoneNames[i],
-                          style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          child: ZoneBar(count: laneCount, picture: pictureKeys(context, _base)),
         ),
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
@@ -388,8 +364,10 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
           height: pianoStripHeight(context, design: 130, share: 0.17),
           child: PianoStrip(
             base: _base,
-            plain: _zones || _level.atLeast(Difficulty.hard),
+            plain: _level.atLeast(Difficulty.hard),
             choices: _zones ? null : _keys,
+            zones: _zones ? laneCount : null,
+            litZone: _zones ? _run.lane : null,
             held: _held,
             onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
             onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),

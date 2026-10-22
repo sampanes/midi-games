@@ -12,19 +12,22 @@ import 'package:key_games/widgets/piano_strip.dart';
 import 'helpers.dart';
 
 void main() {
-  test('easy keys are the four middle keys, never the same twice, never far', () {
-    final feed = EasyRushFeed(Random(1));
-    int? last;
-    for (var i = 0; i < 500; i++) {
-      final next = feed.next(last);
-      expect(rushEasyKeys, contains(next));
-      if (last != null) {
-        expect(next, isNot(last));
-        final step = (rushEasyKeys.indexOf(next) - rushEasyKeys.indexOf(last)).abs();
-        expect(step, lessThanOrEqualTo(rushEasyMaxStep));
+  test('easy asks for parts and medium for C E G, never the same twice', () {
+    for (final keys in [rushZones, rushKeys]) {
+      final feed = WalkRushFeed(Random(1), keys);
+      int? last;
+      for (var i = 0; i < 500; i++) {
+        final next = feed.next(last);
+        expect(keys, contains(next));
+        if (last != null) {
+          expect(next, isNot(last));
+          final step = (keys.indexOf(next) - keys.indexOf(last)).abs();
+          expect(step, lessThanOrEqualTo(rushMaxStep));
+        }
+        last = next;
       }
-      last = next;
     }
+    expect(rushKeys.map((n) => n % 12), [0, 4, 7]);
   });
 
   test('the board holds the next keys; a hit moves them down a row', () {
@@ -37,8 +40,17 @@ void main() {
     expect(step.state.upcoming, [62, 64, 65, 67]);
   });
 
-  test('easy: any octave counts and a wrong key costs nothing', () {
-    final feed = EasyRushFeed(Random(2));
+  test('easy: the part of the keyboard is the answer, and a wrong part costs nothing', () {
+    final feed = WalkRushFeed(Random(2), rushZones);
+    final state = RushState.start(feed);
+    expect(pressRush(state, state.target, feed, exact: true).result, RushResult.hit);
+    final wrong = pressRush(state, (state.target + 1) % 3, feed, exact: true);
+    expect(wrong.result, RushResult.miss);
+    expect(wrong.state.frozen, isFalse);
+  });
+
+  test('medium: any octave counts and a wrong key costs nothing', () {
+    final feed = WalkRushFeed(Random(2), rushKeys);
     final state = RushState.start(feed);
     final low = state.target - 12;
     expect(pressRush(state, low, feed).result, RushResult.hit);
@@ -97,7 +109,7 @@ void main() {
     await tester.pump(const Duration(seconds: 10));
     expect(timeLeft(tester), 1);
 
-    // Easy never freezes, so one pass over E F G A finds the key.
+    // Easy never freezes, so one touch in each part finds the one asked for.
     await startRushClock(tester);
     expect(find.text('0'), findsNothing);
     expect(find.text('Song: Scale'), findsOneWidget);
@@ -117,13 +129,29 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
+  testWidgets('easy rush plays by touch alone on the one octave of a phone', (tester) async {
+    usePhone(tester, landscape: true);
+    await pumpApp(tester, RushPage(random: Random(5), songs: const []), keyboard: false);
+    await tester.pump(const Duration(milliseconds: 2700));
+
+    // The picture is one octave, C to C: its parts are C D E, F G and A B C,
+    // and touching each once finds the part asked for.
+    final strip = tester.getRect(find.byType(PianoStrip));
+    expect(keyColumn(60, 72, strip.width, 60).width, closeTo(strip.width / 8, 1));
+    await startRushClock(tester);
+    expect(find.text('0'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('real rush follows the song key by key', (tester) async {
     // A synthetic tune within the computer keys (A S D F G = C D E F G).
     const tune = Song('Test Tune', [
       SongNote(60, 0, 300), SongNote(64, 300, 300), SongNote(67, 600, 300),
       SongNote(65, 900, 300), SongNote(62, 1200, 300),
     ]);
-    await pumpRush(tester, Difficulty.medium, const [tune]);
+    await pumpRush(tester, Difficulty.hard, const [tune]);
 
     // A wrong key before the start neither scores, freezes nor starts the clock.
     await tester.sendKeyEvent(LogicalKeyboardKey.keyS);

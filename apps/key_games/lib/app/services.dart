@@ -31,13 +31,26 @@ class AppServices {
   final Settings settings;
   final KeyRouter router;
 
+  // True while a MIDI keyboard is connected. A widget that asks is rebuilt
+  // when one connects or goes away.
+  static bool hasKeyboard(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_KeyboardScope>()?.connected ?? false;
+
   static AppServices of(BuildContext context) {
     final scope = context.getInheritedWidgetOfExactType<_ServicesScope>();
     assert(scope != null, 'No AppServices above this widget: wrap the tree in KeyGamesApp.');
     return scope!.services;
   }
 
-  Widget provide({required Widget child}) => _ServicesScope(services: this, child: child);
+  Widget provide({required Widget child}) => _ServicesScope(
+        services: this,
+        child: ValueListenableBuilder<List<String>>(
+          valueListenable: midi.connected,
+          builder: (context, names, child) =>
+              _KeyboardScope(connected: names.isNotEmpty, child: child!),
+          child: child,
+        ),
+      );
 
   void dispose() {
     router.dispose();
@@ -52,4 +65,13 @@ class _ServicesScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_ServicesScope oldWidget) => oldWidget.services != services;
+}
+
+class _KeyboardScope extends InheritedWidget {
+  const _KeyboardScope({required this.connected, required super.child});
+
+  final bool connected;
+
+  @override
+  bool updateShouldNotify(_KeyboardScope oldWidget) => oldWidget.connected != connected;
 }

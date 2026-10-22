@@ -17,8 +17,24 @@ void main() {
     }
   });
 
+  test('the first level is high or low: the answer is the half of the keyboard', () {
+    const state = EarState(level: earZoneLevel, target: 1);
+    expect(state.zoned, isTrue);
+    expect(pressEarNote(state, 0).effects, [EarEffect.miss]);
+    expect(pressEarNote(state, 1).effects, [EarEffect.hit, EarEffect.nextSoon]);
+    expect(const EarState(level: 1, target: 7).zoned, isFalse);
+  });
+
+  test('with only the choices counting, other keys just sound', () {
+    const state = EarState(level: 1, target: 7);
+    expect(pressEarNote(state, 62, onlyChoices: true).effects, isEmpty);
+    expect(pressEarNote(state, 62, onlyChoices: true).state.misses, 0);
+    expect(pressEarNote(state, 60, onlyChoices: true).effects, [EarEffect.miss]);
+    expect(pressEarNote(state, 62).effects, [EarEffect.miss]);
+  });
+
   test('right note in any octave earns a star and locks', () {
-    const state = EarState(level: 0, target: 7);
+    const state = EarState(level: 1, target: 7);
     final press = pressEarNote(state, 43); // a low G
     expect(press.effects, [EarEffect.hit, EarEffect.nextSoon]);
     expect(press.state.stars, 1);
@@ -27,7 +43,7 @@ void main() {
   });
 
   test('two wrong tries reveal the answer; finding it then earns no star', () {
-    var press = pressEarNote(const EarState(level: 0, target: 7, stars: 2), 60);
+    var press = pressEarNote(const EarState(level: 1, target: 7, stars: 2), 60);
     expect(press.effects, [EarEffect.miss]);
     expect(press.state.revealed, isFalse);
     press = pressEarNote(press.state, 62);
@@ -41,10 +57,10 @@ void main() {
   test('a full row of stars moves up a level, the last level stays', () {
     final random = Random(2);
     final press = pressEarNote(
-        const EarState(level: 1, target: 4, stars: earStarsPerLevel - 1), 64);
+        const EarState(level: 2, target: 4, stars: earStarsPerLevel - 1), 64);
     expect(press.effects, [EarEffect.hit, EarEffect.levelUp]);
     final next = advanceEar(press.state, random);
-    expect(next.level, 2);
+    expect(next.level, 3);
     expect(next.stars, 0);
     expect(next.locked, isFalse);
 

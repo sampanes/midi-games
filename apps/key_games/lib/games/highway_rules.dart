@@ -5,10 +5,12 @@
 // Notes are never made up. A chart is built from a song per difficulty; the
 // song's notes that are not for the player (too fast, or off the level's
 // keys) are played by the game itself, so the tune is always whole:
-// - Easy: the song moved to the white keys (when it is not there already),
-//   and the player gets the notes on the five neighboring white keys that
-//   cover the most of it (C to G for most songs). Slow, fast runs thinned.
-// - Medium: all the white-key notes.
+// - Easy: three lanes, the low, middle and high part of the keyboard (see
+//   zones.dart). The song's own notes are shared out by how high they are,
+//   so the lanes follow the tune up and down. Slow, fast runs thinned.
+// - Medium: the song moved to the white keys (when it is not there
+//   already), and the player gets the notes on the five neighboring white
+//   keys that cover the most of it (C to G for most songs). Slow.
 // - Hard: every letter, sharps and flats too, any octave.
 // - Expert: the exact keys (the song moved by octaves onto the keyboard).
 
@@ -40,14 +42,17 @@ class HighwayLevel {
 }
 
 const highwayLevels = {
-  Difficulty.easy: HighwayLevel(speed: 0.75, minGapMs: 550, windowMs: 260, lookAheadMs: 3200),
-  Difficulty.medium: HighwayLevel(speed: 0.85, minGapMs: 330, windowMs: 200, lookAheadMs: 2600),
+  Difficulty.easy: HighwayLevel(speed: 0.75, minGapMs: 600, windowMs: 300, lookAheadMs: 3200),
+  Difficulty.medium: HighwayLevel(speed: 0.75, minGapMs: 550, windowMs: 260, lookAheadMs: 3200),
   Difficulty.hard: HighwayLevel(speed: 1, minGapMs: 180, windowMs: 150, lookAheadMs: 2100),
   Difficulty.expert: HighwayLevel(speed: 1, minGapMs: 100, windowMs: 110, lookAheadMs: 1700),
 };
 
-// Easy's hand position: this many neighboring white keys.
+// Medium's hand position: this many neighboring white keys.
 const easyKeys = 5;
+
+// Easy's lanes: the parts of the keyboard.
+const highwayZoneCount = 3;
 
 // Lowest and highest key with the keyboard's octave buttons centered.
 const keyboardLow = 48;
@@ -76,10 +81,13 @@ class ChartNote {
 }
 
 class Chart {
-  const Chart(this.lanes, this.notes, [this.autoNotes = const []]);
+  const Chart(this.lanes, this.notes, [this.autoNotes = const [], this.zones = false]);
 
+  // On Easy, lane i is part i of the keyboard and is hit with its part
+  // number (see zones.dart).
   final List<Lane> lanes;
   final List<ChartNote> notes;
+  final bool zones;
 
   // Song notes the game plays itself (their lane is -1).
   final List<ChartNote> autoNotes;
@@ -151,6 +159,8 @@ Chart buildChart(Song song, Difficulty difficulty) {
   final kept = Set<SongNote>.identity()..addAll(thinNotes(scaled, level.minGapMs));
   final keptPitches = [for (final n in scaled) if (kept.contains(n)) n.note];
 
+  if (difficulty == Difficulty.easy) return _zoneChart(scaled, kept, first);
+
   // What sounds for each song note, and the lane key the player presses for
   // it (null: the game plays it).
   late final int Function(int pitch) sound;
@@ -164,10 +174,8 @@ Chart buildChart(Song song, Difficulty difficulty) {
         for (final p in keptPitches)
           if (pitchClasses[pitchClass(p + shift)].white) pitchClass(p + shift),
       ];
-      final start = difficulty == Difficulty.easy ? bestWhiteWindow(whites, easyKeys) : 0;
-      final allowed = difficulty == Difficulty.easy
-          ? whitePitchClasses.sublist(start, start + easyKeys)
-          : whitePitchClasses;
+      final start = bestWhiteWindow(whites, easyKeys);
+      final allowed = whitePitchClasses.sublist(start, start + easyKeys);
       key = (s) => allowed.contains(pitchClass(s)) ? pitchClass(s) : null;
     case Difficulty.hard:
       sound = (p) => p;
@@ -194,6 +202,41 @@ Chart buildChart(Song song, Difficulty difficulty) {
     (k == null ? autoNotes : notes).add(note);
   }
   return Chart(lanes, notes, autoNotes);
+}
+
+// Which lane (0 low to [count] - 1 high) each of [pitches] goes to: the
+// different pitches, low to high, shared out evenly, so a tune's ups and
+// downs move across the lanes. Two pitches take the outer lanes, one the
+// middle.
+Map<int, int> pitchZones(Iterable<int> pitches, int count) {
+  final distinct = pitches.toSet().toList()..sort();
+  final n = distinct.length;
+  return {
+    for (var i = 0; i < n; i++)
+      distinct[i]: n == 1
+          ? count ~/ 2
+          : n < count
+              ? (i * (count - 1) / (n - 1)).round()
+              : i * count ~/ n,
+  };
+}
+
+// Easy: every kept note on the lane of its part of the keyboard, sounding as
+// the song's own note.
+Chart _zoneChart(List<SongNote> scaled, Set<SongNote> kept, int first) {
+  final zones = pitchZones([for (final n in scaled) if (kept.contains(n)) n.note], highwayZoneCount);
+  final notes = <ChartNote>[];
+  final autoNotes = <ChartNote>[];
+  for (final n in scaled) {
+    final lane = kept.contains(n) ? zones[n.note]! : -1;
+    (lane < 0 ? autoNotes : notes).add(ChartNote(lane, n.note, n.startMs - first, n.lengthMs));
+  }
+  return Chart(
+    [for (var i = 0; i < highwayZoneCount; i++) Lane(i, exact: true)],
+    notes,
+    autoNotes,
+    true,
+  );
 }
 
 enum NoteMark { waiting, hit, missed }

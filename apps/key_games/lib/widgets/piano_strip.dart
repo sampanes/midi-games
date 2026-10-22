@@ -5,15 +5,34 @@
 //
 // [plain] draws it like the real keyboard (no sticker colors) for games where
 // the sound is the clue; only a target, if any, lights up in its color.
+// [zones] tints the keys by part of the keyboard instead (see zones.dart),
+// for the easiest levels, where any key in a part counts.
+//
+// With no MIDI keyboard connected (a phone, or a PC on its own), the picture
+// IS the keyboard, so it shows one octave of big keys for fingers, middle C
+// to the C above, which is also the computer keys' octave.
 
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../app/services.dart';
 import '../app/theme.dart';
 import '../games/color_keys_rules.dart';
+import 'zones.dart';
 
 const pianoKeyCount = 37;
+
+// The one octave shown when no keyboard is connected.
+const touchLow = 60;
+const touchHigh = 72;
+
+// The keys the picture shows when it is not given a [PianoStrip.span]: 37
+// from [base] with a keyboard, or one octave of big keys without one.
+({int low, int high}) pictureKeys(BuildContext context, int base) =>
+    AppServices.hasKeyboard(context)
+        ? (low: base, high: base + pianoKeyCount - 1)
+        : (low: touchLow, high: touchHigh);
 
 // Lowest C shown. The keyboard's octave buttons shift note numbers, so the
 // game moves this by whole octaves to keep pressed notes on the picture.
@@ -59,6 +78,9 @@ class PianoStrip extends StatefulWidget {
     this.targetNote,
     this.plain = false,
     this.choices,
+    this.colorChoices = false,
+    this.zones,
+    this.litZone,
     required this.held,
     required this.onNoteOn,
     required this.onNoteOff,
@@ -66,8 +88,8 @@ class PianoStrip extends StatefulWidget {
 
   final int base;
 
-  // Only these keys (low to high, from [whiteSpan]) instead of all 37 from
-  // [base]: easy levels show just the keys a song needs.
+  // Only these keys (low to high, from [whiteSpan]) instead of the picture
+  // ([pictureKeys]): easy levels show just the keys a song needs.
   final ({int low, int high})? span;
 
   // Glow every key of this pitch class (0-11), or only the exact key
@@ -79,6 +101,15 @@ class PianoStrip extends StatefulWidget {
   // than the other keys, to show which notes a level uses.
   final bool plain;
   final List<int>? choices;
+
+  // Plain, but the [choices] keys keep their sticker colors, so a child can
+  // see where the few notes of a level are.
+  final bool colorChoices;
+
+  // Tint the keys by part of the picture (2 or 3 parts), and light part
+  // [litZone] (the part to press now).
+  final int? zones;
+  final int? litZone;
   final Set<int> held;
   final void Function(int note) onNoteOn;
   final void Function(int note) onNoteOff;
@@ -93,16 +124,16 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
         ..repeat(reverse: true);
   final Map<int, int> _pointerNotes = {};
 
+  // The keys shown, set by build.
+  ({int low, int high}) _keys = (low: 48, high: 48 + pianoKeyCount - 1);
+
   @override
   void dispose() {
     _glow.dispose();
     super.dispose();
   }
 
-  _PianoLayout _layout(Size size) {
-    final span = widget.span ?? (low: widget.base, high: widget.base + pianoKeyCount - 1);
-    return _PianoLayout(span.low, span.high, size);
-  }
+  _PianoLayout _layout(Size size) => _PianoLayout(_keys.low, _keys.high, size);
 
   void _down(PointerDownEvent event, Size size) {
     final note = _layout(size).noteAt(event.localPosition);
@@ -119,6 +150,7 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final scale = uiScale(context);
+    _keys = widget.span ?? pictureKeys(context, widget.base);
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
@@ -137,6 +169,9 @@ class _PianoStripState extends State<PianoStrip> with SingleTickerProviderStateM
                 targetNote: widget.targetNote,
                 plain: widget.plain,
                 choices: widget.choices,
+                colorChoices: widget.colorChoices,
+                zones: widget.zones,
+                litZone: widget.litZone,
                 held: widget.held,
                 glow: Curves.easeInOut.transform(_glow.value),
               ),
@@ -206,6 +241,9 @@ class _PianoPainter extends CustomPainter {
     required this.targetNote,
     required this.plain,
     required this.choices,
+    required this.colorChoices,
+    required this.zones,
+    required this.litZone,
     required this.held,
     required this.glow,
   });
@@ -218,8 +256,21 @@ class _PianoPainter extends CustomPainter {
   final int? targetNote;
   final bool plain;
   final List<int>? choices;
+  final bool colorChoices;
+  final int? zones;
+  final int? litZone;
   final Set<int> held;
   final double glow;
+
+  // The part color of [note] (zones only): full on the lit part or a held
+  // key, dimmed elsewhere.
+  Color _zoneColor(int note, {required bool black}) {
+    final zone = zoneOf(note, (low: layout.low, high: layout.high), zones!);
+    final color = zoneColors(zones!)[zone];
+    if (held.contains(note)) return Color.lerp(color, Colors.white, 0.35)!;
+    if (zone == litZone) return black ? Color.lerp(color, Colors.black, 0.35)! : color;
+    return Color.lerp(color, const Color(0xFF14111C), black ? 0.8 : 0.6)!;
+  }
 
   bool _isTarget(int note) =>
       targetNote != null ? note == targetNote : pitchClass(note) == target;
@@ -228,8 +279,11 @@ class _PianoPainter extends CustomPainter {
 
   // Unlit key color in plain mode: slate like the real keys, lighter when
   // the key is one of the level's notes.
-  Color _plainWhite(int note) =>
-      _isChoice(note) ? const Color(0xFF4A4360) : const Color(0xFF28232F);
+  Color _plainWhite(int note) => !_isChoice(note)
+      ? const Color(0xFF28232F)
+      : colorChoices && choices != null
+          ? Color.lerp(Color(pitchClasses[pitchClass(note)].argb), const Color(0xFF14111C), 0.15)!
+          : const Color(0xFF4A4360);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -258,7 +312,9 @@ class _PianoPainter extends CustomPainter {
       );
       // Other keys keep their sticker color but dimmed, so the target keys
       // are clearly the brightest thing on the keyboard.
-      fill.color = isHeld
+      fill.color = zones != null
+          ? _zoneColor(note, black: false)
+          : isHeld
           ? (plain && !isTarget ? const Color(0xFF7A7090) : Color.lerp(color, Colors.black, 0.25)!)
           : isTarget
               ? color
@@ -268,7 +324,10 @@ class _PianoPainter extends CustomPainter {
       canvas.drawRRect(rounded, fill);
       canvas.drawRRect(rounded, edge);
       final unit = layout.whiteUnit;
-      _drawLetter(canvas, pitchClasses[pc].name, rect, unit, isTarget ? color : null);
+      // On a tinted key the letter is dark or light to suit the tint.
+      final tinted = zones != null || (plain && colorChoices && choices != null && _isChoice(note));
+      _drawLetter(canvas, pitchClasses[pc].name, rect, unit,
+          isTarget ? color : tinted ? fill.color : null);
       if (isTarget) {
         canvas.drawRRect(rounded.deflate(ring.strokeWidth / 2), ring);
         // Bouncing dot above the letter: "press here".
@@ -287,12 +346,14 @@ class _PianoPainter extends CustomPainter {
       );
       final color = Color(pitchClasses[pitchClass(note)].argb);
       final isTarget = _isTarget(note);
-      fill.color = isTarget
+      fill.color = zones != null
+          ? _zoneColor(note, black: true)
+          : isTarget
           ? color
           : held.contains(note)
               ? const Color(0xFF6A6080)
               : plain && _isChoice(note) && choices != null
-                  ? const Color(0xFF3A3448)
+                  ? (colorChoices ? color : const Color(0xFF3A3448))
                   : const Color(0xFF1E1A26);
       canvas.drawRRect(rounded, fill);
       if (isTarget) {
@@ -305,7 +366,7 @@ class _PianoPainter extends CustomPainter {
         );
         continue;
       }
-      if (plain) continue;
+      if (plain || zones != null) continue;
       // Small sticker dot in the key's own color.
       fill.color = color;
       canvas.drawCircle(

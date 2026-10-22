@@ -85,8 +85,12 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
 
   late final int _lowest = widget.song.notes.map((n) => n.note).reduce(min);
   late final int _highest = widget.song.notes.map((n) => n.note).reduce(max);
-  ({int low, int high})? get _span =>
-      _colored ? whiteSpan(_lowest + _shift, _highest + _shift) : null;
+  // Colored levels picture just the song's keys. So does every level with
+  // no keyboard connected, where the picture is the keyboard and a song can
+  // be wider than the one octave it shows otherwise.
+  ({int low, int high})? get _span => _colored || !AppServices.hasKeyboard(context)
+      ? whiteSpan(_lowest + _shift, _highest + _shift)
+      : null;
 
   @override
   void initState() {

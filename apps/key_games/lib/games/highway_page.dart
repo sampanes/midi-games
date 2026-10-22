@@ -7,12 +7,12 @@
 // Notes are never made up: the song notes that are not the player's (too
 // fast, or off the level's keys) are played by the game.
 //
-// Difficulty (see highway_rules.dart): Easy the song's notes on five white
-// keys (C to G for most songs), slow, the next key glows on the keyboard
-// picture; Medium all white keys; Hard every letter with sharps and flats on
-// a plain picture; Expert exact keys, letters only. Easy and Medium show
-// only the keys the song uses on the keyboard picture, in the octave last
-// played.
+// Difficulty (see highway_rules.dart): Easy three wide lanes, the low,
+// middle and high part of the keyboard, slow, the next part glows on the
+// keyboard picture; Medium the song's notes on five white keys (C to G for
+// most songs), slow, the next key glows, and the picture shows only those
+// keys in the octave last played; Hard every letter with sharps and flats on
+// a plain picture; Expert exact keys, letters only.
 //
 // Keys at the end: C plays again, E goes back to the songs. The best score
 // per song and level is kept on the device.
@@ -33,6 +33,7 @@ import '../widgets/game_page.dart';
 import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
+import '../widgets/zones.dart';
 import 'color_keys_rules.dart';
 import 'difficulty.dart';
 import 'highway_rules.dart';
@@ -41,8 +42,8 @@ const _countdownStepMs = 700;
 const _flashMs = 260;
 
 const highwayLevelsText = {
-  Difficulty.easy: '5 keys, slow, the next key glows',
-  Difficulty.medium: 'White keys, a bit faster',
+  Difficulty.easy: 'Low, middle or high, slow; the next part glows',
+  Difficulty.medium: '5 keys, slow, the next key glows',
   Difficulty.hard: 'Real letters with sharps and flats',
   Difficulty.expert: 'Exact keys, full speed',
 };
@@ -96,7 +97,23 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   bool get _colored => _level != Difficulty.expert;
   bool get _plain => _level.atLeast(Difficulty.hard);
   int get _leadInMs => max(_rules.lookAheadMs, 3 * _countdownStepMs) + 600;
-  String get _bestKey => 'highway.${_level.name}.${widget.song.title}';
+  // Best scores per song and level. Medium keeps the key it had when it was
+  // Easy, so those scores carry over.
+  String get _bestKey => 'highway.${_bestNames[_level]}.${widget.song.title}';
+  static const _bestNames = {
+    Difficulty.easy: 'zones',
+    Difficulty.medium: 'easy',
+    Difficulty.hard: 'hard',
+    Difficulty.expert: 'expert',
+  };
+
+  bool get _zones => _chart.zones;
+
+  // What a key means here: itself, or on Easy the part of the keyboard.
+  int _answer(int note) =>
+      _zones ? zoneOf(note, pictureKeys(context, _base), highwayZoneCount) : note;
+  Color _laneColor(int lane) =>
+      _zones ? zoneColors(highwayZoneCount)[lane] : pitchColor(_chart.lanes[lane].pc);
 
   @override
   void initState() {
@@ -201,7 +218,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
       _synth.noteOn(event.note, event.velocity);
       return;
     }
-    final step = _run.press(event.note, now);
+    final step = _run.press(_answer(event.note), now);
     final index = step.index;
     switch (step.result) {
       case HighwayResult.perfect || HighwayResult.good:
@@ -209,10 +226,9 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
         _synth.blip(n.sound, velocity: 100, lengthMs: n.lengthMs.clamp(120, 900));
         _hitAt[n.lane] = now;
         _show(step.result == HighwayResult.perfect ? 'Great!' : 'Good!');
-        final lane = _chart.lanes[n.lane];
         _sparksKey.currentState?.burst(
           _laneCenter(n.lane),
-          [_colored ? pitchColor(lane.pc) : Colors.white, AppColors.starGold],
+          [_colored ? _laneColor(n.lane) : Colors.white, AppColors.starGold],
           count: 14,
           speed: 300,
         );
@@ -241,23 +257,36 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     final box = _highwayKey.currentContext?.findRenderObject() as RenderBox?;
     final sparks = _sparksKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || sparks == null) return Offset.zero;
-    final geometry = _Geometry(box.size, _chart.lanes.length, uiScale(context));
+    final geometry = _Geometry(box.size, _chart.lanes.length, uiScale(context), wide: _zones);
     return sparks.globalToLocal(box.localToGlobal(geometry.button(lane)));
   }
 
-  // The keyboard picture glows the next note's key on Easy.
-  int? get _nextKey {
-    if (_level != Difficulty.easy || _phase != _Phase.playing) return null;
+  // The next note's lane, while playing.
+  int? get _nextLane {
+    if (_phase != _Phase.playing) return null;
     for (var i = 0; i < _run.total; i++) {
-      if (_run.marks[i] == NoteMark.waiting) return _chart.lanes[_chart.notes[i].lane].pc;
+      if (_run.marks[i] == NoteMark.waiting) return _chart.notes[i].lane;
     }
     return null;
   }
 
-  // Easy and Medium picture just the keys from the lowest lane to the
-  // highest (lanes are letters there, all within one octave).
+  // The keyboard picture glows the next note's key on Medium.
+  int? get _nextKey {
+    final lane = _nextLane;
+    if (_level != Difficulty.medium || lane == null) return null;
+    return _chart.lanes[lane].pc;
+  }
+
+  // Medium pictures just the keys from the lowest lane to the highest (lanes
+  // are letters there, all within one octave).
   ({int low, int high})? _span(List<int> lanePcs) {
-    if (_level.atLeast(Difficulty.hard) || lanePcs.isEmpty) return null;
+    // Expert's lanes are exact keys: with no keyboard, the picture shows
+    // just them, so every one can be touched.
+    if (_level == Difficulty.expert && !AppServices.hasKeyboard(context)) {
+      final keys = [for (final lane in _chart.lanes) lane.key];
+      return keys.isEmpty ? null : whiteSpan(keys.reduce(min), keys.reduce(max));
+    }
+    if (_zones || _level.atLeast(Difficulty.hard) || lanePcs.isEmpty) return null;
     return whiteSpan(_octave + lanePcs.reduce(min), _octave + lanePcs.reduce(max));
   }
 
@@ -286,7 +315,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
                       lookAheadMs: _rules.lookAheadMs,
                       colored: _colored,
                       scale: uiScale(context),
-                      held: _held,
+                      held: {for (final note in _held) _answer(note)},
                       hitAt: _hitAt,
                       missAt: _missAt,
                     ),
@@ -298,9 +327,18 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
             ),
       footer: [
         // Hidden at the end, so the end choices fit a landscape phone.
+        if (_phase == _Phase.playing && _zones)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: ZoneBar(
+              count: highwayZoneCount,
+              picture: pictureKeys(context, _base),
+              lit: _nextLane,
+            ),
+          ),
         if (_phase == _Phase.playing)
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.fromLTRB(8, _zones ? 4 : 8, 8, 8),
             child: SizedBox(
               height: pianoStripHeight(context, design: 140, share: 0.18),
               child: PianoStrip(
@@ -308,7 +346,9 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
                 span: _span(lanePcs),
                 target: _nextKey,
                 plain: _plain,
-                choices: _level == Difficulty.expert ? null : lanePcs,
+                choices: _zones || _level == Difficulty.expert ? null : lanePcs,
+                zones: _zones ? highwayZoneCount : null,
+                litZone: _zones ? _nextLane : null,
                 held: _held,
                 onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
                 onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
@@ -459,8 +499,11 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
 // Where the lanes and the hit line are. The phone-sized caps on the lane
 // width and the buttons grow with [scale] (uiScale), so a TV gets wide lanes.
 class _Geometry {
-  _Geometry(this.size, this.laneCount, this.scale) {
-    laneWidth = min(150.0 * scale, size.width / max(1, laneCount));
+  // [wide] lanes share the whole width (Easy's parts of the keyboard).
+  _Geometry(this.size, this.laneCount, this.scale, {bool wide = false}) {
+    laneWidth = wide
+        ? size.width / max(1, laneCount)
+        : min(150.0 * scale, size.width / max(1, laneCount));
     left = (size.width - laneWidth * laneCount) / 2;
     buttonRadius = min(laneWidth * 0.4, 44 * scale);
     lineY = size.height - buttonRadius - 16 * scale;
@@ -483,6 +526,9 @@ class _Geometry {
 
 String _laneLabel(Lane lane) =>
     lane.exact ? '${pitchClasses[lane.pc].name}${lane.key ~/ 12 - 1}' : pitchClasses[lane.pc].name;
+
+// Easy's lanes are parts of the keyboard, named on their buttons only.
+const _zoneButtonNames = ['Low', 'Mid', 'High'];
 
 class _HighwayPainter extends CustomPainter {
   _HighwayPainter({
@@ -507,11 +553,15 @@ class _HighwayPainter extends CustomPainter {
   final Map<int, int> hitAt;
   final Map<int, int> missAt;
 
-  Color _laneColor(Lane lane) => colored ? pitchColor(lane.pc) : AppColors.plain;
+  Color _laneColor(int lane) => !colored
+      ? AppColors.plain
+      : chart.zones
+          ? zoneColors(highwayZoneCount)[lane]
+          : pitchColor(chart.lanes[lane].pc);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final g = _Geometry(size, chart.lanes.length, scale);
+    final g = _Geometry(size, chart.lanes.length, scale, wide: chart.zones);
     final fill = Paint();
     // Notes past the line must not spill onto the keyboard picture.
     canvas.clipRect(Offset.zero & size);
@@ -519,14 +569,15 @@ class _HighwayPainter extends CustomPainter {
     // Lanes: dark columns tinted with their color, a line between them.
     for (var i = 0; i < chart.lanes.length; i++) {
       final x = g.left + g.laneWidth * i;
-      fill.color = Color.lerp(_laneColor(chart.lanes[i]), AppColors.background, 0.88)!;
+      fill.color = Color.lerp(_laneColor(i), AppColors.background, 0.88)!;
       canvas.drawRect(Rect.fromLTWH(x + 1, 0, g.laneWidth - 2, size.height), fill);
     }
     fill.color = Colors.white24;
     canvas.drawRect(Rect.fromLTWH(g.left, g.lineY - 2, g.laneWidth * chart.lanes.length, 4), fill);
 
     // Notes: a head on the line at the note's time, a tail for its length.
-    final gemWidth = g.laneWidth * 0.72;
+    // Wide lanes keep a gem a gem, not a bar.
+    final gemWidth = min(g.laneWidth * 0.72, 160 * scale);
     final gemHeight = min(g.laneWidth * 0.42, 34.0 * scale);
     for (var i = 0; i < chart.notes.length; i++) {
       final n = chart.notes[i];
@@ -537,7 +588,7 @@ class _HighwayPainter extends CustomPainter {
       final tailTop = g.yAt(n.timeMs + n.lengthMs - now, lookAheadMs);
       final lane = chart.lanes[n.lane];
       final missed = marks[i] == NoteMark.missed;
-      final color = missed ? Colors.white12 : _laneColor(lane);
+      final color = missed ? Colors.white12 : _laneColor(n.lane);
       final x = g.laneX(n.lane);
       fill.color = color.withValues(alpha: missed ? 0.15 : 0.35);
       canvas.drawRRect(
@@ -553,7 +604,9 @@ class _HighwayPainter extends CustomPainter {
       );
       fill.color = color;
       canvas.drawRRect(gem, fill);
-      if (!missed) _text(canvas, _laneLabel(lane), Offset(x, y), gemHeight * 0.62, color);
+      if (!missed && !chart.zones) {
+        _text(canvas, _laneLabel(lane), Offset(x, y), gemHeight * 0.62, color);
+      }
     }
 
     // Buttons on the line: brighter while a key of the lane is held, a ring
@@ -561,7 +614,7 @@ class _HighwayPainter extends CustomPainter {
     for (var i = 0; i < chart.lanes.length; i++) {
       final lane = chart.lanes[i];
       final center = g.button(i);
-      final color = _laneColor(lane);
+      final color = _laneColor(i);
       final down = held.any(lane.matches);
       fill.color = down ? color : Color.lerp(color, AppColors.background, 0.55)!;
       canvas.drawCircle(center, g.buttonRadius, fill);
@@ -574,7 +627,11 @@ class _HighwayPainter extends CustomPainter {
             ? AppColors.red.withValues(alpha: 0.4 + 0.6 * miss)
             : Colors.white.withValues(alpha: 0.5 + 0.5 * hit);
       canvas.drawCircle(center, g.buttonRadius * (1 + 0.2 * hit), ring);
-      _text(canvas, _laneLabel(lane), center, g.buttonRadius * 0.8, down ? color : null);
+      if (chart.zones) {
+        _text(canvas, _zoneButtonNames[i], center, g.buttonRadius * 0.48, down ? color : null);
+      } else {
+        _text(canvas, _laneLabel(lane), center, g.buttonRadius * 0.8, down ? color : null);
+      }
     }
   }
 

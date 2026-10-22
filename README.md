@@ -243,7 +243,13 @@ in the app's licenses page, Settings > About); text painted on a canvas
 names the family itself, since painters do not inherit the theme.
 `apps/key_games/tool/shoot-windows.ps1` screenshots every page of a debug
 build at any screen size, driving it with the computer keys, for judging a
-layout on a TV without one.
+layout on a TV without one (`-Walk levels` shows just the easy levels).
+
+Playing without a keyboard: while no MIDI keyboard is connected, the
+keyboard picture in every game is the keyboard, so it shows one octave of big
+keys for fingers, middle C to the C above (also the computer keys' octave).
+With a keyboard it shows 37 keys that follow the octave buttons. A song game
+that needs more than that octave pictures just the song's keys instead.
 
 In Color Keys, a wrong key sounds once from the player's press and then the
 right note sounds once by itself. The guided song and arcade games repeat the
@@ -372,14 +378,21 @@ script's pick for that song.
 
 ### Ear Notes
 
-A mystery note plays and the child finds it by sound alone: the keyboard
-picture has no colors and nothing glows. Any octave counts. A wrong key is
-followed by the right note nearest to it, the mystery note replays after a
-quiet spell (or a tap on the circle), and after two wrong
-tries the answer lights up (found that way, it earns no star). Six stars move
-up a level: C G, then C E G, then C D E F G, then all white keys, then all
-twelve. The letters a level uses are shown above the keyboard; the level chip
-skips ahead. Difficulty picks the starting level.
+A mystery note plays and the child finds it by sound alone: nothing glows.
+Any octave counts. A wrong key is followed by the right note nearest to it,
+the mystery note replays after a quiet spell (or a tap on the circle), and
+after two wrong tries the answer lights up (found that way, it earns no
+star). Six stars move up a level: high or low, then C G, then C E G, then
+C D E F G, then all white keys, then all twelve. High or low plays a very
+low or very high note, and any key in the low or high half of the keyboard
+picture answers (the halves are colored and named). The letters a level
+uses are shown above the keyboard; the level chip skips ahead.
+
+Difficulty picks the starting level and how much help there is. Easy starts
+at high or low, Medium at C G; on both the level's notes keep their colors on
+the keyboard picture, and a key that is not one of them only sounds, so the
+one question is which of the few notes it was. Hard starts at C D E F G and
+Expert at all twelve, on a plain picture where every key is an answer.
 
 ### Key Rush (Arcade)
 
@@ -387,18 +400,22 @@ After the arcade piano games: 3-2-1, then one minute to hit as many keys as
 possible. The minute starts at the first right key, not at GO, so a player
 can find the keys and set their fingers first. A board of tiles above the keyboard picture shows the key to press
 now (bottom row) and the next three above it, lined up with the keys; each hit
-moves the tiles down a row. Two ways to play:
+moves the tiles down a row. Three ways to play:
 
-- Easy: one octave is shown and only its four middle white keys (E F G A) are
-  used, any octave counts, and the next key is never more than two keys away.
-  Each hit plays the next note of a random bundled song (or a scale when none
-  are bundled) instead of the key pressed, so the melody comes out. A wrong
-  key makes no sound and costs nothing.
-- Real: the keys are a random song's own notes in order, on their own keys,
+- Easy: the board has three lanes, the low, middle and high part of the
+  keyboard, lined up with the parts of the keyboard picture (tinted and
+  named, the part to press lit). Any key in the part counts, so mashing works.
+- Medium: one octave is shown and only C, E and G are used, any octave
+  counts.
+- On both, each hit plays the next note of a random bundled song (or a scale
+  when none are bundled) instead of the key pressed, so the melody comes out,
+  and a wrong key makes no sound and costs nothing.
+- Real (the Hard slot): the keys are a random song's own notes in order, on their own keys,
   and each key sounds as itself. A wrong key plays itself and then the right
   note and freezes scoring for that moment while the clock runs.
 
-Best scores are kept per level on the device.
+Best scores are kept per level on the device (Real keeps the ones it had
+when it was the second level).
 
 ### Note Highway (Songs)
 
@@ -406,12 +423,17 @@ Falling notes, Guitar Hero style: a song's notes come down lanes and are hit
 as they reach the line, with a 3-2-1 while the first ones fall. Notes are never
 made up: each lane is the note that sounds, and the song notes that are not
 the player's (too fast for the level, or off its keys) are played by the game,
-so the tune is always whole. Easy gives the player the notes on five
-neighboring white keys (C to G for most songs; a song that is not on the white
-keys is moved there first), slows the song down, and glows the next key on the
-keyboard picture. On Easy and Medium the picture shows only the keys from
-the lowest lane to the highest, in the octave last played. Medium uses all the white keys; Hard every letter with
-sharps and flats, any octave; Expert the exact keys at full speed. A wrong key
+so the tune is always whole. Easy has three wide lanes, the low, middle and
+high part of the keyboard: the song's notes are shared out by how high they
+are, so the lanes follow the tune up and down, any key in the part plays the
+song's own note, the song is slowed down, and the next part glows on the
+keyboard picture. Medium gives the player the notes on five neighboring white
+keys (C to G for most songs; a song that is not on the white keys is moved
+there first), slows the song down, glows the next key, and pictures only the
+keys from the lowest lane to the highest, in the octave last played. Hard
+every letter with sharps and flats, any octave; Expert the exact keys at full
+speed. Best scores per song and level are kept on the device (Medium keeps
+the ones it had when it was Easy). A wrong key
 plays itself and then the right note, and that note is missed; a key with
 nothing due just plays.
 Streaks of 10, 20 and 30 raise the score multiplier, and the end shows up to
@@ -423,7 +445,9 @@ Temple Run style: a runner on a three-lane road dodges rocks and grabs coins,
 and the keys are just buttons that pick a lane. Each coin plays the next note
 of a random bundled song, so a good run plays the melody. Easy: the low,
 middle or high part of the keyboard picks the lane (marked above the keyboard
-picture), no hearts to lose, one minute. Medium: C, E and G pick the lanes,
+picture, which is tinted by part with the runner's part lit), no hearts to
+lose, one minute. The parts are the same in every game that uses them: Ear
+Notes, Key Rush and Note Highway on Easy. Medium: C, E and G pick the lanes,
 three hearts, the run goes on and slowly speeds up. Hard: three letters, sharps
 too, that change every 20 seconds (the new ones play low to high). Expert:
 faster, letters only, changing every 12 seconds. A row of rocks never blocks

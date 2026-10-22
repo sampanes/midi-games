@@ -9,18 +9,22 @@
 #   .\tool\shoot-windows.ps1 -W 1920 -H 1080              # a 1080p TV box (1.5x: 1280x720 logical)
 #   .\tool\shoot-windows.ps1 -W 2880 -H 1620 -Monitor 2   # 1920x1080 logical on a 150% monitor
 #   .\tool\shoot-windows.ps1 -W 1323 -H 617 -Monitor 2    # a phone on its side (882x411 logical)
+#   .\tool\shoot-windows.ps1 -Walk levels ...             # each game's easy levels only
 #
 # The logical size Flutter lays out is W x H divided by the monitor's scale.
 # Pages are captured with PrintWindow, which gives a blank frame while the
 # displays are asleep, so a zero-pixel mouse move wakes them first. The
-# walk takes about four minutes: Key Rush and Key Runner each run a full
-# minute to reach their end screens.
+# full walk takes about four minutes: Key Rush and Key Runner each run a
+# full minute to reach their end screens. The levels walk (about two
+# minutes) shows the pickers and the first levels of Ear Notes, Note
+# Highway, Key Rush and Key Runner.
 
 param(
   [string]$Out = "$PSScriptRoot\..\build\shots",
   [int]$Monitor = -1,
   [int]$W = 1920,
   [int]$H = 1080,
+  [ValidateSet('all', 'levels')][string]$Walk = 'all',
   [switch]$ListMonitors
 )
 $ErrorActionPreference = 'Stop'
@@ -199,6 +203,23 @@ try {
     @{ name = 'about';              keys = @('D') },
     @{ name = 'learn-back';         keys = @('ESC', 'A') }
   )
+  # The first levels of each game. From a one-game category's game, Escape
+  # goes home; from a song game, three Escapes reach the Songs menu.
+  $levelSteps = @(
+    @{ name = 'difficulty-ear';     keys = @('S') },
+    @{ name = 'game-ear-easy';      keys = @('A'); wait = 1500 },
+    @{ name = 'game-ear-medium';    keys = @('ESC', 'S', 'S'); wait = 3000 },
+    @{ name = 'difficulty-highway'; keys = @('ESC', 'D', 'S') },
+    @{ name = 'game-highway-easy';  keys = @('A', 'A', 'D'); wait = 5500 },
+    @{ name = 'game-highway-medium'; keys = @('ESC', 'ESC', 'ESC', 'S', 'S', 'A', 'D'); wait = 5500 },
+    @{ name = 'difficulty-rush';    keys = @('ESC', 'ESC', 'ESC', 'ESC', 'F', 'A') },
+    @{ name = 'game-rush-easy';     keys = @('A'); wait = 3500 },
+    @{ name = 'game-rush-medium';   keys = @('ESC', 'A', 'S'); wait = 3500 },
+    @{ name = 'game-rush-real';     keys = @('ESC', 'A', 'D'); wait = 3500 },
+    @{ name = 'game-runner-easy';   keys = @('ESC', 'S', 'A'); wait = 4500 }
+  )
+  if ($Walk -eq 'levels') { $steps = @(@{ name = 'home'; keys = @() }) + $levelSteps }
+
   foreach ($s in $steps) {
     foreach ($k in $s.keys) { Press $k }
     if ($s.wait) { Start-Sleep -Milliseconds $s.wait }

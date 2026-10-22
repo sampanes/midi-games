@@ -2,10 +2,11 @@
 // as many keys as possible. A board above the keys shows the next few keys
 // to press, like the falling tiles on an arcade piano.
 //
-// Two ways to play:
-// - Easy: four white keys in the middle of one octave (E F G A above middle
-//   C), any octave counts, and the next key is never more than two keys
-//   away. The hits play a song, whatever key was pressed.
+// Three ways to play:
+// - Easy: the low, middle or high part of the keyboard (see zones.dart): any
+//   key in the part counts, so mashing works. The hits play a song, whatever
+//   key was pressed.
+// - Medium: the keys C, E and G, any octave counts. The hits play a song too.
 // - Real: the keys are the real notes of a song, in order, octave included,
 //   and each key sounds as itself. A wrong key freezes scoring for a moment
 //   while the clock keeps running (the game uses that moment to play the
@@ -24,13 +25,17 @@ const rushFreezeMs = 1600;
 // Rows on the board: the key to press now plus the ones after it.
 const rushRows = 4;
 
-// Easy: the one octave shown, and the four keys in its middle.
-const rushEasyLow = 60;
-const rushEasyHigh = 72;
-const rushEasyKeys = [64, 65, 67, 69];
+// Medium: the one octave shown, and its three keys.
+const rushKeysLow = 60;
+const rushKeysHigh = 72;
+const rushKeys = [60, 64, 67];
 
-// How far (in keys of rushEasyKeys) the next Easy key may be from the last.
-const rushEasyMaxStep = 2;
+// Easy: the parts of the keyboard, as lanes 0 (low) to 2 (high).
+const rushZoneCount = 3;
+const rushZones = [0, 1, 2];
+
+// How far (in places in the list) the next key may be from the last.
+const rushMaxStep = 2;
 
 enum RushResult { hit, miss, frozen, over }
 
@@ -39,18 +44,20 @@ abstract class RushFeed {
   int next(int? last);
 }
 
-// Easy: a short walk over rushEasyKeys, never the same key twice in a row.
-class EasyRushFeed implements RushFeed {
-  EasyRushFeed(this.random);
+// Easy and Medium: a short walk over [keys] (Medium's keys, or Easy's
+// parts), never the same one twice in a row.
+class WalkRushFeed implements RushFeed {
+  WalkRushFeed(this.random, this.keys);
 
   final Random random;
+  final List<int> keys;
 
   @override
   int next(int? last) {
-    final at = last == null ? -1 : rushEasyKeys.indexOf(last);
+    final at = last == null ? -1 : keys.indexOf(last);
     final from = [
-      for (var i = 0; i < rushEasyKeys.length; i++)
-        if (at < 0 || (i != at && (i - at).abs() <= rushEasyMaxStep)) rushEasyKeys[i],
+      for (var i = 0; i < keys.length; i++)
+        if (at < 0 || (i != at && (i - at).abs() <= rushMaxStep)) keys[i],
     ];
     return from[random.nextInt(from.length)];
   }
@@ -119,7 +126,8 @@ RushState rushTick(RushState state) => state.copyWith(
       frozenMs: max(0, state.frozenMs - rushTickMs),
     );
 
-// [exact] needs the very key (Real); otherwise any octave counts (Easy).
+// [exact] needs the very key (Real, or Easy's part number); otherwise any
+// octave counts (Medium).
 // [freeze] stops scoring for a moment after a wrong key.
 ({RushState state, RushResult result}) pressRush(
   RushState state,

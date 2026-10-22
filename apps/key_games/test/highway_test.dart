@@ -36,8 +36,30 @@ void main() {
     expect(fitOctaves([60, 72]), 0);
   });
 
-  test('easy gives the player five neighboring white keys and plays the rest', () {
+  test('easy lanes are the parts of the keyboard and follow the tune up and down', () {
     final chart = buildChart(_scale, Difficulty.easy);
+    expect(chart.zones, isTrue);
+    expect(chart.lanes.map((l) => l.key), [0, 1, 2]);
+    expect(chart.lanes.every((l) => l.exact), isTrue);
+    // Every note is the player's, sounding as itself.
+    expect(chart.autoNotes, isEmpty);
+    expect(chart.notes.map((n) => n.sound), _scale.notes.map((n) => n.note));
+    // Up the scale and back: low, middle, high, then down again.
+    expect([for (final n in chart.notes) n.lane], [0, 0, 0, 1, 1, 1, 2, 2, 2, 1, 1, 1, 0, 0, 0]);
+
+    final run = HighwayRun(chart, highwayLevels[Difficulty.easy]!.windowMs);
+    expect(run.press(1, 0).result, HighwayResult.wrong);
+    expect(run.press(0, 667).result, HighwayResult.perfect);
+  });
+
+  test('two pitches take the outer lanes and one the middle', () {
+    expect(pitchZones([60, 67, 60], 3), {60: 0, 67: 2});
+    expect(pitchZones([64], 3), {64: 1});
+    expect(pitchZones([60, 62, 64, 65, 67], 3), {60: 0, 62: 0, 64: 1, 65: 1, 67: 2});
+  });
+
+  test('medium gives the player five neighboring white keys and plays the rest', () {
+    final chart = buildChart(_scale, Difficulty.medium);
     // C to G covers most of the scale; A and B (four notes) are played for you.
     expect(chart.lanes.map((l) => l.key), [0, 2, 4, 5, 7]);
     expect(chart.notes, hasLength(11));
@@ -52,20 +74,20 @@ void main() {
     }
   });
 
-  test('easy keeps the real notes, moved to C only when the song is not on white keys', () {
+  test('medium keeps the real notes, moved to C only when the song is not on white keys', () {
     // E D C D E E E, half a second each.
     const song = Song('Three letters', [
       SongNote(64, 0, 400), SongNote(62, 500, 400), SongNote(60, 1000, 400), SongNote(62, 1500, 400),
       SongNote(64, 2000, 400), SongNote(64, 2500, 400), SongNote(64, 3000, 400),
     ]);
-    final chart = buildChart(song, Difficulty.easy);
+    final chart = buildChart(song, Difficulty.medium);
     expect(chart.lanes.map((l) => l.key), [0, 2, 4]);
     expect([for (final n in chart.notes) chart.lanes[n.lane].key], [4, 2, 0, 2, 4, 4, 4]);
     expect(chart.autoNotes, isEmpty);
 
     // The same tune in D moves to C, and it sounds where it is played.
     const inD = Song('In D', [SongNote(66, 0, 400), SongNote(64, 500, 400), SongNote(62, 1000, 400)]);
-    final moved = buildChart(inD, Difficulty.easy);
+    final moved = buildChart(inD, Difficulty.medium);
     expect(moved.lanes.map((l) => l.key), [0, 2, 4]);
     expect(moved.notes.map((n) => n.sound), [64, 62, 60]);
 
@@ -74,12 +96,12 @@ void main() {
       SongNote(60, 0, 400), SongNote(60, 600, 400), SongNote(67, 1200, 400), SongNote(67, 1800, 400),
       SongNote(69, 2400, 400), SongNote(69, 3000, 400), SongNote(67, 3600, 800),
     ]);
-    final chart2 = buildChart(hops, Difficulty.easy);
+    final chart2 = buildChart(hops, Difficulty.medium);
     expect(chart2.lanes.map((l) => l.key), [0, 7]);
     expect(chart2.autoNotes.map((n) => n.sound), [69, 69]);
   });
 
-  test('medium plays the black keys for you; notes too fast are played for you too', () {
+  test('black keys are played for you on medium; notes too fast are played for you too', () {
     const song = Song('Chromatic', [SongNote(60, 0, 300), SongNote(61, 500, 300), SongNote(62, 1000, 300)]);
     final medium = buildChart(song, Difficulty.medium);
     expect(medium.lanes.map((l) => l.key), [0, 2]);
@@ -132,8 +154,8 @@ void main() {
     const song = Song('Four notes', [
       SongNote(60, 0, 300), SongNote(62, 600, 300), SongNote(64, 1200, 300), SongNote(65, 1800, 300),
     ]);
-    await pumpApp(tester, const HighwayPage(song: song));
-    // Easy: 3.8 s lead-in, the count starts 2.1 s before the first note.
+    await pumpApp(tester, const HighwayPage(song: song, difficulty: Difficulty.medium));
+    // Medium: 3.8 s lead-in, the count starts 2.1 s before the first note.
     await tester.pump(const Duration(milliseconds: 2000));
     expect(find.text('3'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1800));

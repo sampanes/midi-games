@@ -21,11 +21,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1500));
     expect(find.text('?'), findsOneWidget);
     expect(find.text('Level 1'), findsOneWidget);
-    expect(find.text('C   G'), findsOneWidget);
+    expect(find.text('Low'), findsOneWidget);
+    expect(find.text('High'), findsOneWidget);
 
-    // Level 1 is C or G, so one of these two finds it and shows the letter.
+    // Level 1 is high or low. The computer keys are the middle of the
+    // keyboard picture: C (A) is in its low half and the high C (K) in its
+    // high half, so one of the two finds it, and the circle names it.
     await _tapKey(tester, LogicalKeyboardKey.keyA);
-    await _tapKey(tester, LogicalKeyboardKey.keyG);
+    await _tapKey(tester, LogicalKeyboardKey.keyK);
     expect(find.text('?'), findsNothing);
 
     // The next mystery note hides it again.
@@ -35,7 +38,7 @@ void main() {
     await tester.tap(find.text('Level 1'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Level 2'), findsOneWidget);
-    expect(find.text('C   E   G'), findsOneWidget);
+    expect(find.text('C   G'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));

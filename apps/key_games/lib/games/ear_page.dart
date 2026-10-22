@@ -1,8 +1,13 @@
 // Ear Notes screen: a mystery note plays and the child finds it on the
-// keyboard by sound alone. The keyboard picture has no colors here. After a
-// wrong key, that note and then the mystery note (the nearest one) play, to
-// compare by ear; after two wrong tries the answer lights up.
-// Tap the big circle to hear the note again.
+// keyboard by sound alone. After a wrong key, that note and then the mystery
+// note (the nearest one) play, to compare by ear; after two wrong tries the
+// answer lights up. Tap the big circle to hear the note again.
+//
+// Easy starts with "high or low?": any key in the low or high half of the
+// keyboard answers, and the halves are colored. Easy and Medium color the
+// level's notes on the keyboard picture, and other keys only sound, so the
+// one question is which of the few notes it was. Hard and Expert draw the
+// picture plain, and every key is an answer.
 //
 // Input: the keyboard and the computer keys, through the key router, plus
 // touching the keyboard picture.
@@ -21,6 +26,7 @@ import '../widgets/game_page.dart';
 import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import '../widgets/win_banner.dart';
+import '../widgets/zones.dart';
 import 'color_keys_rules.dart';
 import 'difficulty.dart';
 import 'ear_rules.dart';
@@ -35,15 +41,15 @@ const _mysteryOctave = 60;
 // Difficulty picks the starting level; stars still move up from there.
 const earStartLevel = {
   Difficulty.easy: 0,
-  Difficulty.medium: 2,
+  Difficulty.medium: 1,
   Difficulty.hard: 3,
-  Difficulty.expert: 4,
+  Difficulty.expert: 5,
 };
 
 const earLevelsText = {
-  Difficulty.easy: 'Two notes: C and G',
-  Difficulty.medium: 'C D E F G',
-  Difficulty.hard: 'All the white keys',
+  Difficulty.easy: 'High or low? Any key in that half',
+  Difficulty.medium: 'C or G, lit on the keyboard',
+  Difficulty.hard: 'C D E F G, then all the white keys',
   Difficulty.expert: 'All twelve notes',
 };
 
@@ -100,9 +106,21 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  // Easy and Medium: the level's notes are colored, and other keys only sound.
+  bool get _helped => widget.difficulty.index <= Difficulty.medium.index;
+
+  int get _mysteryNote =>
+      _state.zoned ? earZoneNotes[_state.target] : _mysteryOctave + _state.target;
+
+  Color get _targetColor =>
+      _state.zoned ? zoneColors(earZoneCount)[_state.target] : pitchColor(_state.target);
+
+  String get _targetName =>
+      _state.zoned ? zoneNames(earZoneCount)[_state.target] : pitchClasses[_state.target].name;
+
   void _playMystery() {
     if (!mounted) return;
-    _synth.blip(_mysteryOctave + _state.target, velocity: 85, lengthMs: 600);
+    _synth.blip(_mysteryNote, velocity: 85, lengthMs: 600);
     _scheduleReplay(_idleReplay);
   }
 
@@ -123,17 +141,22 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
       return;
     }
     _synth.noteOn(event.note, event.velocity);
-    final result = pressEarNote(_state, event.note);
+    final base = fitBase(_base, event.note);
+    final answer = _state.zoned
+        ? zoneOf(event.note, pictureKeys(context, base), earZoneCount)
+        : event.note;
+    final result = pressEarNote(_state, answer, onlyChoices: _helped);
     setState(() {
       _state = result.state;
-      _base = fitBase(_base, event.note);
+      _base = base;
       _held.add(event.note);
     });
     for (final effect in result.effects) {
       switch (effect) {
         case EarEffect.miss:
           _shake.forward(from: 0);
-          _echo.play(event.note, nearestOfClass(event.note, _state.target));
+          _echo.play(event.note,
+              _state.zoned ? _mysteryNote : nearestOfClass(event.note, _state.target));
           _scheduleReplay(MissEcho.length + _idleReplay);
         case EarEffect.reveal:
           break;
@@ -154,15 +177,15 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
     _replayTimer?.cancel();
     _echo.cancel();
     _pulse.forward(from: 0);
-    final pc = _state.target;
-    final color = pitchColor(pc);
+    final color = _targetColor;
     _sparksKey.currentState?.burst(
       _circleCenter(),
       big ? [color, Colors.white, AppColors.starGold] : [color, Colors.white],
       count: big ? 40 : 18,
       speed: big ? 520 : 320,
     );
-    if (big) _synth.tune([84 + pc, 91 + pc], stepMs: 70, lengthMs: 150);
+    final top = _state.zoned ? (_state.target == 0 ? 0 : 7) : _state.target;
+    if (big) _synth.tune([84 + top, 91 + top], stepMs: 70, lengthMs: 150);
   }
 
   void _celebrateLevelUp() {
@@ -216,7 +239,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final show = _state.locked || _state.revealed;
-    final color = show ? pitchColor(_state.target) : AppColors.mystery;
+    final color = show ? _targetColor : AppColors.mystery;
     return GamePage(
       onNote: _onNote,
       backdrop: AnimatedContainer(
@@ -240,16 +263,29 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
       ],
       body: Center(child: _buildCircle(show, color)),
       footer: [
-        _ChoiceRow(choices: _state.choices),
+        if (_state.zoned)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: ZoneBar(
+              count: earZoneCount,
+              picture: pictureKeys(context, _base),
+              lit: show ? _state.target : null,
+            ),
+          )
+        else
+          _ChoiceRow(choices: _state.choices, colored: _helped),
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
           child: SizedBox(
             height: pianoStripHeight(context),
             child: PianoStrip(
               base: _base,
-              target: show ? _state.target : null,
+              target: show && !_state.zoned ? _state.target : null,
               plain: true,
-              choices: _state.choices,
+              choices: _state.zoned ? null : _state.choices,
+              colorChoices: _helped,
+              zones: _state.zoned ? earZoneCount : null,
+              litZone: show && _state.zoned ? _state.target : null,
               held: _held,
               onNoteOn: (note) => _onNote(NoteEvent(note, 100, on: true)),
               onNoteOff: (note) => _onNote(NoteEvent(note, 0, on: false)),
@@ -299,7 +335,7 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
                   padding: EdgeInsets.all(diameter * 0.12),
                   child: show
                       ? Text(
-                          pitchClasses[_state.target].name,
+                          _targetName,
                           style: TextStyle(
                             fontSize: diameter * 0.42,
                             fontWeight: FontWeight.w900,
@@ -330,11 +366,13 @@ class _EarPageState extends State<EarPage> with TickerProviderStateMixin {
   }
 }
 
-// The letters this level uses, so a child knows what the choices are.
+// The letters this level uses, so a child knows what the choices are; in
+// their key colors when [colored].
 class _ChoiceRow extends StatelessWidget {
-  const _ChoiceRow({required this.choices});
+  const _ChoiceRow({required this.choices, this.colored = false});
 
   final List<int> choices;
+  final bool colored;
 
   @override
   Widget build(BuildContext context) {
@@ -342,12 +380,17 @@ class _ChoiceRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Text(
-          [for (final pc in choices) pitchClasses[pc].name].join('   '),
+        child: Text.rich(
+          TextSpan(children: [
+            for (var i = 0; i < choices.length; i++)
+              TextSpan(
+                text: '${i == 0 ? '' : '   '}${pitchClasses[choices[i]].name}',
+                style: TextStyle(color: colored ? pitchColor(choices[i]) : Colors.white54),
+              ),
+          ]),
           style: TextStyle(
             fontSize: 26 * uiScale(context),
             fontWeight: FontWeight.w800,
-            color: Colors.white54,
             letterSpacing: 1,
           ),
         ),

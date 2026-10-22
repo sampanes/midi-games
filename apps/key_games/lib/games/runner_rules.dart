@@ -58,9 +58,6 @@ const runnerLevels = {
 // Medium's lane letters.
 const runnerMediumKeys = [0, 4, 7];
 
-// Easy: which third of the keyboard (from its lowest C, [base]) a key is in.
-int zoneLane(int note, int base) => ((note - base) ~/ 12).clamp(0, laneCount - 1);
-
 // The lane whose letter is [note]'s, if any.
 int? letterLane(int note, List<int> keys) {
   final i = keys.indexOf(note % 12);

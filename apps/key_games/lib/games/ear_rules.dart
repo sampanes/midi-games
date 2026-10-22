@@ -2,13 +2,18 @@
 // sound alone. No colors or glow until they have tried twice, then the answer
 // lights up so nobody is ever stuck. Like Color Keys, any octave counts.
 //
-// Levels start with two far-apart notes and grow to all twelve.
+// The first level is "high or low?": a very low or very high note, and any
+// key in the low or high half of the keyboard answers. Then the levels are
+// letters, starting with two far-apart notes and growing to all twelve.
 
 import 'dart:math';
 
 import 'color_keys_rules.dart' show pitchClass;
 
+// The answers of each level: pitch classes, or for the first level the
+// halves of the keyboard (0 low, 1 high; see zones.dart).
 const earLevels = [
+  [0, 1], // low or high half
   [0, 7], // C G
   [0, 4, 7], // C E G
   [0, 2, 4, 5, 7], // C D E F G
@@ -17,6 +22,13 @@ const earLevels = [
 ];
 
 const earStarsPerLevel = 6;
+
+// The level whose answers are halves of the keyboard.
+const earZoneLevel = 0;
+const earZoneCount = 2;
+
+// The mystery note of each half: two and a half octaves apart.
+const earZoneNotes = [48, 79];
 
 // Wrong tries before the answer lights up.
 const earMissesBeforeReveal = 2;
@@ -53,6 +65,7 @@ class EarState {
 
   bool get revealed => misses >= earMissesBeforeReveal;
   List<int> get choices => earLevels[level];
+  bool get zoned => level == earZoneLevel;
   bool get lastLevel => level >= earLevels.length - 1;
 }
 
@@ -63,9 +76,14 @@ class EarPress {
   final List<EarEffect> effects;
 }
 
-EarPress pressEarNote(EarState state, int note) {
+// [answer] is the key pressed, or on the zone level the half it is in.
+// With [onlyChoices], a key that is not one of the level's choices only
+// sounds: the one question is which of the choices it was.
+EarPress pressEarNote(EarState state, int answer, {bool onlyChoices = false}) {
   if (state.locked) return EarPress(state, const []);
-  if (pitchClass(note) != state.target) {
+  final picked = state.zoned ? answer : pitchClass(answer);
+  if (onlyChoices && !state.choices.contains(picked)) return EarPress(state, const []);
+  if (picked != state.target) {
     final missed = EarState(
       level: state.level,
       target: state.target,
