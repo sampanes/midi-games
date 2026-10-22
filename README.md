@@ -211,7 +211,7 @@ C again, E back). Going back: the on-screen back button, Escape, the remote's
 back button, or a **Back pad**: in Settings (G on the home menu, then C),
 press any pad or panel button on the keyboard and it goes back from every
 page from then on; it never reaches a game or makes a sound. The pad is
-remembered on the device. A key that opens a page cannot also pick something
+remembered on the device; until one is picked, the home menu says so. A key that opens a page cannot also pick something
 on it: the app ignores menu picks for a moment after every page change. The
 Android build also lists itself on Android TV home screens (banner, no touch
 screen required).
@@ -228,7 +228,8 @@ file with its own unit tests.
 
 Screens from a phone to a TV: the two that matter are a phone on its side
 and a PC on a TV. `uiScale` (1 on a phone, 1.5 on a 1080p TV box, 2 on a
-full-screen PC) grows every page's header, chips, badges and hints, the
+full-screen 1080p PC, and growing with the screen past that: 2.67 at 1440p)
+grows every page's header, chips, badges and hints, the
 countdowns, popups and end panels, and menu tiles are cards that never grow
 wider than a hand-sized card at that scale, with everything drawn on them
 scaling with the tile. Game boards fill the screen; the phone-sized caps on

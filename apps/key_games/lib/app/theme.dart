@@ -31,13 +31,17 @@ Color pitchColor(int pc) => Color(pitchClasses[pc].argb);
 Color noteColor(int note) => pitchColor(pitchClass(note));
 
 // How much bigger than a phone the screen is: 1 on a phone, 1.5 on a 1080p
-// TV box, 2 on a full-screen PC. The two screens that matter are a phone on
-// its side (scale 1) and a PC on a TV (scale 2). Headers, chips, badges,
-// hints and menu tiles grow with it so they read from a couch. Game boards
-// fill the screen and use it only for the phone-sized caps on their parts
-// (lane widths, letters, the keyboard picture's height).
-double uiScale(BuildContext context) =>
-    (MediaQuery.sizeOf(context).shortestSide / 480).clamp(1.0, 2.0);
+// TV box, 2 on a full-screen 1080p PC, and past that it keeps growing with
+// the screen, so a 1440p PC (2.67) or a 4K one at 100% (4) looks like the
+// 1080p one, only sharper. The two screens that matter are a phone on its
+// side (scale 1) and a PC on a TV. Headers, chips, badges, hints and menu
+// tiles grow with it so they read from a couch. Game boards fill the screen
+// and use it only for the phone-sized caps on their parts (lane widths,
+// letters, the keyboard picture's height).
+double uiScale(BuildContext context) {
+  final side = MediaQuery.sizeOf(context).shortestSide;
+  return side > 1080 ? min(side / 540, 4.0) : (side / 480).clamp(1.0, 2.0);
+}
 
 // Height of the keyboard picture at the bottom of a game: [design] at phone
 // size, grown with the screen, never more than [share] of the screen.

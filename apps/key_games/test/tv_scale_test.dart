@@ -1,6 +1,7 @@
 // Game chrome grows with the screen: the end panels, the countdown and the
 // Learn Back page are twice their phone size on a full-screen PC, and the
-// keyboard picture is taller.
+// keyboard picture is taller. Past 1080p it keeps growing, so a 1440p PC
+// looks like a 1080p one.
 
 import 'dart:math';
 
@@ -62,5 +63,16 @@ void main() {
     // 28 at phone size, doubled on the PC: a line is about 76 tall.
     expect(tester.getSize(text).height, greaterThan(60));
     expect(tester.getSize(find.byType(Icon).last).height, 192);
+  });
+
+  testWidgets('a 1440p PC scales a third more than a 1080p one', (tester) async {
+    useTv(tester);
+    await pumpApp(tester, const LearnBackPage());
+    final onTv = tester.getSize(find.byType(Icon).last).height;
+
+    tester.view.physicalSize = const Size(2560, 1440);
+    await tester.pump();
+    final on1440 = tester.getSize(find.byType(Icon).last).height;
+    expect(on1440, closeTo(onTv * 4 / 3, 1));
   });
 }

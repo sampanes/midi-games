@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:key_games/input/back_control.dart';
 import 'package:key_games/widgets/keyboard_status.dart';
 
 import 'helpers.dart';
@@ -65,5 +66,16 @@ void main() {
     // Two columns: Look and Listen share a row, Songs sits below Look.
     expect(tester.getRect(find.text('Look')).top, tester.getRect(find.text('Listen')).top);
     expect(tester.getRect(find.text('Songs')).top, greaterThan(tester.getRect(find.text('Look')).top));
+  });
+
+  testWidgets('the home menu says where to pick a Back pad until one is picked', (tester) async {
+    useTv(tester);
+    final services = await pumpApp(tester, null);
+    expect(find.textContaining('No Back pad yet'), findsOneWidget);
+
+    await services.settings.setBackControl(const BackControl(ControlKind.note, 9, 36));
+    await tester.pump();
+    expect(find.textContaining('No Back pad yet'), findsNothing);
+    expect(find.text('Press a letter on the keyboard to pick.'), findsOneWidget);
   });
 }

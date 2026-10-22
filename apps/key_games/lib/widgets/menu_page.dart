@@ -171,7 +171,7 @@ class _MenuTile extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Everything on the tile is drawn for a 300 x 300 tile and scaled.
-        final k = (min(constraints.maxWidth, constraints.maxHeight) / _tileDesign).clamp(0.5, 2.5);
+        final k = (min(constraints.maxWidth, constraints.maxHeight) / _tileDesign).clamp(0.5, 4.0);
         final radius = BorderRadius.circular(28 * k.clamp(0.7, 1.5));
         return DecoratedBox(
           decoration: BoxDecoration(

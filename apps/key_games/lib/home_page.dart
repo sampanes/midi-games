@@ -3,16 +3,19 @@
 // pressing a note letter on the keyboard, so no touch screen is needed (TV).
 // A category with one game opens that game's picker straight away, so C C
 // always reaches the first game on Easy. G is Settings, a button in the
-// header rather than a tile.
+// header rather than a tile; until a Back pad is picked there, the line
+// under the tiles points to it.
 
 import 'package:flutter/material.dart';
 
+import 'app/services.dart';
 import 'games/color_keys_page.dart';
 import 'games/difficulty.dart';
 import 'games/ear_page.dart';
 import 'games/highway_page.dart';
 import 'games/runner_page.dart';
 import 'games/rush_page.dart';
+import 'input/back_control.dart';
 import 'settings/settings_page.dart';
 import 'songs/song_list_page.dart';
 import 'songs/song_listen_page.dart';
@@ -143,19 +146,26 @@ class HomePage extends StatelessWidget {
       colors: const [Color(0xFF4A4360), Color(0xFF2B2440)],
       onPick: (context) => _go(context, const SettingsPage()),
     );
-    return MenuPage(
-      title: 'Key Games',
-      items: [
-        _category('Look', 'Find the glowing note', Icons.visibility,
-            const [Color(0xFFFF3B3B), Color(0xFFFF9A1F)], [colorKeys]),
-        _category('Listen', 'Games for your ears', Icons.hearing,
-            const [Color(0xFF22C9A0), Color(0xFF4A6BFF)], [ear]),
-        _category('Songs', 'Play real tunes', Icons.music_note,
-            const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)], [steps, highway, songBox]),
-        _category('Arcade', 'Fast games against the clock', Icons.sports_esports,
-            const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [rush, runner]),
-      ],
-      actions: [settings],
+    // Until a Back pad is picked, the line under the tiles says where.
+    return ValueListenableBuilder<BackControl?>(
+      valueListenable: AppServices.of(context).settings.backControl,
+      builder: (context, back, _) => MenuPage(
+        title: 'Key Games',
+        footer: back == null
+            ? 'Press a letter on the keyboard to pick. No Back pad yet: G opens Settings to pick one.'
+            : null,
+        items: [
+          _category('Look', 'Find the glowing note', Icons.visibility,
+              const [Color(0xFFFF3B3B), Color(0xFFFF9A1F)], [colorKeys]),
+          _category('Listen', 'Games for your ears', Icons.hearing,
+              const [Color(0xFF22C9A0), Color(0xFF4A6BFF)], [ear]),
+          _category('Songs', 'Play real tunes', Icons.music_note,
+              const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)], [steps, highway, songBox]),
+          _category('Arcade', 'Fast games against the clock', Icons.sports_esports,
+              const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [rush, runner]),
+        ],
+        actions: [settings],
+      ),
     );
   }
 }
