@@ -109,9 +109,15 @@ void main() {
 
     await _press(tester, LogicalKeyboardKey.keyG); // G: Settings
     expect(find.byType(SettingsPage), findsOneWidget);
-    expect(find.text('No Back pad yet: the screen and the remote go back.'), findsOneWidget);
+    expect(find.text('No Back pad picked: any pad goes back.'), findsOneWidget);
 
-    await _press(tester, LogicalKeyboardKey.keyA); // C: Back pad
+    // C on the keyboard's own key channel: the Back pad page. Pads go back
+    // from now on, but not on this page: the next pad is learned instead.
+    services.midi.feed(const NoteEvent(60, 100, on: true, channel: 12));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    services.midi.feed(const NoteEvent(60, 0, on: false, channel: 12));
+    await tester.pump();
     expect(find.text('Press the pad or button you want to use for Back.'), findsOneWidget);
 
     services.midi.feed(const NoteEvent(40, 100, on: true, channel: 9));
@@ -200,5 +206,47 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(SongListenPage), findsNothing);
     expect(find.text('Lullaby Test'), findsOneWidget);
+  });
+
+  testWidgets("until one is picked, any pad goes back once a key shows the keys' channel",
+      (tester) async {
+    usePhone(tester);
+    final synth = RecordingSynth();
+    final services = await pumpApp(tester, null, synth: synth);
+    await tester.pump(keySettle);
+
+    Future<void> tap(int note, int channel) async {
+      services.midi.feed(NoteEvent(note, 100, on: true, channel: channel));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      services.midi.feed(NoteEvent(note, 0, on: false, channel: channel));
+      await tester.pump();
+    }
+
+    // D on the keys (channel 13): Listen, Ear Notes' levels.
+    await tap(62, 12);
+    expect(find.text('Easy'), findsWidgets);
+
+    // A pad (channel 10, note 48 like the keys' low C) goes back, silently.
+    await tap(48, 9);
+    expect(find.text('Look'), findsOneWidget);
+    expect(synth.events, isNot(contains('on 48')));
+
+    // Keys that low on the keys' own channel are still keys: C opens Look.
+    await tap(48, 12);
+    expect(find.text('Color Keys'), findsOneWidget);
+  });
+
+  testWidgets('when keys and pads share a channel, no pad goes back', (tester) async {
+    usePhone(tester);
+    final services = await pumpApp(tester, null);
+    await tester.pump(keySettle);
+    services.midi.feed(const NoteEvent(62, 100, on: true, channel: 9)); // D: Listen
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    services.midi.feed(const NoteEvent(41, 100, on: true, channel: 9)); // F: a key here
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Look'), findsNothing);
   });
 }

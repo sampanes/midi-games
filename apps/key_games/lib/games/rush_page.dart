@@ -1,4 +1,6 @@
 // Key Rush screen: 3-2-1, then one minute to hit as many keys as possible.
+// The minute starts at the first right key, not at GO, so a player can find
+// the keys and set their fingers first.
 // A board above the keyboard picture shows the key to press now (bottom row)
 // and the next ones above it, lined up with the keys, like the tiles on an
 // arcade piano. Each hit moves the tiles down a row.
@@ -141,6 +143,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
 
   void _resetRound() {
     _clock?.cancel();
+    _clock = null;
     _echo.cancel();
     _state = const RushState(upcoming: []);
     _phase = _Phase.countdown;
@@ -155,7 +158,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
     _countdown();
   }
 
-  // 3, 2, 1 with a beep each, then GO and the clock starts.
+  // 3, 2, 1 with a beep each, then GO. The clock waits for the first hit.
   void _countdown() {
     for (var i = 0; i < 3; i++) {
       _later(Duration(milliseconds: 400 + i * _countdownStepMs), () {
@@ -177,6 +180,10 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
           : EasyRushFeed(_random);
       _state = RushState.start(_feed);
     });
+  }
+
+  // The minute starts with the first right key.
+  void _startClock() {
     _clock = Timer.periodic(const Duration(milliseconds: rushTickMs), (_) {
       if (!mounted) return;
       setState(() => _state = rushTick(_state));
@@ -212,10 +219,13 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       return;
     }
     final target = _state.target;
-    final step = pressRush(_state, event.note - _shift, _feed, exact: _real, freeze: _real);
+    // No freeze before the clock runs: only its ticks would end it.
+    final step = pressRush(_state, event.note - _shift, _feed,
+        exact: _real, freeze: _real && _clock != null);
     setState(() => _state = step.state);
     switch (step.result) {
       case RushResult.hit:
+        if (_clock == null) _startClock();
         _echo.cancel();
         if (_real) {
           _synth.noteOn(event.note, event.velocity);
@@ -307,7 +317,11 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
             ),
       footer: [
         Text(
-          _phase == _Phase.countdown ? 'Get ready!' : 'Song: ${_song.title}',
+          _phase == _Phase.countdown
+              ? 'Get ready!'
+              : playing && _clock == null
+                  ? 'Find the key: the clock starts when you hit it'
+                  : 'Song: ${_song.title}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(color: Colors.white54, fontSize: 16 * uiScale(context)),

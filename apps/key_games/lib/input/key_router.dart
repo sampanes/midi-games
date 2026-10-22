@@ -8,6 +8,13 @@
 // every page change, so the key that opened a page does not also pick
 // something on it. Game notes are not delayed. The Back control is swallowed
 // here and never reaches a game.
+//
+// Until a Back control is picked, any pad goes back. A pad is a note on
+// another channel than the keys: the keys' channel is the channel of the
+// last note above [highestPadNote], which only a key can play (pads send
+// notes 36-51; keys and pads usually sit on different channels). Until a
+// key has been played, or when keys and pads share a channel, no note is a
+// pad.
 
 import 'dart:async';
 
@@ -22,6 +29,9 @@ import '../midi/computer_keys.dart';
 import '../midi/midi_input.dart';
 
 const keySettle = Duration(milliseconds: 600);
+
+// The highest note a pad sends; any note above it is a key.
+const highestPadNote = 51;
 
 class KeyHandler {
   KeyHandler({this.route, this.picks = const {}, this.onNote});
@@ -53,6 +63,13 @@ class KeyRouter extends NavigatorObserver {
 
   // When the page on top last changed; picks wait out [settle] after it.
   DateTime _changedAt = clock.now();
+
+  // The MIDI channel the keys play on; null until a key above the pads.
+  int? _keyChannel;
+
+  // True while the Back control is being picked: that page reads the MIDI
+  // notes itself, so none of them go back or reach a page here.
+  bool learning = false;
 
   void start() {
     _noteSub = midi.notes.listen(_onNote);
@@ -100,12 +117,23 @@ class KeyRouter extends NavigatorObserver {
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _pageChanged();
 
+  // A note from the MIDI keyboard.
   void _onNote(NoteEvent event) {
+    if (event.note > highestPadNote) _keyChannel = event.channel;
+    if (learning) return;
     final backControl = settings.backControl.value;
-    if (backControl != null && backControl.matchesNote(event)) {
+    final goesBack = backControl != null
+        ? backControl.matchesNote(event)
+        : _keyChannel != null && event.channel != _keyChannel;
+    if (goesBack) {
       if (event.on) back();
       return;
     }
+    _route(event);
+  }
+
+  // A note for the page on top: a pick, or a note for its game.
+  void _route(NoteEvent event) {
     if (!isGameNote(event.note)) return;
     final handler = top;
     if (handler == null) return;
@@ -122,6 +150,7 @@ class KeyRouter extends NavigatorObserver {
   }
 
   void _onButton(ButtonEvent event) {
+    if (learning) return;
     final backControl = settings.backControl.value;
     if (backControl != null && backControl.matchesButton(event) && event.value > 0) back();
   }
@@ -132,6 +161,7 @@ class KeyRouter extends NavigatorObserver {
       if (event is KeyDownEvent) back();
       return true;
     }
-    return handleComputerKey(event, _onNote);
+    // Computer keys are keys, never pads.
+    return handleComputerKey(event, _route);
   }
 }

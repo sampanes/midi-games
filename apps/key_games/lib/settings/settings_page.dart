@@ -25,7 +25,7 @@ class SettingsPage extends StatelessWidget {
           MenuItem(
             title: 'Back pad',
             subtitle: back == null
-                ? 'Pick a pad or button that goes back'
+                ? 'Any pad goes back now. Pick just one'
                 : 'Now ${back.label}. Pick another',
             icon: Icons.undo_rounded,
             colors: const [Color(0xFF2FA8FF), Color(0xFF8A4DFF)],
@@ -37,8 +37,8 @@ class SettingsPage extends StatelessWidget {
           MenuItem(
             title: 'Forget it',
             subtitle: back == null
-                ? 'No Back pad is set'
-                : 'Go back with the screen and the remote only',
+                ? 'No Back pad is picked'
+                : 'Any pad goes back again',
             icon: Icons.block,
             colors: const [Color(0xFF4A4360), Color(0xFF2B2440)],
             onPick: (_) => settings.setBackControl(null),
@@ -52,7 +52,7 @@ class SettingsPage extends StatelessWidget {
           ),
         ],
         footer: back == null
-            ? 'No Back pad yet: the screen and the remote go back.'
+            ? 'No Back pad picked: any pad goes back.'
             : 'Back is ${back.label}.',
       ),
     );

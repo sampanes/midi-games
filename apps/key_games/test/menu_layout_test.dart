@@ -71,11 +71,11 @@ void main() {
   testWidgets('the home menu says where to pick a Back pad until one is picked', (tester) async {
     useTv(tester);
     final services = await pumpApp(tester, null);
-    expect(find.textContaining('No Back pad yet'), findsOneWidget);
+    expect(find.textContaining('Any pad goes back'), findsOneWidget);
 
     await services.settings.setBackControl(const BackControl(ControlKind.note, 9, 36));
     await tester.pump();
-    expect(find.textContaining('No Back pad yet'), findsNothing);
+    expect(find.textContaining('Any pad goes back'), findsNothing);
     expect(find.text('Press a letter on the keyboard to pick.'), findsOneWidget);
   });
 }

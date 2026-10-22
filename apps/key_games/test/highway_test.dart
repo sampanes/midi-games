@@ -189,6 +189,7 @@ void main() {
 
     await pumpApp(tester, const RushPage(songs: []), textScale: 1.3);
     await tester.pump(const Duration(seconds: 3));
+    await startRushClock(tester);
     await tester.pump(const Duration(seconds: 61));
     expect(find.text("Time's up!"), findsOneWidget);
     await expectEndFits(tester);

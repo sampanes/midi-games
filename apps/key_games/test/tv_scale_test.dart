@@ -17,6 +17,7 @@ import 'helpers.dart';
 Future<double> _rushEndTitleHeight(WidgetTester tester) async {
   await pumpApp(tester, RushPage(difficulty: Difficulty.easy, random: Random(5), songs: const []));
   await tester.pump(const Duration(seconds: 3));
+  await startRushClock(tester);
   await tester.pump(const Duration(seconds: 61));
   expect(find.text("Time's up!"), findsOneWidget);
   final height = tester.getSize(find.text("Time's up!")).height;

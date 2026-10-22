@@ -86,19 +86,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2200));
   }
 
+  double timeLeft(WidgetTester tester) =>
+      tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value!;
+
   testWidgets('easy rush counts down, scores, ends, and C plays again', (tester) async {
     await pumpRush(tester, Difficulty.easy, const []);
-    expect(find.text('Song: Scale'), findsOneWidget);
+
+    // The minute waits for the first right key, however long that takes.
+    expect(find.textContaining('the clock starts'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 10));
+    expect(timeLeft(tester), 1);
 
     // Easy never freezes, so one pass over E F G A finds the key.
-    for (final key in [
-      LogicalKeyboardKey.keyD, LogicalKeyboardKey.keyF,
-      LogicalKeyboardKey.keyG, LogicalKeyboardKey.keyH,
-    ]) {
-      await tester.sendKeyEvent(key);
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await startRushClock(tester);
     expect(find.text('0'), findsNothing);
+    expect(find.text('Song: Scale'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(timeLeft(tester), lessThan(1));
 
     await tester.pump(const Duration(seconds: 61));
     expect(find.text("Time's up!"), findsOneWidget);
@@ -120,7 +124,12 @@ void main() {
       SongNote(65, 900, 300), SongNote(62, 1200, 300),
     ]);
     await pumpRush(tester, Difficulty.medium, const [tune]);
-    expect(find.text('Song: Test Tune'), findsOneWidget);
+
+    // A wrong key before the start neither scores, freezes nor starts the clock.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.pump(const Duration(seconds: 3));
+    expect(timeLeft(tester), 1);
+    expect(find.textContaining('the clock starts'), findsOneWidget);
 
     for (final key in [
       LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyD, LogicalKeyboardKey.keyG,
@@ -129,6 +138,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     expect(find.text('3'), findsOneWidget);
+    expect(find.text('Song: Test Tune'), findsOneWidget);
 
     // Clicking the keyboard picture plays too (testing without a keyboard):
     // F is next.

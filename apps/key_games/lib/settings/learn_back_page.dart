@@ -1,7 +1,8 @@
 // Learns the Back control: the next pad or button pressed on the keyboard
 // (a note on any channel, or a control change) is remembered, a confirmation
 // shows for a moment, and the page closes. Listens to the raw MIDI streams,
-// not the router, because pads outside the game note range must count too.
+// not the router, because pads outside the game note range must count too;
+// the router stands aside meanwhile, so the pad does not go back instead.
 
 import 'dart:async';
 
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../app/services.dart';
 import '../app/theme.dart';
 import '../input/back_control.dart';
+import '../input/key_router.dart';
 import '../midi/midi_input.dart';
 import '../widgets/game_page.dart';
 
@@ -25,18 +27,22 @@ class _LearnBackPageState extends State<LearnBackPage> {
   StreamSubscription<ButtonEvent>? _buttonSub;
   Timer? _closeTimer;
   BackControl? _learned;
+  KeyRouter? _router;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_noteSub != null) return;
-    final midi = AppServices.of(context).midi;
+    final services = AppServices.of(context);
+    final midi = services.midi;
+    _router = services.router..learning = true;
     _noteSub = midi.notes.listen(_onNote);
     _buttonSub = midi.buttons.listen(_onButton);
   }
 
   @override
   void dispose() {
+    _router?.learning = false;
     unawaited(_noteSub?.cancel());
     unawaited(_buttonSub?.cancel());
     _closeTimer?.cancel();
@@ -54,6 +60,8 @@ class _LearnBackPageState extends State<LearnBackPage> {
   }
 
   void _save(BackControl control) {
+    // Learned: from now on that pad goes back, even during the confirmation.
+    _router?.learning = false;
     final services = AppServices.of(context);
     unawaited(services.settings.setBackControl(control));
     services.synth.tune([84, 88, 91], stepMs: 90, lengthMs: 160);

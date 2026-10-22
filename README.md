@@ -208,11 +208,14 @@ first game on Easy (songs: first a group such as Kids or Classical, then a
 song, C to A, B for the next page; end of a song:
 C again, D listen, E more songs; end of Key Rush, Key Runner or Note Highway:
 C again, E back). Going back: the on-screen back button, Escape, the remote's
-back button, or a **Back pad**: in Settings (G on the home menu, then C),
-press any pad or panel button on the keyboard and it goes back from every
-page from then on; it never reaches a game or makes a sound. The pad is
-remembered on the device; until one is picked, the home menu says so. A key that opens a page cannot also pick something
-on it: the app ignores menu picks for a moment after every page change. The
+back button, or a **Back pad**. Out of the box any pad goes back, once a
+key has been played: a pad is a note on another MIDI channel than the keys
+(the keys' channel is taken from the last note above 51, which no pad
+sends; when keys and pads share a channel, no pad goes back). To use just
+one pad or a panel button, pick it in Settings (G on the home menu, then C,
+then press it); D there forgets it. Either way the Back pad never reaches a
+game or makes a sound, and a picked one is remembered on the device. A key
+that opens a page cannot also pick something on it: the app ignores menu picks for a moment after every page change. The
 Android build also lists itself on Android TV home screens (banner, no touch
 screen required).
 
@@ -381,7 +384,8 @@ skips ahead. Difficulty picks the starting level.
 ### Key Rush (Arcade)
 
 After the arcade piano games: 3-2-1, then one minute to hit as many keys as
-possible. A board of tiles above the keyboard picture shows the key to press
+possible. The minute starts at the first right key, not at GO, so a player
+can find the keys and set their fingers first. A board of tiles above the keyboard picture shows the key to press
 now (bottom row) and the next three above it, lined up with the keys; each hit
 moves the tiles down a row. Two ways to play:
 

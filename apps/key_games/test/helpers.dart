@@ -2,6 +2,7 @@
 // devices, nothing remembered, and the key router listening.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:key_games/app/services.dart';
 import 'package:key_games/app/settings.dart';
@@ -96,4 +97,16 @@ void useTv(WidgetTester tester) {
   tester.view.physicalSize = const Size(1920, 1080);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+}
+
+// Key Rush Easy waits for the first right key before its minute starts: one
+// pass over E F G A (computer keys D F G H) finds it.
+Future<void> startRushClock(WidgetTester tester) async {
+  for (final key in [
+    LogicalKeyboardKey.keyD, LogicalKeyboardKey.keyF,
+    LogicalKeyboardKey.keyG, LogicalKeyboardKey.keyH,
+  ]) {
+    await tester.sendKeyEvent(key);
+    await tester.pump(const Duration(milliseconds: 50));
+  }
 }

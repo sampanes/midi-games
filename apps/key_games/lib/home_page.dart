@@ -3,8 +3,8 @@
 // pressing a note letter on the keyboard, so no touch screen is needed (TV).
 // A category with one game opens that game's picker straight away, so C C
 // always reaches the first game on Easy. G is Settings, a button in the
-// header rather than a tile; until a Back pad is picked there, the line
-// under the tiles points to it.
+// header rather than a tile; until a Back pad is picked there (any pad goes
+// back meanwhile), the line under the tiles says so.
 
 import 'package:flutter/material.dart';
 
@@ -152,7 +152,7 @@ class HomePage extends StatelessWidget {
       builder: (context, back, _) => MenuPage(
         title: 'Key Games',
         footer: back == null
-            ? 'Press a letter on the keyboard to pick. No Back pad yet: G opens Settings to pick one.'
+            ? 'Press a letter on the keyboard to pick. Any pad goes back; G (Settings) picks just one.'
             : null,
         items: [
           _category('Look', 'Find the glowing note', Icons.visibility,
