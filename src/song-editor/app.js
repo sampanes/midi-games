@@ -795,7 +795,7 @@ function updateChrome() {
   $("undoButton").disabled = app.undo.length === 0;
   if (!song) return;
   $("songTitle").textContent = song.title;
-  const where = song.source === "downloads" ? "Downloads" : song.group;
+  const where = sourceHead(song) || song.group;
   const state = app.dirty ? "not saved" : song.saved ? "saved tune" : "auto pick";
   $("songSub").textContent = `${where} - ${song.file} - ${state}`;
   const count = app.tune.kept.size + app.tune.added.length;
@@ -815,7 +815,9 @@ function openSave() {
   }
   $("saveNote").textContent = song.source === "downloads"
     ? "This file is in Downloads: saving copies it into your songs folder."
-    : "The app picks up the saved tune on its next build.";
+    : song.source === "samples"
+      ? "This is a sample: saving copies it into your songs folder, and your tune replaces the built-in one on the app's next build."
+      : "The app picks up the saved tune on its next build.";
   showSheet("saveSheet");
 }
 
@@ -864,6 +866,14 @@ function hideSheets() {
   for (const sheet of document.querySelectorAll(".sheet")) sheet.hidden = true;
 }
 
+// Songs not yet in the songs folder are listed under where they are, after
+// the song groups.
+const SOURCE_HEADS = ["Samples", "Downloads"];
+
+function sourceHead(song) {
+  return { samples: "Samples", downloads: "Downloads" }[song.source] || "";
+}
+
 function renderSongList() {
   const list = $("songList");
   const query = $("songSearch").value.trim().toLowerCase();
@@ -871,12 +881,12 @@ function renderSongList() {
   const match = (s) => !query || `${s.title} ${s.file} ${s.group}`.toLowerCase().includes(query);
   const groups = new Map();
   for (const song of app.songs.filter(match)) {
-    const head = song.source === "downloads" ? "Downloads" : song.group;
+    const head = sourceHead(song) || song.group;
     if (!groups.has(head)) groups.set(head, []);
     groups.get(head).push(song);
   }
-  const heads = [...groups.keys()].sort((a, b) =>
-    (a === "Downloads") - (b === "Downloads") || a.localeCompare(b));
+  const last = (head) => SOURCE_HEADS.indexOf(head);
+  const heads = [...groups.keys()].sort((a, b) => last(a) - last(b) || a.localeCompare(b));
   for (const head of heads) {
     const title = document.createElement("div");
     title.className = "group-head";

@@ -1,0 +1,54 @@
+{
+  "twinkle-twinkle.mid": {
+    "title": "Twinkle Twinkle Little Star",
+    "group": "Kids"
+  },
+  "mary-had-a-little-lamb.mid": {
+    "title": "Mary Had a Little Lamb",
+    "group": "Kids"
+  },
+  "hot-cross-buns.mid": {
+    "title": "Hot Cross Buns",
+    "group": "Kids"
+  },
+  "row-row-row-your-boat.mid": {
+    "title": "Row, Row, Row Your Boat",
+    "group": "Kids"
+  },
+  "london-bridge.mid": {
+    "title": "London Bridge",
+    "group": "Kids"
+  },
+  "old-macdonald.mid": {
+    "title": "Old MacDonald",
+    "group": "Kids"
+  },
+  "frere-jacques.mid": {
+    "title": "Frère Jacques",
+    "group": "Kids"
+  },
+  "jingle-bells.mid": {
+    "title": "Jingle Bells",
+    "group": "Kids"
+  },
+  "happy-birthday.mid": {
+    "title": "Happy Birthday",
+    "group": "Kids"
+  },
+  "ode-to-joy.mid": {
+    "title": "Ode to Joy",
+    "group": "Classical"
+  },
+  "fur-elise.mid": {
+    "title": "Für Elise",
+    "group": "Classical"
+  },
+  "minuet-in-g.mid": {
+    "title": "Minuet in G",
+    "group": "Classical"
+  },
+  "canon-in-d.mid": {
+    "title": "Canon in D",
+    "group": "Classical"
+  }
+}

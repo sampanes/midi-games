@@ -10,6 +10,7 @@
 #   .\tool\shoot-windows.ps1 -W 2880 -H 1620 -Monitor 2   # 1920x1080 logical on a 150% monitor
 #   .\tool\shoot-windows.ps1 -W 1323 -H 617 -Monitor 2    # a phone on its side (882x411 logical)
 #   .\tool\shoot-windows.ps1 -Walk levels ...             # each game's easy levels only
+#   .\tool\shoot-windows.ps1 -Walk songs ...              # the classical songs, with their band
 #
 # The logical size Flutter lays out is W x H divided by the monitor's scale.
 # Pages are captured with PrintWindow, which gives a blank frame while the
@@ -24,7 +25,7 @@ param(
   [int]$Monitor = -1,
   [int]$W = 1920,
   [int]$H = 1080,
-  [ValidateSet('all', 'levels')][string]$Walk = 'all',
+  [ValidateSet('all', 'levels', 'songs')][string]$Walk = 'all',
   [switch]$ListMonitors
 )
 $ErrorActionPreference = 'Stop'
@@ -219,6 +220,18 @@ try {
     @{ name = 'game-runner-easy';   keys = @('ESC', 'S', 'A'); wait = 4500 }
   )
   if ($Walk -eq 'levels') { $steps = @(@{ name = 'home'; keys = @() }) + $levelSteps }
+
+  # The built-in classical songs: Song Box and Note Highway on Canon in D
+  # (the first of them), which play its band.
+  $songSteps = @(
+    @{ name = 'menu-songs';          keys = @('D') },
+    @{ name = 'songbox-groups';      keys = @('D') },
+    @{ name = 'songbox-classical';   keys = @('S') },
+    @{ name = 'songbox-canon';       keys = @('A'); wait = 2500 },
+    @{ name = 'songlist-highway';    keys = @('ESC', 'ESC', 'ESC', 'S', 'A', 'S') },
+    @{ name = 'game-highway-canon';  keys = @('A'); wait = 6500 }
+  )
+  if ($Walk -eq 'songs') { $steps = @(@{ name = 'home'; keys = @() }) + $songSteps }
 
   foreach ($s in $steps) {
     foreach ($k in $s.keys) { Press $k }

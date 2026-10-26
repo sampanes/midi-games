@@ -1,14 +1,15 @@
-// Songs for song mode: the built-in tunes (builtin_songs.dart) plus melody
-// note lists made by scripts/extract-melodies.py and bundled as
-// assets/songs/*.json (local builds only, never committed). The rules here
-// are pure so they are unit tested on their own.
+// Songs for song mode. Every song is a melody note list, with the rest of
+// its music as backing, made by scripts/extract-melodies.py from a MIDI file:
+// the built-in tunes from the samples (assets/builtin/*.json, written by
+// scripts/make-sample-songs.py and committed), and your own songs from
+// private/songs (assets/songs/*.json, local builds only, never committed).
+// The rules here are pure so they are unit tested on their own.
 
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
 import '../games/color_keys_rules.dart' show pitchClass;
-import 'builtin_songs.dart';
 
 class SongNote {
   const SongNote(this.note, this.startMs, this.lengthMs);
@@ -19,18 +20,29 @@ class SongNote {
 }
 
 class Song {
-  const Song(this.title, this.notes, {this.group = 'Songs'});
+  const Song(this.title, this.notes, {this.group = 'Songs', this.backing = const []});
 
   factory Song.fromJson(Map<String, dynamic> json) {
-    final notes = [
-      for (final n in json['notes'] as List)
-        SongNote((n as List)[0] as int, n[1] as int, n[2] as int),
-    ];
-    return Song(json['title'] as String, notes, group: json['group'] as String? ?? 'Songs');
+    List<SongNote> read(List? list) => [
+          for (final n in list ?? const [])
+            SongNote((n as List)[0] as int, n[1] as int, n[2] as int),
+        ];
+    return Song(
+      json['title'] as String,
+      read(json['notes'] as List),
+      group: json['group'] as String? ?? 'Songs',
+      backing: read(json['backing'] as List?),
+    );
   }
 
   final String title;
+
+  // The tune, one note at a time: what the player plays.
   final List<SongNote> notes;
+
+  // The rest of the music (chords, bass, other parts), on the tune's clock:
+  // the band, played by the app.
+  final List<SongNote> backing;
 
   // Heading in the song list (Kids, Classical, ...).
   final String group;
@@ -57,20 +69,25 @@ const scaleSong = Song('Scale', [
   SongNote(64, 0, 300), SongNote(62, 0, 300), SongNote(60, 0, 500),
 ]);
 
-// The built-in tunes and any bundled from private/songs, by title.
+// The built-in tunes and any bundled from private/songs, by title. A song of
+// your own with a built-in tune's title (a sample saved in the song editor)
+// replaces it.
 Future<List<Song>> loadSongs(AssetBundle bundle) async {
   final manifest = await AssetManifest.loadFromAssetBundle(bundle);
-  final paths = manifest
-      .listAssets()
-      .where((path) => path.startsWith('assets/songs/') && path.endsWith('.json'));
-  final songs = <Song>[...builtinSongs];
-  for (final path in paths) {
-    final json = jsonDecode(await bundle.loadString(path)) as Map<String, dynamic>;
-    final song = Song.fromJson(json);
-    if (song.notes.isNotEmpty) songs.add(song);
+  final byTitle = <String, Song>{};
+  for (final folder in ['assets/builtin/', 'assets/songs/']) {
+    final paths = manifest
+        .listAssets()
+        .where((path) => path.startsWith(folder) && path.endsWith('.json'))
+        .toList()
+      ..sort();
+    for (final path in paths) {
+      final json = jsonDecode(await bundle.loadString(path)) as Map<String, dynamic>;
+      final song = Song.fromJson(json);
+      if (song.notes.isNotEmpty) byTitle[song.title] = song;
+    }
   }
-  songs.sort((a, b) => a.title.compareTo(b.title));
-  return songs;
+  return byTitle.values.toList()..sort((a, b) => a.title.compareTo(b.title));
 }
 
 enum SongPress { hit, finished, tooLow, tooHigh, miss, ignored }

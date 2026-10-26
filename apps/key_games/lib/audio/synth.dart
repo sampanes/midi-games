@@ -1,6 +1,9 @@
 // Small polyphonic synth on SoLoud: one looping triangle-wave source per note,
 // started silent and faded in/out to avoid clicks. Low-latency settings came
 // from the keys_spike test (buffer 256 felt close to instant on a phone).
+//
+// A song's band (its backing) plays on voices of its own, softer sine waves,
+// so a band note never takes or cuts off a key the player is holding.
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -14,9 +17,19 @@ class Synth {
   static const highestNote = 108;
   static const _attack = Duration(milliseconds: 4);
   static const releaseLength = Duration(milliseconds: 300);
+  static const bandLowest = 28;
+  static const bandHighest = 96;
+
+  // Band notes this much quieter than a key at the same velocity.
+  static const bandLevel = 0.5;
+
+  // Keys, the band's chords and bass, and their releases at once.
+  static const _voices = 64;
 
   final SoLoud _soloud = SoLoud.instance;
   final Map<int, AudioSource> _sources = {};
+  final Map<int, AudioSource> _bandSources = {};
+  final Set<SoundHandle> _band = {};
   final Map<int, SoundHandle> _playing = {};
   final Map<int, Set<SoundHandle>> _releasing = {};
   final Map<int, int> _generation = {};
@@ -26,10 +39,16 @@ class Synth {
   Future<void> start({int bufferSize = 256}) async {
     if (_soloud.isInitialized) return;
     await _soloud.init(bufferSize: bufferSize, lowLatency: true);
+    _soloud.setMaxActiveVoiceCount(_voices);
     for (var note = lowestNote; note <= highestNote; note++) {
       final source = await _soloud.loadWaveform(WaveForm.triangle, false, 1, 0);
       _soloud.setWaveformFreq(source, noteHz(note));
       _sources[note] = source;
+    }
+    for (var note = bandLowest; note <= bandHighest; note++) {
+      final source = await _soloud.loadWaveform(WaveForm.sin, false, 1, 0);
+      _soloud.setWaveformFreq(source, noteHz(note));
+      _bandSources[note] = source;
     }
   }
 
@@ -86,6 +105,33 @@ class Synth {
       if (_generation[note] == generation) noteOff(note);
     });
   }
+
+  // One band note: its own voice, held for [lengthMs].
+  void band(int note, {int velocity = 80, int lengthMs = 400}) {
+    final source = _bandSources[note];
+    if (source == null || !ready) return;
+    final level = bandLevel * (0.2 + 0.35 * (velocity.clamp(1, 127) / 127));
+    final handle = _soloud.play(source, volume: 0, looping: true);
+    _soloud.fadeVolume(handle, level, _attack);
+    _band.add(handle);
+    Timer(Duration(milliseconds: lengthMs), () {
+      if (!_band.remove(handle)) return;
+      _soloud.fadeVolume(handle, 0, releaseLength);
+      _soloud.scheduleStop(handle, releaseLength);
+    });
+  }
+
+  // Quiets the band at once (the song stopped, restarted or was left).
+  void stopBand() {
+    if (!ready) return;
+    for (final handle in _band) {
+      _soloud.fadeVolume(handle, 0, _stopFade);
+      _soloud.scheduleStop(handle, _stopFade);
+    }
+    _band.clear();
+  }
+
+  static const _stopFade = Duration(milliseconds: 40);
 
   // Notes one after another, e.g. a rising arpeggio for a win.
   void tune(List<int> notes, {int stepMs = 110, int lengthMs = 220}) {

@@ -13,7 +13,7 @@ files into the melodies the games play.
 |---|---|---|
 | Key Games app | Flutter pinned in `apps/key_games/.fvmrc` (install with [FVM](https://fvm.app): `fvm install` in that folder, then `fvm flutter ...`) | `npm run test:app`, or `fvm flutter analyze` and `fvm flutter test` in `apps/key_games` |
 | MIDI bench (browser pages and analysis) | Node 20+ | `npm test` |
-| Song editor server | Python 3.12+ (no packages) | `npm run test:py` |
+| Song editor server, song scripts | Python 3.12+ (no packages) | `npm run test:py` |
 
 GitHub Actions (`.github/workflows/ci.yml`) runs all three on every push and
 pull request, plus a check that nothing under `private/` is tracked. The same
@@ -313,13 +313,25 @@ each (B turns the page when there are more than seven), then the songs of
 the picked group.
 
 Song Box (no levels) plays a picked song's melody, exactly the notes the
-games use, at real speed with the keys lighting up: a quick way to hear
-whether a song came out right. C plays it again, D stops, Back returns.
+games use, at real speed with the keys lighting up and the song's band under
+it: a quick way to hear whether a song came out right. C plays it again, D
+stops, Back returns.
 
-Ten old tunes are built in (`apps/key_games/lib/songs/builtin_songs.dart`,
-all public domain: Twinkle Twinkle, Mary Had a Little Lamb, Ode to Joy and
-friends), so the Songs games work in any build. More songs come from your
-own MIDI files and are never committed:
+Every song is a melody, the part the player plays (the singer's line, the
+part people remember), and a backing: the rest of the music, chords, bass and
+other parts, played by the app as a band. Note Highway and Song Box play the
+band in time, on softer voices of their own; Song Steps waits for each note,
+so it plays the melody alone.
+
+Thirteen tunes are built in, all public domain: nursery songs (Twinkle
+Twinkle, Mary Had a Little Lamb, Frère Jacques and friends) and four classical
+openings (Ode to Joy, Für Elise, Minuet in G, Canon in D). They are written
+out by hand in `scripts/make-sample-songs.py`, melody and chords, which writes
+each as a MIDI file in `samples/` (a melody, chords and bass track: the song
+editor lists them) and runs it through the same script as your own songs
+into `apps/key_games/assets/builtin/`. Both are committed; after changing a
+tune run `python scripts\make-sample-songs.py` (CI checks they are up to
+date). More songs come from your own MIDI files and are never committed:
 
 ```bat
 python scripts\extract-melodies.py
@@ -332,8 +344,10 @@ karaoke file, the part that sings the lyrics; otherwise a one-note-at-a-time
 part that is not a bass line, preferring tracks named like "Melody" or
 "Vocal"), keeps one note at a time, shortens rests longer than
 2.5 s (the melody part sitting out), moves it to the key with the fewest
-black keys, fits it to the 37 keys, and writes
-`apps/key_games/assets/songs/*.json` (ignored by Git). When it picks the
+black keys, fits it to the 37 keys, keeps everything else the file plays
+(drums aside) as the backing, moved to the same key and with the same
+shortened rests, and writes `apps/key_games/assets/songs/*.json` (ignored by
+Git). A song of yours with a built-in tune's title replaces it. When it picks the
 wrong part, add an override in `private/songs/song-picks.json`; the script's
 header documents the options (track, channel, skip, max_notes, min_note,
 lowest, title, group, transpose). Songs stop after 200 notes unless an
@@ -354,8 +368,8 @@ opens `http://localhost:8766/` in Chrome on the phone (`-Browser brave` for
 Brave, `-Pc` to open it on the PC too). `scripts\song-editor-status.bat`
 says whether it is running; `scripts\stop-song-editor.bat` stops it.
 
-The page lists the MIDI files in `private/songs` and in your Downloads
-folder and shows a song as a piano roll: every note of every part in grey,
+The page lists the MIDI files in `private/songs`, the samples and your
+Downloads folder and shows a song as a piano roll: every note of every part in grey,
 the tune in color (the script's pick, until you save your own).
 
 - Tap: tap a note to keep it in the tune or drop it. The tune is one note at
@@ -371,10 +385,10 @@ the tune in color (the script's pick, until you save your own).
 - Play plays the tune, or All plays the tune over the rest of the song.
   Parts shows and hides parts and keeps or drops a whole part.
 
-Save writes the chosen notes to `private/songs/canon/<name>.json` (a file
-from Downloads is copied into `private/songs` first) and rebuilds that
-song's melody; build the app to play it. A canon file replaces the
-script's pick for that song.
+Save writes the chosen notes to `private/songs/canon/<name>.json` (a sample
+or a file from Downloads is copied into `private/songs` first) and rebuilds
+that song's melody and backing (every note not in the tune); build the app
+to play it. A canon file replaces the script's pick for that song.
 
 ### Ear Notes
 
@@ -423,7 +437,8 @@ Falling notes, Guitar Hero style: a song's notes come down lanes and are hit
 as they reach the line, with a 3-2-1 while the first ones fall. Notes are never
 made up: each lane is the note that sounds, and the song notes that are not
 the player's (too fast for the level, or off its keys) are played by the game,
-so the tune is always whole. Easy has three wide lanes, the low, middle and
+so the tune is always whole, and the song's band plays along whatever the
+player hits. Easy has three wide lanes, the low, middle and
 high part of the keyboard: the song's notes are shared out by how high they
 are, so the lanes follow the tune up and down, any key in the part plays the
 song's own note, the song is slowed down, and the next part glows on the

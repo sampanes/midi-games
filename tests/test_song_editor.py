@@ -73,11 +73,12 @@ class SongEditorTest(unittest.TestCase):
         write_song(os.path.join(self.downloads, "Other Tune.mid"))
         with open(os.path.join(self.downloads, "Other Tune.mid"), "ab") as handle:
             handle.write(b"\0")  # different bytes, same music
-        self.saved = (editor.SONG_DIR, editor.OUT_DIR, editor.DOWNLOADS)
+        self.saved = (editor.SONG_DIR, editor.OUT_DIR, editor.DOWNLOADS, editor.SAMPLE_DIR)
         editor.SONG_DIR, editor.OUT_DIR, editor.DOWNLOADS = self.songs, self.out, self.downloads
+        editor.SAMPLE_DIR = os.path.join(base, "no-samples")
 
     def tearDown(self):
-        editor.SONG_DIR, editor.OUT_DIR, editor.DOWNLOADS = self.saved
+        editor.SONG_DIR, editor.OUT_DIR, editor.DOWNLOADS, editor.SAMPLE_DIR = self.saved
         self.temp.cleanup()
 
     def test_lists_songs_and_new_downloads(self):

@@ -1,6 +1,7 @@
 // Song Box: plays a song's melody (exactly the notes the song games use) at
-// its real speed while the keys light up, to hear how a song sounds before
-// playing it. C plays it again from the start, D stops.
+// its real speed while the keys light up, with its band (the backing) under
+// it, to hear how a song sounds before playing it. C plays it again from the
+// start, D stops.
 
 import 'dart:async';
 import 'dart:math';
@@ -69,6 +70,11 @@ class _SongListenPageState extends State<SongListenPage> {
         }),
       );
     }
+    for (final n in widget.song.backing) {
+      _timers.add(
+        Timer(Duration(milliseconds: n.startMs), () => _synth.band(n.note, lengthMs: n.lengthMs)),
+      );
+    }
     _timers.add(
       Timer(Duration(milliseconds: _endMs + 300), () {
         if (mounted) setState(_clock.stop);
@@ -89,6 +95,7 @@ class _SongListenPageState extends State<SongListenPage> {
     }
     _timers.clear();
     _tick?.cancel();
+    _synth.stopBand();
     for (final note in _sounding) {
       _synth.noteOff(note);
     }

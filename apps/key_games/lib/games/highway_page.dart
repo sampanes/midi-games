@@ -84,8 +84,9 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   int _octave = 60;
   final Set<int> _held = {};
 
-  // Next of the song notes the game plays itself.
+  // Next of the song notes the game plays itself, and of the band's.
   int _autoNext = 0;
+  int _bandNext = 0;
 
   // Lane -> time of its last hit or miss, for the flash at the line.
   final Map<int, int> _hitAt = {};
@@ -127,6 +128,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
     _ticker.dispose();
     _now.dispose();
     _cancelTimers();
+    _synth.stopBand();
     for (final note in _held) {
       _synth.noteOff(note);
     }
@@ -149,12 +151,14 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   void _restart() {
     _ticker.stop();
     _cancelTimers();
+    _synth.stopBand();
     setState(() {
       _run = HighwayRun(_chart, _rules.windowMs);
       _phase = _Phase.playing;
       _canPick = false;
       _newBest = false;
       _autoNext = 0;
+      _bandNext = 0;
       _hitAt.clear();
       _missAt.clear();
       _popup = '';
@@ -179,6 +183,12 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
       if (n.timeMs >= now - 200) {
         _synth.blip(n.sound, velocity: 80, lengthMs: n.lengthMs.clamp(100, 900));
       }
+    }
+    // The band plays along, whatever the player hits.
+    final band = _chart.backing;
+    while (_bandNext < band.length && band[_bandNext].timeMs <= now) {
+      final n = band[_bandNext++];
+      if (n.timeMs >= now - 200) _synth.band(n.sound, lengthMs: n.lengthMs);
     }
     final missed = _run.advance(now);
     if (missed.isNotEmpty) {

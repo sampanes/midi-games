@@ -13,6 +13,9 @@
 //   keys that cover the most of it (C to G for most songs). Slow.
 // - Hard: every letter, sharps and flats too, any octave.
 // - Expert: the exact keys (the song moved by octaves onto the keyboard).
+//
+// The song's band (its backing) plays along on the same clock, moved to the
+// same key as the tune but never by octaves.
 
 import 'dart:math';
 
@@ -81,7 +84,8 @@ class ChartNote {
 }
 
 class Chart {
-  const Chart(this.lanes, this.notes, [this.autoNotes = const [], this.zones = false]);
+  const Chart(this.lanes, this.notes,
+      [this.autoNotes = const [], this.zones = false, this.backing = const []]);
 
   // On Easy, lane i is part i of the keyboard and is hit with its part
   // number (see zones.dart).
@@ -91,6 +95,9 @@ class Chart {
 
   // Song notes the game plays itself (their lane is -1).
   final List<ChartNote> autoNotes;
+
+  // The band, by start (lane -1).
+  final List<ChartNote> backing;
 
   int get endMs => [
         for (final n in [...notes, ...autoNotes]) n.timeMs + n.lengthMs,
@@ -159,17 +166,29 @@ Chart buildChart(Song song, Difficulty difficulty) {
   final kept = Set<SongNote>.identity()..addAll(thinNotes(scaled, level.minGapMs));
   final keptPitches = [for (final n in scaled) if (kept.contains(n)) n.note];
 
-  if (difficulty == Difficulty.easy) return _zoneChart(scaled, kept, first);
+  List<ChartNote> band(int shift) => [
+        for (final n in song.backing)
+          ChartNote(
+            -1,
+            n.note + shift,
+            (n.startMs / level.speed).round() - first,
+            (n.lengthMs / level.speed).round(),
+          ),
+      ];
+
+  if (difficulty == Difficulty.easy) return _zoneChart(scaled, kept, first, band(0));
 
   // What sounds for each song note, and the lane key the player presses for
   // it (null: the game plays it).
   late final int Function(int pitch) sound;
   late final int? Function(int sound) key;
   var exact = false;
+  var bandShift = 0;
   switch (difficulty) {
     case Difficulty.easy || Difficulty.medium:
       final shift = whiteKeyShift(keptPitches);
       sound = (p) => p + shift;
+      bandShift = shift;
       final whites = [
         for (final p in keptPitches)
           if (pitchClasses[pitchClass(p + shift)].white) pitchClass(p + shift),
@@ -201,7 +220,7 @@ Chart buildChart(Song song, Difficulty difficulty) {
     final note = ChartNote(k == null ? -1 : keys.indexOf(k), s, n.startMs - first, n.lengthMs);
     (k == null ? autoNotes : notes).add(note);
   }
-  return Chart(lanes, notes, autoNotes);
+  return Chart(lanes, notes, autoNotes, false, band(bandShift));
 }
 
 // Which lane (0 low to [count] - 1 high) each of [pitches] goes to: the
@@ -223,7 +242,7 @@ Map<int, int> pitchZones(Iterable<int> pitches, int count) {
 
 // Easy: every kept note on the lane of its part of the keyboard, sounding as
 // the song's own note.
-Chart _zoneChart(List<SongNote> scaled, Set<SongNote> kept, int first) {
+Chart _zoneChart(List<SongNote> scaled, Set<SongNote> kept, int first, List<ChartNote> backing) {
   final zones = pitchZones([for (final n in scaled) if (kept.contains(n)) n.note], highwayZoneCount);
   final notes = <ChartNote>[];
   final autoNotes = <ChartNote>[];
@@ -236,6 +255,7 @@ Chart _zoneChart(List<SongNote> scaled, Set<SongNote> kept, int first) {
     notes,
     autoNotes,
     true,
+    backing,
   );
 }
 

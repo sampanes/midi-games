@@ -8,11 +8,13 @@ scripts\\stop-song-editor.bat. It listens on 127.0.0.1 only; a phone reaches
 it over USB or wireless debugging with "adb reverse tcp:8766 tcp:8766" (the
 start script does this) and opens http://localhost:8766/.
 
-It lists the MIDI files in private/songs and in the Downloads folder, sends
-the page every note of a file, and saves the notes chosen there as the file's
-canon version (private/songs/canon/<name>.json, see extract-melodies.py). A
-file saved from Downloads is copied into private/songs first. Saving also
-rebuilds that song's melody for the app (apps/key_games/assets/songs).
+It lists the MIDI files in private/songs, the sample songs (samples/, made by
+make-sample-songs.py) and the Downloads folder, sends the page every note of
+a file, and saves the notes chosen there as the file's canon version
+(private/songs/canon/<name>.json, see extract-melodies.py). A sample or a
+Downloads file is copied into private/songs first. Saving also rebuilds that
+song's melody and backing for the app (apps/key_games/assets/songs; a saved
+sample replaces the built-in song of the same title).
 """
 
 import hashlib
@@ -30,6 +32,7 @@ ROOT = os.path.dirname(HERE)
 PAGE_DIR = os.path.join(ROOT, "src")
 PAGE_FOLDERS = ("song-editor", "games")
 DOWNLOADS = os.path.join(os.path.expanduser("~"), "Downloads")
+SAMPLE_DIR = os.path.join(ROOT, "samples")
 MIDI_EXTENSIONS = (".mid", ".midi", ".kar")
 MAX_BODY = 2_000_000
 CONTENT_TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}
@@ -48,8 +51,8 @@ def file_hash(path):
 
 
 def song_files():
-    """{id: path} for every MIDI file the editor offers. Downloads files that
-    are byte-for-byte copies of a song already in the song folder are left out."""
+    """{id: path} for every MIDI file the editor offers. Samples and Downloads
+    files that are byte-for-byte copies of a song already listed are left out."""
     files = {}
     known = set()
     if os.path.isdir(SONG_DIR):
@@ -58,6 +61,14 @@ def song_files():
             if name.lower().endswith(MIDI_EXTENSIONS) and os.path.isfile(path):
                 files["songs/" + name] = path
                 known.add(file_hash(path))
+    if os.path.isdir(SAMPLE_DIR):
+        for name in sorted(os.listdir(SAMPLE_DIR)):
+            path = os.path.join(SAMPLE_DIR, name)
+            if name.lower().endswith(MIDI_EXTENSIONS) and os.path.isfile(path):
+                digest = file_hash(path)
+                if digest not in known:
+                    files["samples/" + name] = path
+                    known.add(digest)
     if os.path.isdir(DOWNLOADS):
         for folder, dirs, names in os.walk(DOWNLOADS):
             depth = os.path.relpath(folder, DOWNLOADS).count(os.sep)
@@ -77,10 +88,19 @@ def song_title(song_id, picks):
         title = canon.get("title") or picks.get(name, {}).get("title")
         if title:
             return title
+    if song_id.startswith("samples/"):
+        title = extractor.read_picks(SAMPLE_DIR).get(name, {}).get("title")
+        if title:
+            return title
     return extractor.title_from_file(name)
 
 
-def song_group(name, picks):
+def song_group(song_id, picks):
+    source, name = song_id.split("/", 1)
+    if source == "samples":
+        return extractor.read_picks(SAMPLE_DIR).get(name, {}).get("group", "Songs")
+    if source != "songs":
+        return "Songs"
     canon = extractor.read_canon(SONG_DIR, name) or {}
     return canon.get("group") or picks.get(name, {}).get("group", "Songs")
 
@@ -96,7 +116,7 @@ def list_songs():
             "source": source,
             "file": name,
             "title": song_title(song_id, picks),
-            "group": song_group(name, picks) if source == "songs" else "",
+            "group": song_group(song_id, picks) if source == "songs" else "",
             "edited": edited,
         })
     return {"songs": songs}
@@ -149,6 +169,8 @@ def load_song(song_id):
     source, name = song_id.split("/", 1)
     picks = extractor.read_picks(SONG_DIR)
     options = picks.get(name, {}) if source == "songs" else {}
+    if source == "samples":
+        options = extractor.read_picks(SAMPLE_DIR).get(name, {})
     division, tracks, parts, tempos = extractor.load(path)
     names = extractor.track_names(tracks)
     programs, lyrics = programs_and_lyrics(tracks)
@@ -199,7 +221,7 @@ def load_song(song_id):
         "source": source,
         "file": name,
         "title": song_title(song_id, picks),
-        "group": song_group(name, picks) if source == "songs" else "Songs",
+        "group": song_group(song_id, picks),
         "groups": groups,
         "parts": part_list,
         "notes": [[ms(start), ms(end), note, keys.index(key)] for key, start, end, note in notes],
@@ -219,7 +241,7 @@ def save_song(song_id, body):
     if path is None:
         raise KeyError(song_id)
     source, name = song_id.split("/", 1)
-    if source == "downloads":
+    if source in ("downloads", "samples"):
         name = safe_name(os.path.basename(name))
         stem = os.path.splitext(name)[0]
         number = 2

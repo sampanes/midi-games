@@ -36,6 +36,25 @@ void main() {
     expect(fitOctaves([60, 72]), 0);
   });
 
+  test("the band plays on the chart clock, in the tune's key, never moved by octaves", () {
+    // A tune in D (two sharps) with a D chord under it.
+    final inD = Song('In D', [
+      for (final (i, note) in [62, 64, 66, 67, 69].indexed) SongNote(note, 1000 + i * 600, 500),
+    ], backing: const [SongNote(50, 1000, 1200), SongNote(57, 1600, 600)]);
+    for (final level in Difficulty.values) {
+      final chart = buildChart(inD, level);
+      final speed = highwayLevels[level]!.speed;
+      expect(chart.backing.map((n) => n.lane), everyElement(-1));
+      expect(chart.backing.map((n) => n.timeMs), [0, (1600 / speed).round() - (1000 / speed).round()]);
+      expect(chart.backing.first.lengthMs, (1200 / speed).round());
+      // Medium moves the song to C, band and all; the others keep the key,
+      // and Expert's octave fit is for the keys, not the band.
+      final shift = level == Difficulty.medium ? -2 : 0;
+      expect(chart.backing.map((n) => n.sound), [50 + shift, 57 + shift], reason: '$level');
+    }
+    expect(buildChart(_scale, Difficulty.hard).backing, isEmpty);
+  });
+
   test('easy lanes are the parts of the keyboard and follow the tune up and down', () {
     final chart = buildChart(_scale, Difficulty.easy);
     expect(chart.zones, isTrue);

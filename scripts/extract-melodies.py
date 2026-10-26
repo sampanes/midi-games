@@ -19,7 +19,12 @@ For each .mid file:
      band plays) to 2.5 s, so the tune never stops for long.
   4. Transpose to the key with the fewest black keys (easier for small
      hands), then move by octaves to fit the 37-key range C3..C6.
-  5. Write JSON: {"title", "source", "notes": [[note, start_ms, length_ms], ...]}
+  5. Keep everything else the file plays (the band: every other part and the
+     notes left out of the tune, drums aside) as the backing, on the tune's
+     clock: moved to the same key (not by octaves) and with the same
+     shortened rests, from the tune's first note to its last.
+  6. Write JSON: {"title", "source", "notes": [[note, start_ms, length_ms], ...],
+     "backing": [[note, start_ms, length_ms], ...]}
 
 Optional overrides live in SONG_FOLDER/song-picks.json, keyed by file name:
   {"tune.mid": {"title": "My Tune", "group": "Kids", "track": 1, "channel": 2,
@@ -49,6 +54,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 LOW, HIGH = 48, 84  # C3..C6, the 37 keys the app pictures
+BACKING_LOW, BACKING_HIGH = 28, 96  # the band may go lower and higher
 WHITE = {0, 2, 4, 5, 7, 9, 11}
 DEFAULT_MAX_NOTES = 200
 MAX_REST_MS = 2500
@@ -201,13 +207,52 @@ def octave_shift(pitches):
     return 12 * round((66 - middle) / 12)
 
 
-def fold(note):
-    """Bring a straggler into the 37-key range by octaves."""
-    while note < LOW:
+def fold(note, low=LOW, high=HIGH):
+    """Bring a straggler into the 37-key range (or another) by octaves."""
+    while note < low:
         note += 12
-    while note > HIGH:
+    while note > high:
         note -= 12
     return note
+
+
+def on_clock(ms, cuts):
+    """A time in the file (ms after the tune's first note) on the tune's
+    clock, with the rests in [cuts] ((from, to) in file time) taken out; None
+    inside one."""
+    removed = 0.0
+    for start, end in cuts:
+        if ms >= end:
+            removed += end - start
+        elif ms > start:
+            return None
+        else:
+            break
+    return ms - removed
+
+
+def backing_notes(parts, exclude, tempos, division, origin, cuts, end_ms, shift):
+    """Every note of the file but the tune's ([exclude]: (key, start_tick,
+    note)) and the drums, on the tune's clock, from its first note to
+    [end_ms]: [[note, start_ms, length_ms]] by start."""
+    notes = []
+    for key in sorted(parts):
+        if key[1] == 9:
+            continue
+        for start, end, note in parts[key]:
+            if (key, start, note) in exclude:
+                continue
+            start_ms = ticks_to_ms(start, tempos, division) - origin
+            stop_ms = ticks_to_ms(end, tempos, division) - origin
+            begin = on_clock(start_ms, cuts) if start_ms >= 0 else None
+            if begin is None or begin >= end_ms:
+                continue
+            # A note held into a shortened rest stops where the rest starts.
+            stop_ms = min([stop_ms] + [cut[0] for cut in cuts if cut[0] >= start_ms])
+            finish = min(end_ms, on_clock(stop_ms, cuts))
+            notes.append([fold(note + shift, BACKING_LOW, BACKING_HIGH),
+                          round(begin), round(max(60, finish - begin))])
+    return sorted(notes, key=lambda n: (n[1], n[0]))
 
 
 def title_from_file(name):
@@ -268,8 +313,10 @@ def extract(path, options, canon=None):
         line = canon_line(canon["notes"])
         key = canon_part(canon["notes"])
         options = dict(options, **{k: canon[k] for k in ("title", "group") if canon.get(k)})
+        tune = {((n[3], n[4] - 1), n[0], n[2]) for n in canon["notes"] if n[3] >= 0}
     else:
         key, line = pick_line(division, tracks, parts, options)
+        tune = {(key, start, note) for start, end, note in line}
     if not line:
         raise ValueError("melody part is empty")
     pitches = [n[2] for n in line]
@@ -278,11 +325,15 @@ def extract(path, options, canon=None):
     origin = ticks_to_ms(line[0][0], tempos, division)
     notes = []
     cut = 0.0  # rest time taken out so far
+    cuts = []  # the rests shortened, (from, to) in file time
     last_end = 0.0
     for start, end, note in line:
         start_ms = ticks_to_ms(start, tempos, division) - origin
         end_ms = ticks_to_ms(end, tempos, division) - origin
-        cut += max(0.0, start_ms - cut - last_end - MAX_REST_MS)
+        more = max(0.0, start_ms - cut - last_end - MAX_REST_MS)
+        if more:
+            cuts.append((start_ms - more, start_ms))
+        cut += more
         start_ms -= cut
         length_ms = max(60, end_ms - cut - start_ms)
         last_end = max(last_end, start_ms + length_ms)
@@ -293,6 +344,9 @@ def extract(path, options, canon=None):
         "source": os.path.basename(path),
         "part": {"track": key[0], "channel": key[1] + 1},
         "notes": notes,
+        # The band moves to the tune's key but stays in its own register.
+        "backing": backing_notes(parts, tune, tempos, division, origin, cuts, last_end,
+                                 (shift + 6) % 12 - 6),
     }
 
 
@@ -342,7 +396,8 @@ def main():
         names = [inspect_midi.note_name(n[0]) for n in song["notes"][:8]]
         part = song["part"]
         source = "canon" if read_canon(song_dir, name) else f"trk {part['track']} ch {part['channel']}"
-        print(f"[OK] {name}: {len(song['notes'])} notes from {source}, starts {' '.join(names)}")
+        print(f"[OK] {name}: {len(song['notes'])} notes from {source}, "
+              f"{len(song['backing'])} backing, starts {' '.join(names)}")
 
 
 if __name__ == "__main__":

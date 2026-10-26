@@ -25,9 +25,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # Song melodies from scripts/extract-melodies.py (ignored by Git, local only),
-  # and the typeface's license (shown in the app's licenses page).
+  # The built-in songs (scripts/make-sample-songs.py), song melodies from
+  # scripts/extract-melodies.py (ignored by Git, local only), and the
+  # typeface's license (shown in the app's licenses page).
   assets:
+    - assets/builtin/
     - assets/songs/
     - assets/fonts/OFL-Nunito.txt
   # Nunito (SIL Open Font License), static weights instanced from the
