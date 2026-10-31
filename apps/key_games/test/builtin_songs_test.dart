@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:key_games/songs/song.dart';
@@ -7,13 +9,21 @@ void main() {
 
   test('built-in tunes have notes in order, on the 37-key picture, and a band', () async {
     final songs = await loadSongs(rootBundle);
+    // The samples all have a band; a local song from a melody-only MIDI file
+    // has none, and plays as the tune alone.
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final samples = {
+      for (final path in manifest.listAssets().where((a) => a.startsWith('assets/builtin/')))
+        (jsonDecode(await rootBundle.loadString(path)) as Map<String, Object?>)['title'],
+    };
+    expect(samples.length, greaterThanOrEqualTo(13));
     expect(songs.length, greaterThanOrEqualTo(13));
     for (final title in ['Twinkle Twinkle Little Star', 'Frère Jacques', 'Für Elise', 'Canon in D']) {
       expect(songs.map((s) => s.title), contains(title));
     }
     for (final song in songs) {
       expect(song.notes, isNotEmpty, reason: song.title);
-      expect(song.backing, isNotEmpty, reason: song.title);
+      if (samples.contains(song.title)) expect(song.backing, isNotEmpty, reason: song.title);
       var last = 0;
       for (final n in song.notes) {
         expect(n.startMs, greaterThanOrEqualTo(last), reason: song.title);
