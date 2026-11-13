@@ -40,6 +40,14 @@ const runnerLevelsText = {
 
 enum _Phase { countdown, playing, done }
 
+// Best scores on the device per level.
+const runnerBestKeys = {
+  Difficulty.easy: 'runner.easy',
+  Difficulty.medium: 'runner.medium',
+  Difficulty.hard: 'runner.hard',
+  Difficulty.expert: 'runner.expert',
+};
+
 class RunnerPage extends StatefulWidget {
   const RunnerPage({
     super.key,
@@ -59,7 +67,9 @@ class RunnerPage extends StatefulWidget {
 }
 
 class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateMixin {
-  late final Synth _synth = AppServices.of(context).synth;
+  // Looked up when the page opens: a page left before it made a sound must
+  // not look it up while it closes.
+  late final Synth _synth;
   late final Settings _settings = AppServices.of(context).settings;
   late final Random _random = widget.random ?? Random();
   late final RunnerLevel _rules = runnerLevels[widget.difficulty]!;
@@ -95,7 +105,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   Difficulty get _level => widget.difficulty;
   bool get _zones => _level == Difficulty.easy;
   bool get _colored => _level != Difficulty.expert;
-  String get _bestKey => 'runner.${_level.name}';
+  String get _bestKey => runnerBestKeys[_level]!;
 
   List<int> _startKeys() => switch (_level) {
         Difficulty.easy || Difficulty.medium => runnerMediumKeys,
@@ -105,6 +115,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    _synth = AppServices.of(context).synth;
     final given = widget.songs;
     if (given != null) {
       _songs = given;

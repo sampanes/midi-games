@@ -1,7 +1,7 @@
 # Screenshots of the Windows build at a chosen screen size, for judging the
 # layout on a TV without one: launches the debug exe windowed, sizes its
 # client area to W x H physical pixels on a monitor, walks the menus and the
-# games with the computer keys (A S D F G = C D E F G, Escape = back) by
+# games with the computer keys (A S D F G H J = C D E F G A B, Escape = back) by
 # posting key messages to the Flutter view, and saves one PNG per page.
 #
 #   flutter build windows --debug
@@ -11,6 +11,7 @@
 #   .\tool\shoot-windows.ps1 -W 1323 -H 617 -Monitor 2    # a phone on its side (882x411 logical)
 #   .\tool\shoot-windows.ps1 -Walk levels ...             # each game's easy levels only
 #   .\tool\shoot-windows.ps1 -Walk songs ...              # the classical songs, with their band
+#   .\tool\shoot-windows.ps1 -Walk new ...                # Free Play, Copy Cat, Settings, stars
 #
 # The logical size Flutter lays out is W x H divided by the monitor's scale.
 # Pages are captured with PrintWindow, which gives a blank frame while the
@@ -18,14 +19,17 @@
 # full walk takes about four minutes: Key Rush and Key Runner each run a
 # full minute to reach their end screens. The levels walk (about two
 # minutes) shows the pickers and the first levels of Ear Notes, Note
-# Highway, Key Rush and Key Runner.
+# Highway, Key Rush and Key Runner. The new walk shows Free Play, Copy Cat,
+# Settings, and the stars, "Next song" and Again that playing a song leaves.
+# The app remembers best scores, stars and the last game between runs
+# (shared_preferences), so those show up from the second run on.
 
 param(
   [string]$Out = "$PSScriptRoot\..\build\shots",
   [int]$Monitor = -1,
   [int]$W = 1920,
   [int]$H = 1080,
-  [ValidateSet('all', 'levels', 'songs')][string]$Walk = 'all',
+  [ValidateSet('all', 'levels', 'songs', 'new')][string]$Walk = 'all',
   [switch]$ListMonitors
 )
 $ErrorActionPreference = 'Stop'
@@ -150,8 +154,20 @@ try {
     Start-Sleep -Milliseconds 1100
   }
 
-  function Shot($name) {
-    Start-Sleep -Milliseconds 1200
+  # A quick press, for playing notes in a game: no wait for a page to settle.
+  function Tap($name) {
+    $code = [int]$vk[$name]
+    $scan = [int][W]::MapVirtualKey([uint32]$code, 0)
+    $down = [int64](1 -bor ($scan -shl 16))
+    $up = [int64]($down -bor 0xC0000000)
+    [W]::PostMessage($view, 0x100, [IntPtr]$code, [IntPtr]$down) | Out-Null
+    Start-Sleep -Milliseconds 70
+    [W]::PostMessage($view, 0x101, [IntPtr]$code, [IntPtr]$up) | Out-Null
+    Start-Sleep -Milliseconds 50
+  }
+
+  function Shot($name, $settle = 1200) {
+    Start-Sleep -Milliseconds $settle
     $wr = New-Object W+RECT; [W]::GetWindowRect($hwnd, [ref]$wr) | Out-Null
     $cr = New-Object W+RECT; [W]::GetClientRect($hwnd, [ref]$cr) | Out-Null
     $origin = New-Object W+POINT; [W]::ClientToScreen($hwnd, [ref]$origin) | Out-Null
@@ -170,12 +186,14 @@ try {
     Write-Host "shot $name ($cw x $ch)"
   }
 
-  # From the home menu, in menu letters: A = C, S = D, D = E, F = F, G = G.
-  # Look (one game) opens Color Keys' levels straight away; a difficulty
-  # picker is replaced by its game, so Escape from a game returns to the menu
-  # above the picker. Songs pick a group (Kids), then a song: E (the D key)
-  # is Hot Cross Buns, the shortest, which the Song Steps walk plays to its
-  # end on the computer keys (E D C = D S A).
+  # Key Rush's minute starts at the first right key, so its end step first
+  # taps one key in each part of the keyboard.
+  # From the home menu, in menu letters: A = C, S = D, D = E, F = F, G = G,
+  # H = A (Settings), J = B (Again). Look (one game) opens Color Keys' levels
+  # straight away; a difficulty picker is replaced by its game, so Escape
+  # from a game returns to the menu above the picker. Songs pick a group
+  # (Kids), then a song: F is Hot Cross Buns, the shortest, which the Song
+  # Steps walk plays to its end on the computer keys (E D C = D S A).
   $hotCrossBuns = @('D', 'S', 'A', 'D', 'S', 'A', 'A', 'A', 'A', 'A', 'S', 'S', 'S', 'S', 'D', 'S', 'A')
   $steps = @(
     @{ name = 'home';               keys = @() },
@@ -185,34 +203,34 @@ try {
     @{ name = 'difficulty-steps';   keys = @('A') },
     @{ name = 'groups-steps';       keys = @('A') },
     @{ name = 'songlist-steps';     keys = @('A') },
-    @{ name = 'game-steps';         keys = @('D'); wait = 1500 },
+    @{ name = 'game-steps';         keys = @('F'); wait = 1500 },
     @{ name = 'end-steps';          keys = $hotCrossBuns; wait = 12000 },
     @{ name = 'songbox-groups';     keys = @('ESC', 'ESC', 'ESC', 'D') },
     @{ name = 'songbox';            keys = @('A', 'A'); wait = 1500 },
     @{ name = 'difficulty-highway'; keys = @('ESC', 'ESC', 'ESC', 'S') },
     @{ name = 'groups-highway';     keys = @('A') },
     @{ name = 'songlist-highway';   keys = @('A') },
-    @{ name = 'game-highway';       keys = @('D'); wait = 5000 },
+    @{ name = 'game-highway';       keys = @('F'); wait = 5000 },
     @{ name = 'end-highway';        keys = @(); wait = 16000 },
     @{ name = 'menu-arcade';        keys = @('ESC', 'ESC', 'ESC', 'ESC', 'F') },
     @{ name = 'game-rush';          keys = @('A', 'A'); wait = 3500 },
-    @{ name = 'end-rush';           keys = @(); wait = 60000 },
+    @{ name = 'end-rush';           keys = @(); tap = @('A', 'F', 'H'); wait = 61000 },
     @{ name = 'game-runner';        keys = @('ESC', 'S', 'A'); wait = 3500 },
     @{ name = 'end-runner';         keys = @(); wait = 60000 },
-    @{ name = 'game-ear';           keys = @('ESC', 'ESC', 'S', 'A'); wait = 1500 },
-    @{ name = 'settings';           keys = @('ESC', 'ESC', 'G') },
+    @{ name = 'game-ear';           keys = @('ESC', 'ESC', 'S', 'A', 'A'); wait = 1500 },
+    @{ name = 'settings';           keys = @('ESC', 'ESC', 'H') },
     @{ name = 'about';              keys = @('D') },
     @{ name = 'learn-back';         keys = @('ESC', 'A') }
   )
   # The first levels of each game. From a one-game category's game, Escape
   # goes home; from a song game, three Escapes reach the Songs menu.
   $levelSteps = @(
-    @{ name = 'difficulty-ear';     keys = @('S') },
+    @{ name = 'difficulty-ear';     keys = @('S', 'A') },
     @{ name = 'game-ear-easy';      keys = @('A'); wait = 1500 },
-    @{ name = 'game-ear-medium';    keys = @('ESC', 'S', 'S'); wait = 3000 },
-    @{ name = 'difficulty-highway'; keys = @('ESC', 'D', 'S') },
-    @{ name = 'game-highway-easy';  keys = @('A', 'A', 'D'); wait = 5500 },
-    @{ name = 'game-highway-medium'; keys = @('ESC', 'ESC', 'ESC', 'S', 'S', 'A', 'D'); wait = 5500 },
+    @{ name = 'game-ear-medium';    keys = @('ESC', 'A', 'S'); wait = 3000 },
+    @{ name = 'difficulty-highway'; keys = @('ESC', 'ESC', 'D', 'S') },
+    @{ name = 'game-highway-easy';  keys = @('A', 'A', 'F'); wait = 5500 },
+    @{ name = 'game-highway-medium'; keys = @('ESC', 'ESC', 'ESC', 'S', 'S', 'A', 'F'); wait = 5500 },
     @{ name = 'difficulty-rush';    keys = @('ESC', 'ESC', 'ESC', 'ESC', 'F', 'A') },
     @{ name = 'game-rush-easy';     keys = @('A'); wait = 3500 },
     @{ name = 'game-rush-medium';   keys = @('ESC', 'A', 'S'); wait = 3500 },
@@ -221,22 +239,45 @@ try {
   )
   if ($Walk -eq 'levels') { $steps = @(@{ name = 'home'; keys = @() }) + $levelSteps }
 
-  # The built-in classical songs: Song Box and Note Highway on Canon in D
-  # (the first of them), which play its band.
+  # The built-in classical songs (the third group): Song Box and Note
+  # Highway on Canon in D (the second of them), which play its band.
   $songSteps = @(
     @{ name = 'menu-songs';          keys = @('D') },
     @{ name = 'songbox-groups';      keys = @('D') },
-    @{ name = 'songbox-classical';   keys = @('S') },
-    @{ name = 'songbox-canon';       keys = @('A'); wait = 2500 },
-    @{ name = 'songlist-highway';    keys = @('ESC', 'ESC', 'ESC', 'S', 'A', 'S') },
-    @{ name = 'game-highway-canon';  keys = @('A'); wait = 6500 }
+    @{ name = 'songbox-classical';   keys = @('D') },
+    @{ name = 'songbox-canon';       keys = @('S'); wait = 2500 },
+    @{ name = 'songlist-highway';    keys = @('ESC', 'ESC', 'ESC', 'S', 'A', 'D') },
+    @{ name = 'game-highway-canon';  keys = @('S'); wait = 6500 }
   )
   if ($Walk -eq 'songs') { $steps = @(@{ name = 'home'; keys = @() }) + $songSteps }
 
+  # What is new in 0.3.0. A step's "tap" keys are played quickly after its
+  # "keys" (notes in a game), and "settle" is the pause before its shot,
+  # short when the shot must catch something in the air or a pad lit.
+  $newSteps = @(
+    @{ name = 'free-play';         keys = @('G'); tap = @('A', 'D', 'G', 'K', 'S', 'F', 'H'); settle = 150 },
+    @{ name = 'menu-listen';       keys = @('ESC', 'S') },
+    @{ name = 'difficulty-copy';   keys = @('S') },
+    @{ name = 'game-copy-easy';    keys = @('A'); settle = 500 },
+    @{ name = 'game-copy-medium';  keys = @('ESC', 'S', 'S'); settle = 500 },
+    @{ name = 'game-copy-turn';    keys = @(); wait = 1500 },
+    @{ name = 'game-copy-hard';    keys = @('ESC', 'S', 'D'); settle = 500 },
+    @{ name = 'game-copy-expert';  keys = @('ESC', 'S', 'F'); wait = 1500 },
+    @{ name = 'settings';          keys = @('ESC', 'ESC', 'H') },
+    @{ name = 'groups-steps';      keys = @('ESC', 'D', 'A', 'A') },
+    @{ name = 'end-steps';         keys = @('A', 'F') + $hotCrossBuns; wait = 12000 },
+    @{ name = 'songlist-steps';    keys = @('ESC') },
+    @{ name = 'songbox-holidays';  keys = @('ESC', 'ESC', 'D', 'S') },
+    @{ name = 'songbox';           keys = @('A'); wait = 2500 },
+    @{ name = 'home-again';        keys = @('ESC', 'ESC', 'ESC', 'ESC') }
+  )
+  if ($Walk -eq 'new') { $steps = @(@{ name = 'home'; keys = @() }) + $newSteps }
+
   foreach ($s in $steps) {
     foreach ($k in $s.keys) { Press $k }
+    foreach ($k in $s.tap) { Tap $k }
     if ($s.wait) { Start-Sleep -Milliseconds $s.wait }
-    Shot $s.name
+    if ($s.settle) { Shot $s.name $s.settle } else { Shot $s.name }
   }
 } finally {
   if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }

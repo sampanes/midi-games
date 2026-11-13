@@ -51,7 +51,7 @@ const rushLabels = {Difficulty.hard: 'Real'};
 
 // Best scores on the device per way to play. Real keeps the key it had when
 // it was the second level, so its best scores carry over.
-const _bestKeys = {
+const rushBestKeys = {
   Difficulty.easy: 'rush.zones',
   Difficulty.medium: 'rush.keys',
   Difficulty.hard: 'rush.medium',
@@ -79,7 +79,9 @@ class RushPage extends StatefulWidget {
 }
 
 class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
-  late final Synth _synth = AppServices.of(context).synth;
+  // Looked up when the page opens: a page left before it made a sound must
+  // not look it up while it closes.
+  late final Synth _synth;
   late final Settings _settings = AppServices.of(context).settings;
   late final Random _random = widget.random ?? Random();
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
@@ -108,7 +110,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   Difficulty get _level => widget.difficulty;
   bool get _zones => _level == Difficulty.easy;
   bool get _real => _level.atLeast(Difficulty.hard);
-  String get _bestKey => _bestKeys[_level] ?? _bestKeys[Difficulty.hard]!;
+  String get _bestKey => rushBestKeys[_level] ?? rushBestKeys[Difficulty.hard]!;
 
   // Real: the keyboard's octave buttons move everything by whole octaves.
   int get _shift => _real ? _base - 48 : 0;
@@ -123,6 +125,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _synth = AppServices.of(context).synth;
     final given = widget.songs;
     if (given != null) {
       _songs = given;

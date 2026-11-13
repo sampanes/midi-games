@@ -58,7 +58,9 @@ class ColorKeysPage extends StatefulWidget {
 
 class _ColorKeysPageState extends State<ColorKeysPage>
     with TickerProviderStateMixin {
-  late final Synth _synth = AppServices.of(context).synth;
+  // Looked up when the page opens: a page left before it made a sound must
+  // not look it up while it closes.
+  late final Synth _synth;
   late final Random _random = widget.random ?? Random();
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _circleKey = GlobalKey();
@@ -93,6 +95,7 @@ class _ColorKeysPageState extends State<ColorKeysPage>
   @override
   void initState() {
     super.initState();
+    _synth = AppServices.of(context).synth;
     // Play the first color's note once the synth has had time to load.
     _advanceTimer = Timer(const Duration(milliseconds: 1200), _playTarget);
   }

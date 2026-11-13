@@ -2,6 +2,11 @@
 // started silent and faded in/out to avoid clicks. Low-latency settings came
 // from the keys_spike test (buffer 256 felt close to instant on a phone).
 //
+// A key is struck, like a toy piano: it starts at full level with a short
+// bright ring an octave up, then fades to a soft hold while it is held, so a
+// child leaning on the keys is not a wall of sound. [struck] false gives the
+// plain steady tone instead (Settings > Key sound: Organ).
+//
 // A song's band (its backing) plays on voices of its own, softer sine waves,
 // so a band note never takes or cuts off a key the player is holding.
 
@@ -23,6 +28,18 @@ class Synth {
   // Band notes this much quieter than a key at the same velocity.
   static const bandLevel = 0.5;
 
+  // A struck key fades to this share of its level over [_decay], and its
+  // ring (a sine an octave up, at [_ringLevel] of the key) dies in [_ring].
+  static const _hold = 0.3;
+  static const _decay = Duration(milliseconds: 1400);
+  static const _ringLevel = 0.3;
+  static const _ring = Duration(milliseconds: 260);
+
+  // Set from Settings (see AppServices): how keys sound, and the band's
+  // loudness on top of [bandLevel] (0 is no band).
+  bool struck = true;
+  double bandGain = 1;
+
   // Keys, the band's chords and bass, and their releases at once.
   static const _voices = 64;
 
@@ -31,6 +48,7 @@ class Synth {
   final Map<int, AudioSource> _bandSources = {};
   final Set<SoundHandle> _band = {};
   final Map<int, SoundHandle> _playing = {};
+  final Map<int, SoundHandle> _rings = {};
   final Map<int, Set<SoundHandle>> _releasing = {};
   final Map<int, int> _generation = {};
 
@@ -61,6 +79,21 @@ class Synth {
     _soloud.fadeVolume(handle, level, _attack);
     _playing[note] = handle;
     _generation[note] = (_generation[note] ?? 0) + 1;
+    if (!struck) return;
+    // The fade to the hold level starts once the attack is over, if the key
+    // is still down (a fade replaces the one before it).
+    Timer(_attack * 2, () {
+      if (_playing[note] == handle && _soloud.getIsValidVoiceHandle(handle)) {
+        _soloud.fadeVolume(handle, level * _hold, _decay);
+      }
+    });
+    // The ring: a sine starts at zero, so it needs no attack.
+    final ring = _bandSources[note + 12];
+    if (ring == null) return;
+    final ringing = _soloud.play(ring, volume: level * _ringLevel, looping: true);
+    _soloud.fadeVolume(ringing, 0, _ring);
+    _soloud.scheduleStop(ringing, _ring);
+    _rings[note] = ringing;
   }
 
   void noteOff(int note) {
@@ -87,6 +120,8 @@ class Synth {
     if (playing != null) handles.add(playing);
     final releasing = _releasing.remove(note);
     if (releasing != null) handles.addAll(releasing);
+    final ring = _rings.remove(note);
+    if (ring != null) handles.add(ring);
     if (!ready) return;
     for (final handle in handles) {
       _soloud.setVolume(handle, 0);
@@ -109,8 +144,8 @@ class Synth {
   // One band note: its own voice, held for [lengthMs].
   void band(int note, {int velocity = 80, int lengthMs = 400}) {
     final source = _bandSources[note];
-    if (source == null || !ready) return;
-    final level = bandLevel * (0.2 + 0.35 * (velocity.clamp(1, 127) / 127));
+    if (source == null || !ready || bandGain <= 0) return;
+    final level = bandGain * bandLevel * (0.2 + 0.35 * (velocity.clamp(1, 127) / 127));
     final handle = _soloud.play(source, volume: 0, looping: true);
     _soloud.fadeVolume(handle, level, _attack);
     _band.add(handle);

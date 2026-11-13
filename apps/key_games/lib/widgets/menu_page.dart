@@ -31,11 +31,15 @@ class MenuItem {
     required this.icon,
     required this.colors,
     required this.onPick,
+    this.badge,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
+
+  // A gold pill in the tile's top right corner: a best score.
+  final String? badge;
 
   // Two colors, top-left to bottom-right.
   final List<Color> colors;
@@ -66,7 +70,7 @@ class MenuPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final scale = uiScale(context);
     final hint = footer ??
-        (Navigator.canPop(context) ? null : 'Press a letter on the keyboard to pick.');
+        (hasPageBelow(context) ? null : 'Press a letter on the keyboard to pick.');
     return GamePage(
       headerPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       header: [
@@ -105,8 +109,8 @@ class MenuPage extends StatelessWidget {
   }
 }
 
-// Rows of equal tiles, centered. One row when wide; on a tall screen, two
-// columns once there are four or more tiles.
+// Rows of equal tiles, centered. One row of up to five when wide; on a tall
+// screen, two columns once there are four or more tiles.
 class _Grid extends StatelessWidget {
   const _Grid({required this.items});
 
@@ -119,7 +123,7 @@ class _Grid extends StatelessWidget {
         final scale = uiScale(context);
         final count = items.length;
         final wide = constraints.maxWidth > constraints.maxHeight;
-        final columns = wide ? min(count, 4) : (count >= 4 ? 2 : 1);
+        final columns = wide ? min(count, 5) : (count >= 4 ? 2 : 1);
         final rows = (count / columns).ceil();
         final gap = 12 * scale;
         final cellWidth = (constraints.maxWidth - gap * (columns - 1)) / columns;
@@ -198,6 +202,34 @@ class _MenuTile extends StatelessWidget {
                 child: Stack(
                   children: [
                     Positioned(top: 12 * k, left: 12 * k, child: KeyBadge(pc: pc, size: 52 * k)),
+                    if (item.badge != null)
+                      Positioned(
+                        top: 20 * k,
+                        right: 14 * k,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12 * k, vertical: 4 * k),
+                          decoration: BoxDecoration(
+                            color: AppColors.starGold,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.emoji_events_rounded, size: 22 * k, color: AppColors.ink),
+                              SizedBox(width: 4 * k),
+                              Text(
+                                item.badge!,
+                                textScaler: TextScaler.noScaling,
+                                style: TextStyle(
+                                  fontSize: 20 * k,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     // Below the badge; shrinks as a block on a short tile.
                     Padding(
                       padding: EdgeInsets.fromLTRB(16 * k, 68 * k, 16 * k, 14 * k),

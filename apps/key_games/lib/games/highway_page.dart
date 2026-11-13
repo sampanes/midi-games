@@ -14,8 +14,9 @@
 // keys in the octave last played; Hard every letter with sharps and flats on
 // a plain picture; Expert exact keys, letters only.
 //
-// Keys at the end: C plays again, E goes back to the songs. The best score
-// per song and level is kept on the device.
+// Keys at the end: C plays again, E goes back to the songs, F plays the next
+// song of the list. The best score and the most stars per song and level are
+// kept on the device; the song list shows the stars.
 
 import 'dart:async';
 import 'dart:math';
@@ -29,6 +30,7 @@ import '../app/theme.dart';
 import '../audio/synth.dart';
 import '../midi/midi_input.dart';
 import '../songs/song.dart';
+import '../songs/song_queue.dart';
 import '../widgets/game_page.dart';
 import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
@@ -48,6 +50,19 @@ const highwayLevelsText = {
   Difficulty.expert: 'Exact keys, full speed',
 };
 
+// Best scores and stars are kept per song and level. Medium keeps the name
+// it had when it was Easy, so those scores carry over.
+const _bestNames = {
+  Difficulty.easy: 'zones',
+  Difficulty.medium: 'easy',
+  Difficulty.hard: 'hard',
+  Difficulty.expert: 'expert',
+};
+
+// Where the most stars won on [song] at [level] are kept (Settings.best).
+String highwayStarsKey(Difficulty level, Song song) =>
+    'stars.highway.${_bestNames[level]}.${song.title}';
+
 enum _Phase { playing, done }
 
 class HighwayPage extends StatefulWidget {
@@ -65,7 +80,9 @@ class HighwayPage extends StatefulWidget {
 }
 
 class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStateMixin {
-  late final Synth _synth = AppServices.of(context).synth;
+  // Looked up when the page opens: a page left before it made a sound must
+  // not look it up while it closes.
+  late final Synth _synth;
   late final Settings _settings = AppServices.of(context).settings;
   late final HighwayLevel _rules = highwayLevels[widget.difficulty]!;
   late final Chart _chart = buildChart(widget.song, widget.difficulty);
@@ -98,15 +115,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   bool get _colored => _level != Difficulty.expert;
   bool get _plain => _level.atLeast(Difficulty.hard);
   int get _leadInMs => max(_rules.lookAheadMs, 3 * _countdownStepMs) + 600;
-  // Best scores per song and level. Medium keeps the key it had when it was
-  // Easy, so those scores carry over.
   String get _bestKey => 'highway.${_bestNames[_level]}.${widget.song.title}';
-  static const _bestNames = {
-    Difficulty.easy: 'zones',
-    Difficulty.medium: 'easy',
-    Difficulty.hard: 'hard',
-    Difficulty.expert: 'expert',
-  };
 
   bool get _zones => _chart.zones;
 
@@ -119,6 +128,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    _synth = AppServices.of(context).synth;
     _now.value = -_leadInMs;
     unawaited(_ticker.start());
   }
@@ -207,6 +217,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
       _phase = _Phase.done;
       _newBest = _settings.recordBest(_bestKey, _run.score);
     });
+    _settings.recordBest(highwayStarsKey(_level, widget.song), _run.stars);
     if (_run.stars > 0) _synth.tune([72, 76, 79, 84], stepMs: 120, lengthMs: 220);
     _later(const Duration(milliseconds: 1500), () => setState(() => _canPick = true));
   }
@@ -303,9 +314,14 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final lanePcs = {for (final lane in _chart.lanes) lane.pc}.toList();
+    final queue = SongQueue.of(context);
     return GamePage(
       picks: _phase == _Phase.done && _canPick
-          ? {0: _restart, 4: () => Navigator.maybePop(context)}
+          ? {
+              0: _restart,
+              4: () => Navigator.maybePop(context),
+              if (queue != null) nextSongPc: () => queue.openNext(context),
+            }
           : const {},
       onNote: _onNote,
       header: _header(),
@@ -497,6 +513,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
                   icon: KeyBadge(pc: 4, size: 30 * s),
                   label: const Text('Songs'),
                 ),
+                NextSongButton(scale: s),
               ],
             ),
           ],

@@ -14,7 +14,18 @@ import 'settings.dart';
 
 class AppServices {
   AppServices({required this.synth, required this.midi, required this.settings})
-      : router = KeyRouter(midi: midi, settings: settings, synth: synth);
+      : router = KeyRouter(midi: midi, settings: settings, synth: synth) {
+    settings.keySound.addListener(_applySound);
+    settings.bandLevel.addListener(_applySound);
+    _applySound();
+  }
+
+  // The synth sounds the way Settings says.
+  void _applySound() {
+    synth
+      ..struck = settings.keySound.value == KeySound.piano
+      ..bandGain = settings.bandLevel.value.gain;
+  }
 
   // Everything started, for the real app.
   static Future<AppServices> boot() async {
@@ -53,6 +64,8 @@ class AppServices {
       );
 
   void dispose() {
+    settings.keySound.removeListener(_applySound);
+    settings.bandLevel.removeListener(_applySound);
     router.dispose();
     midi.dispose();
   }

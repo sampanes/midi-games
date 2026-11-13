@@ -1,7 +1,7 @@
 // Song Box: plays a song's melody (exactly the notes the song games use) at
 // its real speed while the keys light up, with its band (the backing) under
 // it, to hear how a song sounds before playing it. C plays it again from the
-// start, D stops.
+// start, D stops, F plays the next song of the list.
 
 import 'dart:async';
 import 'dart:math';
@@ -15,6 +15,7 @@ import '../widgets/game_page.dart';
 import '../widgets/key_badge.dart';
 import '../widgets/piano_strip.dart';
 import 'song.dart';
+import 'song_queue.dart';
 
 const _againPc = 0;
 const _stopPc = 2;
@@ -29,7 +30,9 @@ class SongListenPage extends StatefulWidget {
 }
 
 class _SongListenPageState extends State<SongListenPage> {
-  late final Synth _synth = AppServices.of(context).synth;
+  // Looked up when the page opens: a page left before it made a sound must
+  // not look it up while it closes.
+  late final Synth _synth;
   final List<Timer> _timers = [];
   final Set<int> _sounding = {};
   final Stopwatch _clock = Stopwatch();
@@ -44,6 +47,7 @@ class _SongListenPageState extends State<SongListenPage> {
   @override
   void initState() {
     super.initState();
+    _synth = AppServices.of(context).synth;
     _play();
   }
 
@@ -112,10 +116,15 @@ class _SongListenPageState extends State<SongListenPage> {
   Widget build(BuildContext context) {
     final at = min(_clock.elapsedMilliseconds, _endMs);
     final s = uiScale(context);
+    final queue = SongQueue.of(context);
     return GamePage(
       title: widget.song.title,
       headerPadding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
-      picks: {_againPc: _play, _stopPc: () => setState(_stop)},
+      picks: {
+        _againPc: _play,
+        _stopPc: () => setState(_stop),
+        if (queue != null) nextSongPc: () => queue.openNext(context),
+      },
       // Phone-sized, grown with the screen, and scaled down to fit a
       // landscape phone.
       body: ScaledChrome(
@@ -152,6 +161,12 @@ class _SongListenPageState extends State<SongListenPage> {
                   children: [
                     _KeyHint(pc: _againPc, text: 'Play again', onTap: _play),
                     _KeyHint(pc: _stopPc, text: 'Stop', onTap: () => setState(_stop)),
+                    if (queue != null)
+                      _KeyHint(
+                        pc: nextSongPc,
+                        text: 'Next song',
+                        onTap: () => queue.openNext(context),
+                      ),
                   ],
                 ),
               ],

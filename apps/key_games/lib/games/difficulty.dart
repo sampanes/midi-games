@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../app/services.dart';
 import '../widgets/menu_page.dart';
 
 enum Difficulty {
@@ -26,27 +27,47 @@ enum Difficulty {
 // game, so going back from the game returns to the game's menu. Only the
 // levels in [descriptions] are offered; [labels] renames a level for a game
 // whose levels are different ways to play (Key Rush: Easy and Real).
+// [bestKeys] names the best score kept for each level (see Settings.best):
+// a level that has one wears it in a gold pill. [onStart] hears the level
+// picked, before its game opens.
 Widget difficultyPage({
   required String title,
   required Map<Difficulty, String> descriptions,
   Map<Difficulty, String> labels = const {},
+  Map<Difficulty, String> bestKeys = const {},
+  void Function(Difficulty difficulty)? onStart,
   required Widget Function(Difficulty difficulty) game,
 }) {
-  return MenuPage(
-    title: title,
-    items: [
-      for (final d in Difficulty.values)
-        if (descriptions.containsKey(d))
-          MenuItem(
-            title: labels[d] ?? d.label,
-            subtitle: '${d.ages}\n${descriptions[d] ?? ''}',
-            icon: d.icon,
-            colors: d.colors,
-            onPick: (context) => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute<void>(builder: (_) => game(d)),
-            ),
-          ),
-    ],
+  return Builder(
+    builder: (context) {
+      final settings = AppServices.of(context).settings;
+      String? best(Difficulty d) {
+        final key = bestKeys[d];
+        final score = key == null ? 0 : settings.best(key);
+        return score > 0 ? '$score' : null;
+      }
+
+      return MenuPage(
+        title: title,
+        items: [
+          for (final d in Difficulty.values)
+            if (descriptions.containsKey(d))
+              MenuItem(
+                title: labels[d] ?? d.label,
+                subtitle: '${d.ages}\n${descriptions[d] ?? ''}',
+                icon: d.icon,
+                colors: d.colors,
+                badge: best(d),
+                onPick: (context) {
+                  onStart?.call(d);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute<void>(builder: (_) => game(d)),
+                  );
+                },
+              ),
+        ],
+      );
+    },
   );
 }

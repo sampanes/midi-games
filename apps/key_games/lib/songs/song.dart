@@ -49,7 +49,20 @@ class Song {
 }
 
 // Groups listed first, in this order; any others follow by name.
-const songGroupOrder = ['Kids', 'Classical', 'Ballet', 'Musicals', 'Movies', 'Pop', 'Games', 'Anime', 'Rock'];
+const songGroupOrder = [
+  'Kids', 'Holidays', 'Classical', 'Ballet', 'Musicals', 'Movies', 'Pop', 'Games', 'Anime', 'Rock',
+];
+
+// The most stars a song can win in a game.
+const songStars = 3;
+
+// Stars for walking a song through in Song Steps: all three for (nearly) no
+// wrong keys, two for a few, and one for getting to the end at all.
+int stepsStars(int misses, int notes) {
+  if (notes == 0) return 0;
+  final share = misses / notes;
+  return share <= 0.1 ? 3 : share <= 0.35 ? 2 : 1;
+}
 
 List<String> songGroups(List<Song> songs) {
   int rank(String group) {

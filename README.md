@@ -194,25 +194,36 @@ Phone: connect the keyboard from inside the app only. If it is paired in the
 phone's Bluetooth settings, Android may treat it as an audio device and send
 the game's sound to it instead of the speaker.
 
-Menus: home has categories (C Look, D Listen, E Songs, F Arcade; G is
-Settings, a button in the header), each category lists its games (a category
-with one game opens it straight away), and every game starts with a
-difficulty picker: C Easy (ages 3+), D Medium (5+), E Hard (8+), F Expert
-(grown-ups). Each game decides what the levels change (glowing keys, colors,
-black keys, hints). Settings holds the Back pad (C, D forgets it) and About
-(E: the version and the licenses page).
+Menus: home has five tiles (C Look, D Listen, E Songs, F Arcade, G Free Play)
+and two buttons in the header (A Settings and, once a game has been played,
+B Again). Each category lists its games (a category with one game opens it
+straight away), and every game starts with a difficulty picker: C Easy (ages
+3+), D Medium (5+), E Hard (8+), F Expert (grown-ups). Each game decides what
+the levels change (glowing keys, colors, black keys, hints), and a level
+with a best score wears it in a gold pill. Free Play has no levels. Again
+opens the game played last at its level, a song game straight into its song;
+the line under the tiles says which. Settings holds the Back pad (C, D
+forgets it), About (E: the version and the licenses page), the key sound (F)
+and how loud a song's band is (G).
+
+Sound: a key is struck like a toy piano: it starts at full level with a short
+bright ring and fades to a soft hold while it is held, so a child leaning on
+the keys is not a wall of sound. Settings > Key sound switches to Organ, the
+plain steady tone the app started with, and plays a few notes to hear the
+change. Settings > Band sets the music under a song to Full, Soft or Off.
+Both are remembered on the device.
 
 Keyboard only (TV boxes, no touch screen): every menu choice wears a note
 letter and pressing any key of that letter picks it, so C C reaches the
 first game on Easy (songs: first a group such as Kids or Classical, then a
 song, C to A, B for the next page; end of a song:
-C again, D listen, E more songs; end of Key Rush, Key Runner or Note Highway:
-C again, E back). Going back: the on-screen back button, Escape, the remote's
+C again, D listen, E more songs, F the next song of the list; end of Key
+Rush, Key Runner, Copy Cat or Note Highway: C again, E back). Going back: the on-screen back button, Escape, the remote's
 back button, or a **Back pad**. Out of the box any pad goes back, once a
 key has been played: a pad is a note on another MIDI channel than the keys
 (the keys' channel is taken from the last note above 51, which no pad
 sends; when keys and pads share a channel, no pad goes back). To use just
-one pad or a panel button, pick it in Settings (G on the home menu, then C,
+one pad or a panel button, pick it in Settings (A on the home menu, then C,
 then press it); D there forgets it. Either way the Back pad never reaches a
 game or makes a sound, and a picked one is remembered on the device. A key
 that opens a page cannot also pick something on it: the app ignores menu picks for a moment after every page change. The
@@ -243,7 +254,8 @@ in the app's licenses page, Settings > About); text painted on a canvas
 names the family itself, since painters do not inherit the theme.
 `apps/key_games/tool/shoot-windows.ps1` screenshots every page of a debug
 build at any screen size, driving it with the computer keys, for judging a
-layout on a TV without one (`-Walk levels` shows just the easy levels).
+layout on a TV without one (`-Walk levels` shows just the easy levels,
+`-Walk new` Free Play, Copy Cat, Settings and the stars on the song lists).
 
 Playing without a keyboard: while no MIDI keyboard is connected, the
 keyboard picture in every game is the keyboard, so it shows one octave of big
@@ -304,28 +316,36 @@ octave matters (the keys send 48-84 with the octave button centered, matching
 the picture; the octave buttons are followed by whole octaves), and the right
 letter in the wrong octave shows "Higher!" or "Lower!". Bubbles show what comes next (higher notes sit higher), and
 the next note sounds as a hint after a few quiet seconds. At the end the
-melody plays back at real speed. On Easy and Medium the keyboard picture
-shows only the keys from the song's lowest note to its highest.
+melody plays back at real speed with its band, and the song earns up to
+three stars: all three for (nearly) no wrong keys, one for getting to the
+end at all. On Easy and Medium the keyboard picture shows only the keys from
+the song's lowest note to its highest.
 
 The song list starts with the groups the songs are filed under (Kids,
-Classical, Ballet, Musicals, Movies, Pop, Games, Anime, Rock), one letter
-each (B turns the page when there are more than seven), then the songs of
-the picked group.
+Holidays, Classical, Ballet, Musicals, Movies, Pop, Games, Anime, Rock), one
+letter each (B turns the page when there are more than seven), then the
+songs of the picked group. In Song Steps and Note Highway every song card
+shows the most stars won on it at that level, and every group how many of
+its stars are won. The end of a song offers the next song of the list (F),
+so a child can play through a group without going back to the list.
 
 Song Box (no levels) plays a picked song's melody, exactly the notes the
 games use, at real speed with the keys lighting up and the song's band under
 it: a quick way to hear whether a song came out right. C plays it again, D
-stops, Back returns.
+stops, F plays the next song, Back returns.
 
 Every song is a melody, the part the player plays (the singer's line, the
 part people remember), and a backing: the rest of the music, chords, bass and
 other parts, played by the app as a band. Note Highway and Song Box play the
 band in time, on softer voices of their own; Song Steps waits for each note,
-so it plays the melody alone.
+so it plays the melody alone until the play-back at the end.
 
-Thirteen tunes are built in, all public domain: nursery songs (Twinkle
-Twinkle, Mary Had a Little Lamb, Frère Jacques and friends) and four classical
-openings (Ode to Joy, Für Elise, Minuet in G, Canon in D). They are written
+Twenty-eight tunes are built in, all public domain: fifteen nursery and folk
+songs (Twinkle Twinkle, Mary Had a Little Lamb, Itsy Bitsy Spider, Yankee
+Doodle and friends), seven for the holidays (Jingle Bells, Deck the Halls,
+Silent Night, Auld Lang Syne and more) and six classical themes (Ode to Joy,
+Für Elise, Minuet in G, Canon in D, Brahms' Lullaby, In the Hall of the
+Mountain King). They are written
 out by hand in `scripts/make-sample-songs.py`, melody and chords, which writes
 each as a MIDI file in `samples/` (a melody, chords and bass track: the song
 editor lists them) and runs it through the same script as your own songs
@@ -390,6 +410,32 @@ or a file from Downloads is copied into `private/songs` first) and rebuilds
 that song's melody and backing (every note not in the tune); build the app
 to play it. A canon file replaces the script's pick for that song.
 
+### Free Play
+
+No rules and nothing to get wrong, for the smallest players: every key plays
+its note and sends a glowing ball of its color up from its place on the
+keyboard picture, wearing the note's letter, and the ball bursts into sparks
+at the top of its flight. A harder press flies higher.
+
+### Copy Cat (Listen)
+
+After the light-and-sound memory toys: the game plays a pattern on a row of
+big pads (each lights up and sounds), then the player plays it back. A
+pattern played back right grows by one note; a wrong note shows the pattern
+again. The dots under the pads count the pattern and fill as it is played
+back. Good for taking turns.
+
+- Easy: the pads are the low, middle and high part of the keyboard (any key
+  in the part counts). It cannot be lost, and a pattern of six is a win.
+- Medium: C, E and G, in their colors on the keyboard picture; three hearts,
+  one lost for each wrong note.
+- Hard: C D E F G, a little faster.
+- Expert: every white key, by ear: the pads stay dark while the pattern
+  plays.
+
+A key that is not one of the pads only sounds. The longest pattern played
+back is the score, and the best per level is kept on the device.
+
 ### Ear Notes
 
 A mystery note plays and the child finds it by sound alone: nothing glows.
@@ -447,8 +493,8 @@ keys (C to G for most songs; a song that is not on the white keys is moved
 there first), slows the song down, glows the next key, and pictures only the
 keys from the lowest lane to the highest, in the octave last played. Hard
 every letter with sharps and flats, any octave; Expert the exact keys at full
-speed. Best scores per song and level are kept on the device (Medium keeps
-the ones it had when it was Easy). A wrong key
+speed. Best scores and the most stars per song and level are kept on the
+device (Medium keeps the scores it had when it was Easy). A wrong key
 plays itself and then the right note, and that note is missed; a key with
 nothing due just plays.
 Streaks of 10, 20 and 30 raise the score multiplier, and the end shows up to

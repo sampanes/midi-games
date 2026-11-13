@@ -6,8 +6,11 @@
 // what comes next, higher notes sitting higher. A wrong key is followed by
 // that note and then the right one, to compare by ear. If nothing is played for a
 // few seconds, the next note sounds as a hint. At the end the whole melody
-// plays back at its real speed, so the child hears the song they just built.
-// The end buttons are picked with keys too: C again, D listen, E more songs.
+// plays back at its real speed with its band, so the child hears the song
+// they just built. Up to three stars for few wrong keys (see stepsStars);
+// the most won per song and level are kept, and the song list shows them.
+// The end buttons are picked with keys too: C again, D listen, E more songs,
+// F the next song of the list.
 //
 // Difficulty: Easy glows the key; Medium shows only the colored bubbles;
 // Hard shows letters alone on a plain keyboard; Expert is by ear ("?"
@@ -20,6 +23,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../app/services.dart';
+import '../app/settings.dart';
 import '../app/theme.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
@@ -32,6 +36,7 @@ import '../widgets/piano_strip.dart';
 import '../widgets/sparks.dart';
 import '../widgets/win_banner.dart';
 import 'song.dart';
+import 'song_queue.dart';
 
 const _hintEvery = Duration(seconds: 5);
 const _slide = Duration(milliseconds: 280);
@@ -44,6 +49,9 @@ const songLevels = {
   Difficulty.hard: 'Read the letters',
   Difficulty.expert: 'By ear: hidden notes',
 };
+
+// Where the most stars won on [song] at [level] are kept (Settings.best).
+String stepsStarsKey(Difficulty level, Song song) => 'stars.steps.${level.name}.${song.title}';
 
 class SongPlayPage extends StatefulWidget {
   const SongPlayPage({
@@ -60,11 +68,17 @@ class SongPlayPage extends StatefulWidget {
 }
 
 class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderStateMixin {
-  late final Synth _synth = AppServices.of(context).synth;
+  // Looked up when the page opens: a page left before it made a sound must
+  // not look it up while it closes.
+  late final Synth _synth;
+  late final Settings _settings = AppServices.of(context).settings;
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
   late SongRun _run = SongRun(widget.song);
+
+  // Stars for the walk just finished.
+  int _stars = 0;
   late final MissEcho _echo = MissEcho(_synth);
   final Set<int> _held = {};
   final List<Timer> _timers = [];
@@ -95,6 +109,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    _synth = AppServices.of(context).synth;
     _later(const Duration(milliseconds: 700), _hint);
     _armHint();
   }
@@ -107,6 +122,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     for (final timer in _timers) {
       timer.cancel();
     }
+    _synth.stopBand();
     for (final note in _held) {
       _synth.noteOff(note);
     }
@@ -194,7 +210,11 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
 
   void _finish() {
     _hintTimer?.cancel();
-    setState(() => _celebrating = true);
+    setState(() {
+      _celebrating = true;
+      _stars = stepsStars(_run.misses, widget.song.notes.length);
+    });
+    _settings.recordBest(stepsStarsKey(widget.difficulty, widget.song), _stars);
     final rainbow = [for (final pc in whitePitchClasses) pitchColor(pc)];
     for (var i = 0; i < 4; i++) {
       _later(Duration(milliseconds: 250 * i), () {
@@ -208,7 +228,8 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     _later(const Duration(milliseconds: 1800), _playBack);
   }
 
-  // Play the melody at its real speed and light the keys as it goes.
+  // Play the melody at its real speed, with its band, and light the keys as
+  // it goes.
   void _playBack() {
     setState(() {
       _celebrating = false;
@@ -227,6 +248,10 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
         setState(() => _held.remove(n.note));
       });
       endMs = max(endMs, n.startMs + length);
+    }
+    for (final n in widget.song.backing) {
+      if (n.startMs > _playbackCapMs) break;
+      _later(Duration(milliseconds: n.startMs), () => _synth.band(n.note, lengthMs: n.lengthMs));
     }
     _later(Duration(milliseconds: endMs + 600), () => setState(() => _listening = false));
   }
@@ -265,8 +290,16 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     final color = want == null ? Colors.white : _bubbleColor(want.note);
     final total = widget.song.notes.length;
     final ended = want == null && !_listening && !_celebrating;
+    final queue = SongQueue.of(context);
     return GamePage(
-      picks: ended ? {0: _restart, 2: _playBack, 4: _moreSongs} : const {},
+      picks: ended
+          ? {
+              0: _restart,
+              2: _playBack,
+              4: _moreSongs,
+              if (queue != null) nextSongPc: () => queue.openNext(context),
+            }
+          : const {},
       onNote: _onNote,
       backdrop: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
@@ -454,7 +487,15 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
           Text('You played ${widget.song.title}!',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-          SizedBox(height: 20 * s),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < songStars; i++)
+                Icon(Icons.star_rounded,
+                    size: 52 * s, color: i < _stars ? AppColors.starGold : Colors.white24),
+            ],
+          ),
+          SizedBox(height: 12 * s),
           Wrap(
             spacing: 16 * s,
             runSpacing: 12 * s,
@@ -478,6 +519,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
                 icon: KeyBadge(pc: 4, size: 30 * s),
                 label: const Text('More songs'),
               ),
+              NextSongButton(scale: s),
             ],
           ),
         ],

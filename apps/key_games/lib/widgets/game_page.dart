@@ -14,6 +14,12 @@ import '../input/note_focus.dart';
 import '../midi/midi_input.dart';
 import 'keyboard_status.dart';
 
+// True when the page [context] is in has a page under it to go back to.
+// Asked of the page's own route, not of the navigator: a page rebuilt while
+// another covers it (the home menu, when a setting changes) must not grow a
+// back button.
+bool hasPageBelow(BuildContext context) => !(ModalRoute.of(context)?.isFirst ?? true);
+
 class GamePage extends StatelessWidget {
   const GamePage({
     super.key,
@@ -66,7 +72,7 @@ class GamePage extends StatelessWidget {
                       scale: scale,
                       child: Row(
                         children: [
-                          if (Navigator.canPop(context)) const BackButton(),
+                          if (hasPageBelow(context)) const BackButton(),
                           if (title != null)
                             Expanded(
                               child: Text(

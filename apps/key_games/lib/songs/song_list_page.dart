@@ -4,18 +4,25 @@
 // B turns to the next page when there are more than seven songs. When the
 // songs come in more than one group (Kids, Classical, ...), the groups are
 // picked first the same way, and Back returns to them.
+//
+// A game that gives stars for a song ([SongListPage.starsKey]) shows them on
+// its cards: up to three per song, and how many of a group's stars are won.
+// Every song opened from here knows the song after it (see song_queue.dart),
+// so its end offers "Next song".
 
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/services.dart';
 import '../app/theme.dart';
 import '../games/difficulty.dart';
 import '../widgets/game_page.dart';
 import '../widgets/key_badge.dart';
 import 'song.dart';
 import 'song_play_page.dart';
+import 'song_queue.dart';
 
 class SongListPage extends StatefulWidget {
   const SongListPage({
@@ -26,6 +33,9 @@ class SongListPage extends StatefulWidget {
     this.group,
     this.songs,
     this.levels = true,
+    this.starsKey,
+    this.onOpen,
+    this.autoOpen,
   });
 
   final Difficulty difficulty;
@@ -41,6 +51,17 @@ class SongListPage extends StatefulWidget {
   // False for a list without difficulty levels (the heading then says
   // "All songs" instead of the level).
   final bool levels;
+
+  // Where the stars won on a song are kept (see Settings.best); null for a
+  // list without stars.
+  final String Function(Song song)? starsKey;
+
+  // Hears every song opened from this list (the home menu remembers it).
+  final void Function(Song song)? onOpen;
+
+  // The title of a song to open straight away, once the songs are loaded
+  // (the home menu's "again" button); Back from it lands on this list.
+  final String? autoOpen;
 
   @override
   State<SongListPage> createState() => _SongListPageState();
@@ -64,16 +85,42 @@ class _SongListPageState extends State<SongListPage> {
     super.initState();
     if (widget.songs != null) {
       _songs = widget.songs;
+      _openAuto();
       return;
     }
     loadSongs(rootBundle).then(
       (songs) {
-        if (mounted) setState(() => _songs = songs);
+        if (!mounted) return;
+        setState(() => _songs = songs);
+        _openAuto();
       },
       onError: (Object error) {
         if (mounted) setState(() => _error = error);
       },
     );
+  }
+
+  // Opens [SongListPage.autoOpen] once this page is on screen: its group
+  // first when the songs are in groups, then the song.
+  void _openAuto() {
+    final title = widget.autoOpen;
+    if (title == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final song = _all.where((song) => song.title == title).firstOrNull;
+      if (song == null) return;
+      _picksGroup ? _openGroup(song.group, autoOpen: title) : _open(song);
+    });
+  }
+
+  // Stars may have been won while this list was covered.
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  int _stars(Song song) {
+    final key = widget.starsKey?.call(song);
+    return key == null ? 0 : AppServices.of(context).settings.best(key);
   }
 
   List<Song> get _loaded => _songs ?? const [];
@@ -104,7 +151,7 @@ class _SongListPageState extends State<SongListPage> {
     };
   }
 
-  void _openGroup(String group) {
+  void _openGroup(String group, {String? autoOpen}) {
     Navigator.push(
       context,
       MaterialPageRoute<void>(
@@ -115,19 +162,39 @@ class _SongListPageState extends State<SongListPage> {
           group: group,
           songs: _loaded,
           levels: widget.levels,
+          starsKey: widget.starsKey,
+          onOpen: widget.onOpen,
+          autoOpen: autoOpen,
         ),
       ),
+    ).then((_) => _refresh());
+  }
+
+  // The page for [song], knowing the song after it in this list (round to
+  // the first after the last).
+  Route<void> _songRoute(Song song) {
+    final songs = _all;
+    final next = songs.length < 2 ? null : songs[(songs.indexOf(song) + 1) % songs.length];
+    return MaterialPageRoute<void>(
+      builder: (_) {
+        final page =
+            widget.play?.call(song) ?? SongPlayPage(song: song, difficulty: widget.difficulty);
+        if (next == null) return page;
+        return SongQueue(
+          nextTitle: next.title,
+          openNext: (context) {
+            widget.onOpen?.call(next);
+            Navigator.pushReplacement(context, _songRoute(next)).then((_) => _refresh());
+          },
+          child: page,
+        );
+      },
     );
   }
 
   void _open(Song song) {
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            widget.play?.call(song) ?? SongPlayPage(song: song, difficulty: widget.difficulty),
-      ),
-    );
+    widget.onOpen?.call(song);
+    Navigator.push(context, _songRoute(song)).then((_) => _refresh());
   }
 
   @override
@@ -172,11 +239,20 @@ class _SongListPageState extends State<SongListPage> {
             _GroupCard(
               group: _groups[items[i]],
               songs: [for (final song in _all) if (song.group == _groups[items[i]]) song],
+              stars: widget.starsKey == null
+                  ? null
+                  : [for (final song in _all) if (song.group == _groups[items[i]]) _stars(song)]
+                      .fold<int>(0, (sum, stars) => sum + stars),
               pc: _letters[i],
               onTap: () => _pick(items[i]),
             )
           else
-            _SongCard(song: _all[items[i]], pc: _letters[i], onTap: () => _pick(items[i])),
+            _SongCard(
+              song: _all[items[i]],
+              stars: widget.starsKey == null ? null : _stars(_all[items[i]]),
+              pc: _letters[i],
+              onTap: () => _pick(items[i]),
+            ),
         if (_pages > 1) _NextPageCard(page: _page, pages: _pages, onTap: _nextPage),
       ],
     );
@@ -184,9 +260,12 @@ class _SongListPageState extends State<SongListPage> {
 }
 
 class _SongCard extends StatelessWidget {
-  const _SongCard({required this.song, required this.pc, required this.onTap});
+  const _SongCard({required this.song, this.stars, required this.pc, required this.onTap});
 
   final Song song;
+
+  // Stars won on this song, of three; null for a list without stars.
+  final int? stars;
   final int pc;
   final VoidCallback onTap;
 
@@ -216,6 +295,13 @@ class _SongCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 18 * s, fontWeight: FontWeight.w800)),
                   ),
+                  if (stars != null) ...[
+                    SizedBox(width: 8 * s),
+                    for (var i = 0; i < songStars; i++)
+                      Icon(Icons.star_rounded,
+                          size: 20 * s,
+                          color: i < stars! ? AppColors.starGold : Colors.white12),
+                  ],
                 ],
               ),
               Row(
@@ -253,10 +339,19 @@ class _SongCard extends StatelessWidget {
 }
 
 class _GroupCard extends StatelessWidget {
-  const _GroupCard({required this.group, required this.songs, required this.pc, required this.onTap});
+  const _GroupCard({
+    required this.group,
+    required this.songs,
+    this.stars,
+    required this.pc,
+    required this.onTap,
+  });
 
   final String group;
   final List<Song> songs;
+
+  // Stars won on the group's songs; null for a list without stars.
+  final int? stars;
   final int pc;
   final VoidCallback onTap;
 
@@ -286,7 +381,14 @@ class _GroupCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 22 * s, fontWeight: FontWeight.w900)),
                   ),
-                  Icon(Icons.library_music_rounded, size: 28 * s, color: Colors.white54),
+                  if (stars == null)
+                    Icon(Icons.library_music_rounded, size: 28 * s, color: Colors.white54)
+                  else ...[
+                    Icon(Icons.star_rounded, size: 24 * s, color: AppColors.starGold),
+                    Text('$stars/${songs.length * songStars}',
+                        style: TextStyle(
+                            fontSize: 16 * s, fontWeight: FontWeight.w800, color: Colors.white70)),
+                  ],
                 ],
               ),
               Text(

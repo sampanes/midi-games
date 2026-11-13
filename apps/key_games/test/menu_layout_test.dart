@@ -8,8 +8,10 @@ import 'package:key_games/widgets/keyboard_status.dart';
 
 import 'helpers.dart';
 
-Size _tileSize(WidgetTester tester, String title) =>
-    tester.getSize(find.ancestor(of: find.text(title), matching: find.byType(Material)).first);
+Rect _tileRect(WidgetTester tester, String title) =>
+    tester.getRect(find.ancestor(of: find.text(title), matching: find.byType(Material)).first);
+
+Size _tileSize(WidgetTester tester, String title) => _tileRect(tester, title).size;
 
 void main() {
   testWidgets('on a full-screen PC the home tiles are capped and centered', (tester) async {
@@ -17,18 +19,19 @@ void main() {
     await pumpApp(tester, null);
     await tester.pump(const Duration(milliseconds: 500));
 
-    for (final title in ['Look', 'Listen', 'Songs', 'Arcade']) {
+    for (final title in ['Look', 'Listen', 'Songs', 'Arcade', 'Free Play']) {
       final size = _tileSize(tester, title);
       expect(size.width, lessThanOrEqualTo(600), reason: '$title is a card, not a billboard');
-      expect(size.width, greaterThan(380), reason: '$title fills its share of the row');
+      expect(size.width, greaterThan(330), reason: '$title fills its share of the row');
       expect(size.height, lessThanOrEqualTo(size.width * 1.25 + 1));
     }
-    // The row is centered: the gap on the left matches the gap on the right.
-    final look = tester.getRect(find.text('Look'));
-    final arcade = tester.getRect(find.text('Arcade'));
-    expect((look.center.dx - 0).round(), (1920 - arcade.center.dx).round());
+    // One row, centered: the gap on the left matches the gap on the right.
+    final look = _tileRect(tester, 'Look');
+    final free = _tileRect(tester, 'Free Play');
+    expect(look.top.round(), _tileRect(tester, 'Arcade').top.round());
+    expect(look.left.round(), (1920 - free.right).round());
 
-    // Settings is a header button, so it is not a fifth tile below the row.
+    // Settings is a header button, so it is not a sixth tile below the row.
     expect(tester.getRect(find.text('Settings')).top, lessThan(120));
 
     // The keyboard status sits at the right edge, not in the middle.

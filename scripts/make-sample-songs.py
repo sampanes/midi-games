@@ -95,7 +95,7 @@ TUNES = [
         "chords": "C:4 C:4 C:4 C:4 C:4 C:4 C:1 G:1 C:2 C:1 G:1 C:2",
     },
     {
-        "name": "jingle-bells", "title": "Jingle Bells", "group": "Kids",
+        "name": "jingle-bells", "title": "Jingle Bells", "group": "Holidays",
         "beat_ms": 450, "style": "oompah",
         "melody": "E4 E4 E4:2 E4 E4 E4:2 E4 G4 C4:1.5 D4:0.5 E4:4 "
                   "F4 F4 F4:1.5 F4:0.5 F4 E4 E4 E4:0.5 E4:0.5 E4 D4 D4 E4 D4:2 G4:2",
@@ -140,6 +140,149 @@ TUNES = [
         "melody": "F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2 "
                   "D5:2 C#5:2 B4:2 A4:2 G4:2 F#4:2 G4:2 E4:2 D4:4",
         "chords": "D:2 A:2 Bm:2 F#m:2 G:2 D:2 G:2 A:2 D:2 A:2 Bm:2 F#m:2 G:2 D:2 G:2 A:2 D:4",
+    },
+    {
+        # In 6/8: a beat here is an eighth note.
+        "name": "itsy-bitsy-spider", "title": "Itsy Bitsy Spider", "group": "Kids",
+        "beat_ms": 230, "style": "block",
+        "melody": "G3 C4:2 C4 C4:2 D4 E4:3 E4:2 E4 D4:2 C4 D4:2 E4 C4:3 r:3 "
+                  "E4:3 E4:2 F4 G4:3 G4:3 F4:2 E4 F4:2 G4 E4:3 r:3 "
+                  "C4:3 C4:2 D4 E4:3 E4:3 D4:2 C4 D4:2 E4 C4:3 G3:2 G3 "
+                  "C4:2 C4 C4:2 D4 E4:3 E4:2 E4 D4:2 C4 D4:2 E4 C4:5",
+        "chords": "r:1 C:6 C:6 G:6 C:6 C:6 C:6 G:6 C:6 C:6 C:6 G:6 C:6 C:6 C:6 G:6 C:5",
+    },
+    {
+        "name": "yankee-doodle", "title": "Yankee Doodle", "group": "Kids",
+        "beat_ms": 300, "style": "oompah",
+        "melody": "C4 C4 D4 E4 C4 E4 D4 G3 C4 C4 D4 E4 C4:2 B3:2 "
+                  "C4 C4 D4 E4 F4 E4 D4 C4 B3 G3 A3 B3 C4:2 C4:2 "
+                  "A3:1.5 B3:0.5 A3 G3 A3 B3 C4:2 G3:1.5 A3:0.5 G3 F3 E3:2 G3:2 "
+                  "A3:1.5 B3:0.5 A3 G3 A3 B3 C4 A3 G3 C4 B3 D4 C4:2 C4:2",
+        "chords": "C:4 C:2 G:2 C:4 C:2 G:2 C:4 F:4 G:4 C:4 "
+                  "F:4 F:4 C:4 C:4 F:4 F:4 C:2 G:2 C:4",
+    },
+    {
+        "name": "this-old-man", "title": "This Old Man", "group": "Kids",
+        "beat_ms": 450, "style": "oompah",
+        "melody": "G4 E4 G4:2 G4 E4 G4:2 A4 G4 F4 E4 D4 E4 F4 E4:0.5 F4:0.5 "
+                  "G4 C4 C4:0.5 C4:0.5 C4 C4:0.5 D4:0.5 E4:0.5 F4:0.5 G4:2 "
+                  "G4 D4 D4 F4 E4 D4 C4:2",
+        "chords": "C:4 C:4 F:2 C:2 G:4 C:4 C:4 G:4 C:1 G:1 C:2",
+    },
+    {
+        # In 6/8: a beat here is an eighth note.
+        "name": "pop-goes-the-weasel", "title": "Pop Goes the Weasel", "group": "Kids",
+        "beat_ms": 230, "style": "block",
+        "melody": "C4:2 C4 D4:2 D4 E4 G4 E4 C4:2 G3 C4:2 C4 D4:2 D4 E4:3 C4:2 G3 "
+                  "C4:2 C4 D4:2 D4 E4 G4 E4 C4:3 A4:3 D4:2 F4 E4:3 C4:3",
+        "chords": "C:3 G:3 C:6 C:3 G:3 C:6 C:3 G:3 C:6 F:3 G:3 C:6",
+    },
+    {
+        "name": "oh-susanna", "title": "Oh! Susanna", "group": "Kids",
+        "beat_ms": 330, "style": "oompah",
+        "melody": "C4:0.5 D4:0.5 E4 G4 G4:1.5 A4:0.5 G4 E4 C4:1.5 D4:0.5 E4 E4 D4 C4 "
+                  "D4:3 C4:0.5 D4:0.5 E4 G4 G4:1.5 A4:0.5 G4 E4 C4:1.5 D4:0.5 E4 E4 D4 D4 "
+                  "C4:3 r:1 F4:2 F4:2 A4 A4:2 A4 G4 G4 E4 C4 "
+                  "D4:3 C4:0.5 D4:0.5 E4 G4 G4:1.5 A4:0.5 G4 E4 C4:1.5 D4:0.5 E4 E4 D4 D4 C4:3",
+        "chords": "r:1 C:4 C:4 C:4 G:4 C:4 C:4 C:2 G:2 C:4 "
+                  "F:4 F:4 C:4 G:4 C:4 C:4 C:2 G:2 C:3",
+    },
+    {
+        "name": "lightly-row", "title": "Lightly Row", "group": "Kids",
+        "beat_ms": 420, "style": "oompah",
+        "melody": "G4 E4 E4:2 F4 D4 D4:2 C4 D4 E4 F4 G4 G4 G4:2 "
+                  "G4 E4 E4:2 F4 D4 D4:2 C4 E4 G4 G4 E4:4 "
+                  "D4 D4 D4 D4 D4 E4 F4:2 E4 E4 E4 E4 E4 F4 G4:2 "
+                  "G4 E4 E4:2 F4 D4 D4:2 C4 E4 G4 G4 C4:4",
+        "chords": "C:4 G:4 C:4 C:4 C:4 G:4 C:4 C:4 G:4 G:4 C:4 C:4 C:4 G:4 C:4 C:4",
+    },
+    {
+        "name": "au-clair-de-la-lune", "title": "Au Clair de la Lune", "group": "Kids",
+        "beat_ms": 450, "style": "oompah",
+        "melody": "C4 C4 C4 D4 E4:2 D4:2 C4 E4 D4 D4 C4:4 "
+                  "C4 C4 C4 D4 E4:2 D4:2 C4 E4 D4 D4 C4:4 "
+                  "D4 D4 D4 D4 A3:2 A3:2 D4 C4 B3 A3 G3:4 "
+                  "C4 C4 C4 D4 E4:2 D4:2 C4 E4 D4 D4 C4:4",
+        "chords": "C:4 C:2 G:2 C:2 G:2 C:4 C:4 C:2 G:2 C:2 G:2 C:4 "
+                  "G:4 D:4 G:2 D:2 G:4 C:4 C:2 G:2 C:2 G:2 C:4",
+    },
+    {
+        "name": "we-wish-you-a-merry-christmas", "title": "We Wish You a Merry Christmas",
+        "group": "Holidays", "beat_ms": 400, "style": "waltz",
+        "melody": "G3 C4 C4:0.5 D4:0.5 C4:0.5 B3:0.5 A3 A3 A3 "
+                  "D4 D4:0.5 E4:0.5 D4:0.5 C4:0.5 B3 G3 G3 "
+                  "E4 E4:0.5 F4:0.5 E4:0.5 D4:0.5 C4 A3 G3:0.5 G3:0.5 A3 D4 B3 C4:2 "
+                  "G3 C4 C4 C4 B3:2 B3 C4 B3 A3 G3:2 D4 "
+                  "E4 D4 C4 G4 G3 G3:0.5 G3:0.5 A3 D4 B3 C4:2",
+        "chords": "r:1 C:3 F:3 D7:3 G:3 E7:3 Am:3 F:1 G:2 C:2 "
+                  "r:1 C:3 G:3 Am:3 G:3 C:3 G:3 F:1 G:2 C:2",
+    },
+    {
+        "name": "deck-the-halls", "title": "Deck the Halls", "group": "Holidays",
+        "beat_ms": 400, "style": "oompah",
+        "melody": "G4:1.5 F4:0.5 E4 D4 C4 D4 E4 C4 D4:0.5 E4:0.5 F4:0.5 D4:0.5 E4:1.5 D4:0.5 C4 B3 C4:2 "
+                  "G4:1.5 F4:0.5 E4 D4 C4 D4 E4 C4 D4:0.5 E4:0.5 F4:0.5 D4:0.5 E4:1.5 D4:0.5 C4 B3 C4:2 "
+                  "D4:1.5 E4:0.5 F4 D4 E4:1.5 F4:0.5 G4 D4 E4:0.5 F#4:0.5 G4 A4:0.5 B4:0.5 C5 B4 A4 G4:2 "
+                  "G4:1.5 F4:0.5 E4 D4 C4 D4 E4 C4 A4:0.5 A4:0.5 A4:0.5 A4:0.5 G4:1.5 F4:0.5 E4 D4 C4:2",
+        "chords": "C:4 C:4 G:2 C:2 C:1 G:1 C:2 C:4 C:4 G:2 C:2 C:1 G:1 C:2 "
+                  "G:4 C:4 Em:2 Am:2 G:1 D:1 G:2 C:4 C:4 F:2 C:2 C:1 G:1 C:2",
+    },
+    {
+        "name": "silent-night", "title": "Silent Night", "group": "Holidays",
+        "beat_ms": 600, "style": "waltz",
+        "melody": "G4:1.5 A4:0.5 G4 E4:3 G4:1.5 A4:0.5 G4 E4:3 D5:2 D5 B4:3 C5:2 C5 G4:3 "
+                  "A4:2 A4 C5:1.5 B4:0.5 A4 G4:1.5 A4:0.5 G4 E4:3 "
+                  "A4:2 A4 C5:1.5 B4:0.5 A4 G4:1.5 A4:0.5 G4 E4:3 "
+                  "D5:2 D5 F5:1.5 D5:0.5 B4 C5:3 E5:3 C5:1.5 G4:0.5 E4 G4:1.5 F4:0.5 D4 C4:6",
+        "chords": "C:3 C:3 C:3 C:3 G:3 G:3 C:3 C:3 F:3 F:3 C:3 C:3 F:3 F:3 C:3 C:3 "
+                  "G:3 G7:3 C:3 C:3 C:3 G:3 C:3 C:3",
+    },
+    {
+        "name": "joy-to-the-world", "title": "Joy to the World", "group": "Holidays",
+        "beat_ms": 330, "style": "oompah",
+        "melody": "C5:2 B4:1.5 A4:0.5 G4:3 F4 E4:2 D4:2 C4:3 G4 A4:3 A4 B4:3 B4 C5:3 C5 "
+                  "C5 B4 A4 G4 G4:1.5 F4:0.5 E4 C5 C5 B4 A4 G4 G4:1.5 F4:0.5 E4 E4 "
+                  "E4 E4 E4 E4:0.5 F4:0.5 G4:3 F4:0.5 E4:0.5 D4 D4 D4 D4:0.5 E4:0.5 F4:3 E4:0.5 D4:0.5 "
+                  "C4 C5:2 A4 G4:1.5 F4:0.5 E4 F4 E4:2 D4:2 C4:4",
+        "chords": "C:4 C:4 C:2 G:2 C:4 F:4 G:4 C:4 C:4 C:4 C:4 C:4 C:4 C:4 G:4 G:4 "
+                  "C:2 F:2 C:4 C:2 G:2 C:4",
+    },
+    {
+        "name": "jolly-old-saint-nicholas", "title": "Jolly Old Saint Nicholas", "group": "Holidays",
+        "beat_ms": 450, "style": "oompah",
+        "melody": "E4 E4 E4 E4 D4 D4 D4:2 C4 C4 C4 C4 E4:4 A3 A3 A3 A3 G3 G3 C4:2 D4 C4 D4 E4 D4:4 "
+                  "E4 E4 E4 E4 D4 D4 D4:2 C4 C4 C4 C4 E4:4 A3 A3 A3 A3 G3 G3 C4:2 D4 C4 D4 E4 C4:4",
+        "chords": "C:4 G:4 Am:4 Em:4 F:4 C:4 G:4 G:4 C:4 G:4 Am:4 Em:4 F:4 C:4 G:4 C:4",
+    },
+    {
+        "name": "auld-lang-syne", "title": "Auld Lang Syne", "group": "Holidays",
+        "beat_ms": 500, "style": "oompah",
+        "melody": "G3 C4:1.5 C4:0.5 C4 E4 D4:1.5 C4:0.5 D4 E4 C4:1.5 C4:0.5 E4 G4 A4:3 "
+                  "A4 G4:1.5 E4:0.5 E4 C4 D4:1.5 C4:0.5 D4 E4 C4:1.5 A3:0.5 A3 G3 C4:3 "
+                  "A4 G4:1.5 E4:0.5 E4 C4 D4:1.5 C4:0.5 D4 A4 G4:1.5 E4:0.5 E4 G4 A4:3 "
+                  "A4 G4:1.5 E4:0.5 E4 C4 D4:1.5 C4:0.5 D4 E4 C4:1.5 A3:0.5 A3 G3 C4:3",
+        "chords": "r:1 C:4 G:4 C:4 F:4 C:4 G:4 F:2 G:2 C:4 "
+                  "C:4 G:4 C:4 F:4 C:4 G:4 F:2 G:2 C:3",
+    },
+    {
+        "name": "brahms-lullaby", "title": "Brahms' Lullaby", "group": "Classical",
+        "beat_ms": 600, "style": "waltz",
+        "melody": "E4:0.5 E4:0.5 G4:2 E4:0.5 E4:0.5 G4:2 E4:0.5 G4:0.5 C5 B4:1.5 A4:0.5 "
+                  "A4 G4 D4:0.5 E4:0.5 F4 D4 D4:0.5 E4:0.5 F4:2 D4:0.5 F4:0.5 "
+                  "B4:0.5 A4:0.5 G4 B4 C5:2 C4:0.5 C4:0.5 C5:2 A4:0.5 F4:0.5 G4:2 E4:0.5 C4:0.5 "
+                  "F4 G4 A4 G4:2 C4:0.5 C4:0.5 C5:2 A4:0.5 F4:0.5 G4:2 E4:0.5 C4:0.5 "
+                  "F4 E4 D4 C4:2",
+        "chords": "r:1 C:3 C:3 C:1 G:2 G:3 G7:3 G7:3 G7:3 C:3 F:3 C:3 G:3 C:3 F:3 C:3 G7:3 C:2",
+    },
+    {
+        # A beat here is an eighth note; the theme, twice.
+        "name": "hall-of-the-mountain-king", "title": "In the Hall of the Mountain King",
+        "group": "Classical", "beat_ms": 300, "style": "oompah",
+        "melody": "A3 B3 C4 D4 E4 C4 E4:2 D#4 B3 D#4:2 D4 A#3 D4:2 "
+                  "A3 B3 C4 D4 E4 C4 E4 A4 G4 E4 C4 E4 G4:4 "
+                  "A3 B3 C4 D4 E4 C4 E4:2 D#4 B3 D#4:2 D4 A#3 D4:2 "
+                  "A3 B3 C4 D4 E4 C4 E4 A4 G4 E4 C4 E4 A4:4",
+        "chords": "Am:8 B:4 A#:4 Am:8 C:8 Am:8 B:4 A#:4 Am:8 Am:8",
     },
 ]
 

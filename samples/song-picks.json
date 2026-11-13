@@ -29,7 +29,7 @@
   },
   "jingle-bells.mid": {
     "title": "Jingle Bells",
-    "group": "Kids"
+    "group": "Holidays"
   },
   "happy-birthday.mid": {
     "title": "Happy Birthday",
@@ -49,6 +49,66 @@
   },
   "canon-in-d.mid": {
     "title": "Canon in D",
+    "group": "Classical"
+  },
+  "itsy-bitsy-spider.mid": {
+    "title": "Itsy Bitsy Spider",
+    "group": "Kids"
+  },
+  "yankee-doodle.mid": {
+    "title": "Yankee Doodle",
+    "group": "Kids"
+  },
+  "this-old-man.mid": {
+    "title": "This Old Man",
+    "group": "Kids"
+  },
+  "pop-goes-the-weasel.mid": {
+    "title": "Pop Goes the Weasel",
+    "group": "Kids"
+  },
+  "oh-susanna.mid": {
+    "title": "Oh! Susanna",
+    "group": "Kids"
+  },
+  "lightly-row.mid": {
+    "title": "Lightly Row",
+    "group": "Kids"
+  },
+  "au-clair-de-la-lune.mid": {
+    "title": "Au Clair de la Lune",
+    "group": "Kids"
+  },
+  "we-wish-you-a-merry-christmas.mid": {
+    "title": "We Wish You a Merry Christmas",
+    "group": "Holidays"
+  },
+  "deck-the-halls.mid": {
+    "title": "Deck the Halls",
+    "group": "Holidays"
+  },
+  "silent-night.mid": {
+    "title": "Silent Night",
+    "group": "Holidays"
+  },
+  "joy-to-the-world.mid": {
+    "title": "Joy to the World",
+    "group": "Holidays"
+  },
+  "jolly-old-saint-nicholas.mid": {
+    "title": "Jolly Old Saint Nicholas",
+    "group": "Holidays"
+  },
+  "auld-lang-syne.mid": {
+    "title": "Auld Lang Syne",
+    "group": "Holidays"
+  },
+  "brahms-lullaby.mid": {
+    "title": "Brahms' Lullaby",
+    "group": "Classical"
+  },
+  "hall-of-the-mountain-king.mid": {
+    "title": "In the Hall of the Mountain King",
     "group": "Classical"
   }
 }

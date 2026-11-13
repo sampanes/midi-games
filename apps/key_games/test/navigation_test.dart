@@ -41,18 +41,26 @@ void main() {
     await tester.pump(keySettle);
     expect(find.text('Listen'), findsOneWidget);
 
-    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen, one game: its levels
+    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen, its two games
     expect(find.text('Ear Notes'), findsOneWidget);
+    expect(find.text('Copy Cat'), findsOneWidget);
+    await _press(tester, LogicalKeyboardKey.keyA); // C: Ear Notes, its levels
     expect(find.text('Expert'), findsOneWidget);
     await _press(tester, LogicalKeyboardKey.keyD); // E: Hard
     expect(find.text('Level 4'), findsOneWidget);
 
-    // The difficulty picker was replaced by the game, so back is home.
+    // The difficulty picker was replaced by the game, so back is the menu
+    // the game was picked from, and back again is home.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('Level 4'), findsNothing);
-    expect(find.text('Listen'), findsOneWidget);
+    expect(find.text('Copy Cat'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Copy Cat'), findsNothing);
+    expect(find.text('Free Play'), findsOneWidget);
   });
 
   testWidgets('two Cs pressed together on the home menu open one page, not two', (tester) async {
@@ -84,7 +92,8 @@ void main() {
     await services.settings.setBackControl(const BackControl(ControlKind.note, 9, 36));
     await tester.pump(keySettle);
 
-    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen, Ear Notes' levels
+    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen
+    await _press(tester, LogicalKeyboardKey.keyA); // C: Ear Notes' levels
     await _press(tester, LogicalKeyboardKey.keyA); // C: Easy
     expect(find.text('Level 1'), findsOneWidget);
 
@@ -107,7 +116,7 @@ void main() {
     final services = await pumpApp(tester, null);
     await tester.pump(keySettle);
 
-    await _press(tester, LogicalKeyboardKey.keyG); // G: Settings
+    await _press(tester, LogicalKeyboardKey.keyH); // A: Settings
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(find.text('No Back pad picked: any pad goes back.'), findsOneWidget);
 
@@ -223,9 +232,9 @@ void main() {
       await tester.pump();
     }
 
-    // D on the keys (channel 13): Listen, Ear Notes' levels.
+    // D on the keys (channel 13): Listen, its games.
     await tap(62, 12);
-    expect(find.text('Easy'), findsWidgets);
+    expect(find.text('Ear Notes'), findsOneWidget);
 
     // A pad (channel 10, note 48 like the keys' low C) goes back, silently.
     await tap(48, 9);
