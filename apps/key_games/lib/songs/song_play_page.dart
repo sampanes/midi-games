@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import '../app/services.dart';
 import '../app/settings.dart';
 import '../app/theme.dart';
+import '../app/timer_group.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
 import '../games/color_keys_rules.dart';
@@ -81,7 +82,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   int _stars = 0;
   late final MissEcho _echo = MissEcho(_synth);
   final Set<int> _held = {};
-  final List<Timer> _timers = [];
+  final TimerGroup _timers = TimerGroup();
   Timer? _hintTimer;
   Size _laneSize = Size.zero;
   bool _celebrating = false;
@@ -119,9 +120,7 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
     _hintTimer?.cancel();
     _nudgeTimer?.cancel();
     _echo.cancel();
-    for (final timer in _timers) {
-      timer.cancel();
-    }
+    _timers.cancelAll();
     _synth.stopBand();
     for (final note in _held) {
       _synth.noteOff(note);
@@ -131,9 +130,9 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
   }
 
   void _later(Duration delay, void Function() action) {
-    _timers.add(Timer(delay, () {
+    _timers.schedule(delay, () {
       if (mounted) action();
-    }));
+    });
   }
 
   void _armHint() {

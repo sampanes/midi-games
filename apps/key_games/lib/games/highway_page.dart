@@ -27,6 +27,7 @@ import 'package:flutter/scheduler.dart';
 import '../app/services.dart';
 import '../app/settings.dart';
 import '../app/theme.dart';
+import '../app/timer_group.dart';
 import '../audio/synth.dart';
 import '../midi/midi_input.dart';
 import '../songs/song.dart';
@@ -91,7 +92,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   final ValueNotifier<int> _now = ValueNotifier(0);
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _highwayKey = GlobalKey();
-  final List<Timer> _timers = [];
+  final TimerGroup _timers = TimerGroup();
 
   _Phase _phase = _Phase.playing;
   bool _canPick = false;
@@ -146,16 +147,13 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
   }
 
   void _cancelTimers() {
-    for (final timer in _timers) {
-      timer.cancel();
-    }
-    _timers.clear();
+    _timers.cancelAll();
   }
 
   void _later(Duration delay, void Function() action) {
-    _timers.add(Timer(delay, () {
+    _timers.schedule(delay, () {
       if (mounted) action();
-    }));
+    });
   }
 
   void _restart() {

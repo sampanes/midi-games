@@ -27,6 +27,7 @@ import 'package:flutter/services.dart';
 import '../app/services.dart';
 import '../app/settings.dart';
 import '../app/theme.dart';
+import '../app/timer_group.dart';
 import '../audio/miss_echo.dart';
 import '../audio/synth.dart';
 import '../midi/midi_input.dart';
@@ -91,7 +92,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   late final MissEcho _echo = MissEcho(_synth);
-  final List<Timer> _timers = [];
+  final TimerGroup _timers = TimerGroup();
   Timer? _clock;
 
   RushState _state = const RushState(upcoming: []);
@@ -142,9 +143,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   void dispose() {
     _clock?.cancel();
     _echo.cancel();
-    for (final timer in _timers) {
-      timer.cancel();
-    }
+    _timers.cancelAll();
     for (final note in _held) {
       _synth.noteOff(note);
     }
@@ -154,9 +153,9 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
   }
 
   void _later(Duration delay, void Function() action) {
-    _timers.add(Timer(delay, () {
+    _timers.schedule(delay, () {
       if (mounted) action();
-    }));
+    });
   }
 
   void _resetRound() {

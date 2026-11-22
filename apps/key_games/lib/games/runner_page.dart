@@ -16,6 +16,7 @@ import 'package:flutter/services.dart';
 import '../app/services.dart';
 import '../app/settings.dart';
 import '../app/theme.dart';
+import '../app/timer_group.dart';
 import '../audio/synth.dart';
 import '../midi/midi_input.dart';
 import '../songs/song.dart';
@@ -78,7 +79,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   final ValueNotifier<int> _frame = ValueNotifier(0);
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _roadKey = GlobalKey();
-  final List<Timer> _timers = [];
+  final TimerGroup _timers = TimerGroup();
 
   _Phase _phase = _Phase.countdown;
   int _count = 3;
@@ -139,16 +140,13 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
   }
 
   void _cancelTimers() {
-    for (final timer in _timers) {
-      timer.cancel();
-    }
-    _timers.clear();
+    _timers.cancelAll();
   }
 
   void _later(Duration delay, void Function() action) {
-    _timers.add(Timer(delay, () {
+    _timers.schedule(delay, () {
       if (mounted) action();
-    }));
+    });
   }
 
   void _restart() {

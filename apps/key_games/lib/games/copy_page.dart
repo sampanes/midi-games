@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import '../app/services.dart';
 import '../app/settings.dart';
 import '../app/theme.dart';
+import '../app/timer_group.dart';
 import '../audio/synth.dart';
 import '../midi/midi_input.dart';
 import '../widgets/game_page.dart';
@@ -80,7 +81,7 @@ class _CopyPageState extends State<CopyPage> with SingleTickerProviderStateMixin
       AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   final GlobalKey<SparksState> _sparksKey = GlobalKey();
   final GlobalKey _padsKey = GlobalKey();
-  final List<Timer> _timers = [];
+  final TimerGroup _timers = TimerGroup();
   Timer? _flashTimer;
 
   late CopyState _state = CopyState.start(_rules, _random);
@@ -127,16 +128,13 @@ class _CopyPageState extends State<CopyPage> with SingleTickerProviderStateMixin
 
   void _cancelTimers() {
     _flashTimer?.cancel();
-    for (final timer in _timers) {
-      timer.cancel();
-    }
-    _timers.clear();
+    _timers.cancelAll();
   }
 
   void _later(Duration delay, void Function() action) {
-    _timers.add(Timer(delay, () {
+    _timers.schedule(delay, () {
       if (mounted) action();
-    }));
+    });
   }
 
   Color _color(int answer) =>
