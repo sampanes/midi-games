@@ -310,6 +310,7 @@ class _RushPageState extends State<RushPage> with TickerProviderStateMixin {
       picks: _phase == _Phase.done && _canPick
           ? {0: _startRound, 4: () => Navigator.maybePop(context)}
           : const {},
+      navigationLabels: {0: 'Play again', 4: 'Menu'},
       onNote: _onNote,
       header: [
         Icon(Icons.star_rounded, color: AppColors.starGold, size: 40 * uiScale(context)),

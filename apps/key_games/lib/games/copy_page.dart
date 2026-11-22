@@ -307,6 +307,7 @@ class _CopyPageState extends State<CopyPage> with SingleTickerProviderStateMixin
       picks: done && _canPick
           ? {0: _restart, 4: () => Navigator.maybePop(context)}
           : const {},
+      navigationLabels: {0: 'Play again', 4: 'Menu'},
       onNote: _onNote,
       backdrop: AnimatedContainer(
         duration: const Duration(milliseconds: 300),

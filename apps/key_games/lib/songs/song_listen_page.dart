@@ -125,6 +125,10 @@ class _SongListenPageState extends State<SongListenPage> {
         _stopPc: () => setState(_stop),
         if (queue != null) nextSongPc: () => queue.openNext(context),
       },
+      navigationLabels: {
+        _againPc: 'Play again', _stopPc: 'Stop',
+        if (queue != null) nextSongPc: 'Next song',
+      },
       // Phone-sized, grown with the screen, and scaled down to fit a
       // landscape phone.
       body: ScaledChrome(

@@ -213,7 +213,10 @@ plain steady tone the app started with, and plays a few notes to hear the
 change. Settings > Band sets the music under a song to Full, Soft or Off.
 Both are remembered on the device.
 
-Keyboard only (TV boxes, no touch screen): every menu choice wears a note
+Keyboard only (TV boxes, no touch screen): on menus, song lists, and game-end
+choices, C#/Db moves to the next choice and A#/Bb selects it. The current
+selection is named on screen. These keys still play notes during games. The
+existing letter shortcuts also work: every menu choice wears a note
 letter and pressing any key of that letter picks it, so C C reaches the
 first game on Easy (songs: first a group such as Kids or Classical, then a
 song, C to A, B for the next page; end of a song:

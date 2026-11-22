@@ -20,7 +20,7 @@ import 'keyboard_status.dart';
 // back button.
 bool hasPageBelow(BuildContext context) => !(ModalRoute.of(context)?.isFirst ?? true);
 
-class GamePage extends StatelessWidget {
+class GamePage extends StatefulWidget {
   const GamePage({
     super.key,
     this.title,
@@ -31,6 +31,7 @@ class GamePage extends StatelessWidget {
     this.backdrop,
     this.overlays = const [],
     this.picks = const {},
+    this.navigationLabels = const {},
     this.onNote,
   });
 
@@ -50,56 +51,100 @@ class GamePage extends StatelessWidget {
 
   // Pitch class -> action for letters that choose something on this page.
   final Map<int, VoidCallback> picks;
+  // Labels for choices that can be reached with C# and A#.
+  final Map<int, String> navigationLabels;
   final void Function(NoteEvent event)? onNote;
 
   @override
+  State<GamePage> createState() => _GamePageState();
+}
+
+class _GamePageState extends State<GamePage> {
+  int _selected = 0;
+
+  @override
   Widget build(BuildContext context) {
+    final labels = widget.navigationLabels;
+    final keys = [for (final key in labels.keys) if (widget.picks.containsKey(key)) key];
+    final selected = keys.isEmpty ? null : keys[_selected % keys.length];
     final scale = uiScale(context);
     return Scaffold(
       body: NoteFocus(
-        picks: picks,
-        onNote: onNote,
+        picks: {
+          ...widget.picks,
+          if (selected != null) 1: () => setState(() => _selected = (_selected + 1) % keys.length),
+          if (selected != null) 10: () => widget.picks[selected]!(),
+        },
+        onNote: widget.onNote,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            ?backdrop,
+            ?widget.backdrop,
             SafeArea(
               child: Column(
                 children: [
                   Padding(
-                    padding: headerPadding * scale,
-                    child: ScaledChrome(
-                      scale: scale,
-                      child: Row(
-                        children: [
-                          if (hasPageBelow(context)) const BackButton(),
-                          if (title != null)
-                            Expanded(
-                              child: Text(
-                                title!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                    padding: widget.headerPadding * scale,
+                    child: NavigationSelection(
+                      selected: selected,
+                      child: ScaledChrome(
+                        scale: scale,
+                        child: Row(
+                          children: [
+                            if (hasPageBelow(context)) const BackButton(),
+                            if (widget.title != null)
+                              Expanded(
+                                child: Text(
+                                  widget.title!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                                ),
                               ),
-                            ),
-                          ...header,
-                          const SizedBox(width: 8),
-                          const KeyboardStatus(),
-                        ],
+                            ...widget.header,
+                            const SizedBox(width: 8),
+                            const KeyboardStatus(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  Expanded(child: body),
-                  ...footer,
+                  if (selected != null)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 4 * scale),
+                      child: Text(
+                        'C#/Db: next  |  A#/Bb: select  |  Selected: ${labels[selected]}',
+                        key: const ValueKey('navigation-hint'),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 14 * scale, color: Colors.white),
+                      ),
+                    ),
+                  Expanded(child: NavigationSelection(selected: selected, child: widget.body)),
+                  ...widget.footer,
                 ],
               ),
             ),
-            ...overlays,
+            ...widget.overlays,
           ],
         ),
       ),
     );
   }
+}
+
+// Lets menu cards show which choice the black keys will select.
+class NavigationSelection extends InheritedWidget {
+  const NavigationSelection({super.key, required this.selected, required super.child});
+
+  final int? selected;
+
+  static bool isSelected(BuildContext context, int pc) =>
+      context.dependOnInheritedWidgetOfExactType<NavigationSelection>()?.selected == pc;
+
+  @override
+  bool updateShouldNotify(NavigationSelection oldWidget) => selected != oldWidget.selected;
 }
 
 // Scales the text and icons of its child by [scale]: the header and footer

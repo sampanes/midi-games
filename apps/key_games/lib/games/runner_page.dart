@@ -294,6 +294,7 @@ class _RunnerPageState extends State<RunnerPage> with SingleTickerProviderStateM
       picks: _phase == _Phase.done && _canPick
           ? {0: _restart, 4: () => Navigator.maybePop(context)}
           : const {},
+      navigationLabels: {0: 'Play again', 4: 'Menu'},
       onNote: _onNote,
       header: _header(),
       body: _phase == _Phase.done

@@ -204,6 +204,11 @@ class _SongListPageState extends State<SongListPage> {
           '${widget.group ?? (widget.levels ? widget.difficulty.label : 'All songs')}',
       headerPadding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
       picks: _picks,
+      navigationLabels: {
+        for (var i = 0; i < _pageItems.length; i++)
+          _letters[i]: _picksGroup ? _groups[_pageItems.elementAt(i)] : _all[_pageItems.elementAt(i)].title,
+        if (_pages > 1) _nextPagePc: 'Next page',
+      },
       body: _buildSongs(),
     );
   }
@@ -274,7 +279,12 @@ class _SongCard extends StatelessWidget {
     final s = uiScale(context);
     return Material(
       color: AppColors.card,
-      borderRadius: BorderRadius.circular(18 * s),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18 * s),
+        side: NavigationSelection.isSelected(context, pc)
+            ? BorderSide(color: Colors.white, width: 3 * s)
+            : BorderSide.none,
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18 * s),
         onTap: onTap,
@@ -360,7 +370,12 @@ class _GroupCard extends StatelessWidget {
     final s = uiScale(context);
     return Material(
       color: AppColors.groupCard,
-      borderRadius: BorderRadius.circular(18 * s),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18 * s),
+        side: NavigationSelection.isSelected(context, pc)
+            ? BorderSide(color: Colors.white, width: 3 * s)
+            : BorderSide.none,
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18 * s),
         onTap: onTap,
@@ -418,7 +433,12 @@ class _NextPageCard extends StatelessWidget {
     final s = uiScale(context);
     return Material(
       color: AppColors.quietCard,
-      borderRadius: BorderRadius.circular(18 * s),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18 * s),
+        side: NavigationSelection.isSelected(context, _nextPagePc)
+            ? BorderSide(color: Colors.white, width: 3 * s)
+            : BorderSide.none,
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18 * s),
         onTap: onTap,

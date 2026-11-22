@@ -85,6 +85,10 @@ class MenuPage extends StatelessWidget {
         for (var i = 0; i < actions.length; i++)
           _HeaderAction(item: actions[i], pc: menuLetters[items.length + i]),
       ],
+      navigationLabels: {
+        for (var i = 0; i < items.length; i++) menuLetters[i]: items[i].title,
+        for (var i = 0; i < actions.length; i++) menuLetters[items.length + i]: actions[i].title,
+      },
       picks: {
         for (var i = 0; i < items.length; i++) menuLetters[i]: () => items[i].onPick(context),
         for (var i = 0; i < actions.length; i++)
@@ -177,7 +181,13 @@ class _MenuTile extends StatelessWidget {
         // Everything on the tile is drawn for a 300 x 300 tile and scaled.
         final k = (min(constraints.maxWidth, constraints.maxHeight) / _tileDesign).clamp(0.5, 4.0);
         final radius = BorderRadius.circular(28 * k.clamp(0.7, 1.5));
-        return DecoratedBox(
+        return Container(
+          foregroundDecoration: BoxDecoration(
+            borderRadius: radius,
+            border: NavigationSelection.isSelected(context, pc)
+                ? Border.all(color: Colors.white, width: 4 * k)
+                : null,
+          ),
           decoration: BoxDecoration(
             borderRadius: radius,
             boxShadow: [
@@ -293,7 +303,12 @@ class _HeaderAction extends StatelessWidget {
       padding: EdgeInsets.only(left: 8 * scale),
       child: Material(
         color: Colors.white10,
-        borderRadius: BorderRadius.circular(999),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: NavigationSelection.isSelected(context, pc)
+              ? BorderSide(color: Colors.white, width: 3 * scale)
+              : BorderSide.none,
+        ),
         child: InkWell(
           onTap: () => item.onPick(context),
           borderRadius: BorderRadius.circular(999),

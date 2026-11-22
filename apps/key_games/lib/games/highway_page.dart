@@ -321,6 +321,7 @@ class _HighwayPageState extends State<HighwayPage> with SingleTickerProviderStat
               if (queue != null) nextSongPc: () => queue.openNext(context),
             }
           : const {},
+      navigationLabels: {0: 'Play again', 4: 'Menu', if (queue != null) nextSongPc: 'Next song'},
       onNote: _onNote,
       header: _header(),
       body: _phase == _Phase.done

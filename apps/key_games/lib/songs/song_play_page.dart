@@ -299,6 +299,10 @@ class _SongPlayPageState extends State<SongPlayPage> with SingleTickerProviderSt
               if (queue != null) nextSongPc: () => queue.openNext(context),
             }
           : const {},
+      navigationLabels: {
+        0: 'Play again', 2: 'Listen', 4: 'More songs',
+        if (queue != null) nextSongPc: 'Next song',
+      },
       onNote: _onNote,
       backdrop: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
