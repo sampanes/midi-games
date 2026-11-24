@@ -290,7 +290,7 @@ try {
   $line2 = @('F', 'F', 'D', 'D', 'S', 'S', 'A')
   # After a turn of $n notes is played back, how long until the next turn
   # ($n + 1 notes, half a second apart) has been played and handed over.
-  function NextTurn($n) { 900 + 300 + $n * 500 + 1100 }
+  function NextTurn($n) { 900 + 300 + $n * 500 + 1600 }
   $memorySteps = @(
     @{ name = 'menu-memory';         keys = @('D') },
     @{ name = 'difficulty-memory';   keys = @('S') },
@@ -299,23 +299,24 @@ try {
     @{ name = 'game-memory-watch';   keys = @('S'); settle = 550 },
     @{ name = 'game-memory-turn';    keys = @(); wait = 1200 }
   )
-  foreach ($line in @($line1, $line2)) {
+  foreach ($first in $true, $false) {
+    $line = if ($first) { $line1 } else { $line2 }
     for ($n = 1; $n -le 7; $n++) {
       $turn = @($line[0..($n - 1)])
-      if ($line -eq $line1 -and $n -eq 3) {
+      if ($first -and $n -eq 3) {
         # C C, then a wrong key: the right one glows.
         $memorySteps += @{ name = 'game-memory-help'; keys = @(); tap = @('A', 'A', 'F'); settle = 500 }
         $memorySteps += @{ keys = @(); tap = @('G'); wait = (NextTurn $n) }
-      } elseif ($line -eq $line1 -and $n -eq 5) {
+      } elseif ($first -and $n -eq 5) {
         # Part of the way through a turn: the dots fill as it is played.
         $memorySteps += @{ name = 'game-memory-dots'; keys = @(); tap = @($turn[0..2]); settle = 120 }
         $memorySteps += @{ keys = @(); tap = @($turn[3..4]); wait = (NextTurn $n) }
       } elseif ($n -lt 7) {
         $memorySteps += @{ keys = @(); tap = $turn; wait = (NextTurn $n) }
-      } elseif ($line -eq $line1) {
+      } elseif ($first) {
         $memorySteps += @{ name = 'game-memory-line'; keys = @(); tap = $turn; settle = 500 }
         # The next line starts with one note, after a longer pause.
-        $memorySteps += @{ keys = @(); wait = 1700 + 300 + 1100 }
+        $memorySteps += @{ keys = @(); wait = 1700 + 300 + 1600 }
       } else {
         $memorySteps += @{ name = 'game-memory-win'; keys = @(); tap = $turn; settle = 900 }
       }
@@ -326,7 +327,8 @@ try {
     @{ name = 'end-memory';          keys = @(); wait = 24000 },
     @{ name = 'songlist-memory-stars'; keys = @('ESC') },
     @{ name = 'game-memory-hard';    keys = @('ESC', 'ESC', 'S', 'D', 'A') + $twinkle; settle = 1500 },
-    @{ name = 'game-memory-top';     keys = @(); tap = $line1; wait = 4000 + 1700 + 300 + 4500; settle = 300 },
+    @{ keys = @(); wait = 4500 },
+    @{ name = 'game-memory-top';     keys = @(); tap = $line1; wait = 1700 + 300 + 4500; settle = 300 },
     @{ name = 'game-memory-expert';  keys = @('ESC', 'ESC', 'ESC', 'S', 'F', 'A') + $twinkle; settle = 1500 },
     @{ name = 'home-again';          keys = @('ESC', 'ESC', 'ESC', 'ESC') }
   )

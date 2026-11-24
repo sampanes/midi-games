@@ -188,15 +188,20 @@ keyboard along the bottom shows them (white keys tinted, black keys with a
 dot, note letters on the white keys) and makes every key of the target
 note glow; the circle shows the note letter in its color; it follows the octave
 buttons and can be played by touch. On a PC the keys `a s d f g h j k` play
-too. Each new color plays its note.
+too, and `w e t y u` are the black keys between them. Each new color plays
+its note.
 
 Phone: connect the keyboard from inside the app only. If it is paired in the
 phone's Bluetooth settings, Android may treat it as an audio device and send
 the game's sound to it instead of the speaker.
 
-Menus: home has five tiles (C Look, D Listen, E Songs, F Arcade, G Free Play)
-and two buttons in the header (A Settings and, once a game has been played,
-B Again). Each category lists its games (a category with one game opens it
+Menus: home has six tiles (C Look, D Listen, E Memory, F Songs, G Arcade,
+A Free Play) and two buttons in the header: Settings, on the black key F#
+where a small child picking letters does not land on it, and, once a game
+has been played, B Again. The categories say what a game asks for. Look: a
+note is shown, find it. Listen: a note is heard, find it. Memory: here is a
+pattern, play it back. Songs: real tunes, read as they go by. Arcade:
+against the clock. Each category lists its games (a category with one game opens it
 straight away), and every game starts with a difficulty picker: C Easy (ages
 3+), D Medium (5+), E Hard (8+), F Expert (grown-ups). Each game decides what
 the levels change (glowing keys, colors, black keys, hints), and a level
@@ -226,7 +231,7 @@ back button, or a **Back pad**. Out of the box any pad goes back, once a
 key has been played: a pad is a note on another MIDI channel than the keys
 (the keys' channel is taken from the last note above 51, which no pad
 sends; when keys and pads share a channel, no pad goes back). To use just
-one pad or a panel button, pick it in Settings (A on the home menu, then C,
+one pad or a panel button, pick it in Settings (F# on the home menu, then C,
 then press it); D there forgets it. Either way the Back pad never reaches a
 game or makes a sound, and a picked one is remembered on the device. A key
 that opens a page cannot also pick something on it: the app ignores menu picks for a moment after every page change. The
@@ -258,7 +263,8 @@ names the family itself, since painters do not inherit the theme.
 `apps/key_games/tool/shoot-windows.ps1` screenshots every page of a debug
 build at any screen size, driving it with the computer keys, for judging a
 layout on a TV without one (`-Walk levels` shows just the easy levels,
-`-Walk new` Free Play, Copy Cat, Settings and the stars on the song lists).
+`-Walk new` Free Play, Copy Cat, Settings and the stars on the song lists,
+`-Walk memory` Song Memory from its first note to its end screen).
 
 Playing without a keyboard: while no MIDI keyboard is connected, the
 keyboard picture in every game is the keyboard, so it shows one octave of big
@@ -420,7 +426,7 @@ its note and sends a glowing ball of its color up from its place on the
 keyboard picture, wearing the note's letter, and the ball bursts into sparks
 at the top of its flight. A harder press flies higher.
 
-### Copy Cat (Listen)
+### Copy Cat (Memory)
 
 After the light-and-sound memory toys: the game plays a pattern on a row of
 big pads (each lights up and sounds), then the player plays it back. A
@@ -438,6 +444,38 @@ back. Good for taking turns.
 
 A key that is not one of the pads only sounds. The longest pattern played
 back is the score, and the best per level is kept on the device.
+
+### Song Memory (Memory)
+
+A real tune learned by heart. The game plays a bit of the tune in the tune's
+own rhythm (the keys light up and a big bubble shows each note), then the
+player plays it back from memory. Played back right, it grows; a whole line
+known, the next line starts. The letter counts, in any octave, and the
+player's timing is never judged: the rhythm is for the ear.
+
+A song is cut into lines where the tune takes a breath: a note held half as
+long again as the song's everyday step ends a line of four to eight notes,
+so "Twinkle, twinkle, little star" is one line and "how I wonder what you
+are" the next. A tune that runs on without a breath is cut after its
+longest note within reach.
+
+- Easy: one more note each time, each line from its own start, for the
+  first two lines of the song. A wrong key never starts over: the right key
+  glows. So does waiting a while.
+- Medium: one more note each time, the whole song. A wrong key, or a long
+  wait, plays the bit again.
+- Hard: a whole new line is played at once, and the player plays the song
+  from the top up to it. Three hearts for each line, one lost for each wrong
+  key; a wrong key plays everything again from the top.
+- Expert: as Hard, by ear: the keys and the bubble stay dark while the game
+  plays, and the song plays at its real speed.
+
+A quick tune is slowed down on the other levels (Easy slowest) until its
+everyday step is long enough to follow. The dots count what is to be played
+back, with a gap between lines, and fill as it is played. At the end the
+whole song plays at its real speed with its band, and the song earns up to
+three stars per level (with hearts: all three for no wrong key; without: as
+in Song Steps), shown on its card in the song list.
 
 ### Ear Notes
 

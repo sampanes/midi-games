@@ -93,9 +93,12 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
   String _status = '';
 
   // The note in the big bubble, and whether it is lit: the game's note as it
-  // plays, or the player's last right one.
+  // plays, or the player's last right one. Null: a "?".
   int? _bubble;
   bool _lit = false;
+
+  // Lines known so far, for the bar under the song's name.
+  int _learned = 0;
 
   // The letter that glows on the keyboard picture: help after a wrong key.
   int? _help;
@@ -210,6 +213,8 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
     _later(Duration(milliseconds: end + 150), () {
       setState(() {
         _phase = _Phase.turn;
+        // The bubble forgets the last note: the turn is from memory.
+        _bubble = null;
         _lit = false;
         // Earlier lines were not played again: say where to start.
         _status = listen.start > 0 && _rules.fromTop ? 'From the top!' : 'Your turn!';
@@ -251,6 +256,7 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
       _bubble = null;
       _lit = false;
       _help = null;
+      _learned = 0;
       _won = false;
       _celebrating = false;
       _listening = false;
@@ -301,6 +307,7 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
         _sparkle(note, 26);
         _later(_growDelay, _next);
       case MemoryResult.lineDone:
+        setState(() => _learned = line + 1);
         _between('Line ${line + 1}: got it!');
         _sparkle(note, 60);
         _later(const Duration(milliseconds: 450),
@@ -362,6 +369,7 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
     final stars = memoryStars(_state.misses, _rules, _lines);
     setState(() {
       _phase = _Phase.done;
+      _learned = _goal;
       _won = true;
       _celebrating = true;
       _stars = stars;
@@ -430,7 +438,6 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
     final dark = watching && !_rules.shown;
     final bubble = _bubble;
     final tint = bubble == null || dark || !_lit ? AppColors.mystery : noteColor(bubble);
-    final linesDone = _won ? _goal : _state.line;
     return GamePage(
       picks: ended
           ? {
@@ -454,7 +461,7 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
           ),
         ),
       ),
-      header: _header(linesDone),
+      header: _header(),
       body: done ? Center(child: _endPanel()) : _buildBoard(dark),
       footer: [
         Padding(
@@ -481,7 +488,7 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
   }
 
   // The song's name over a bar of the lines learned, then the hearts.
-  List<Widget> _header(int linesDone) {
+  List<Widget> _header() {
     final scale = uiScale(context);
     final hearts = _rules.hearts;
     return [
@@ -498,7 +505,7 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: _goal == 0 ? 0 : linesDone / _goal,
+                value: _goal == 0 ? 0 : _learned / _goal,
                 minHeight: 8 * scale,
                 color: AppColors.starGold,
                 backgroundColor: Colors.white12,
@@ -605,7 +612,7 @@ class _MemoryPageState extends State<MemoryPage> with SingleTickerProviderStateM
       );
     }
     final title = widget.song.title;
-    final learned = _state.line;
+    final learned = _learned;
     return ScaledChrome(
       scale: s,
       child: SingleChildScrollView(

@@ -296,6 +296,8 @@ void main() {
     usePhone(tester, landscape: true);
     await pumpApp(tester, MemoryPage(song: _short), keyboard: false);
     await _listen(tester);
+    // The turn is from memory: the bubble no longer shows the note played.
+    expect(find.text('?'), findsOneWidget);
     await _tapKey(tester, _keys[65]!); // F: wrong, the first note is C
     expect(find.text('Try the glowing key'), findsOneWidget);
     await _tapKey(tester, _keys[60]!);
@@ -356,7 +358,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1700));
     // The first note is sounding: the bubble does not say which.
     expect(find.text('?'), findsOneWidget);
+    // Nor does it once the turn starts: only a right key shows its letter.
     await _listen(tester);
+    expect(find.text('?'), findsOneWidget);
+    await _tapKey(tester, _keys[69]!); // A: wrong
+    await _listen(tester);
+    expect(find.text('?'), findsOneWidget);
     await _tapKey(tester, _keys[60]!);
     expect(find.text('?'), findsNothing);
 
