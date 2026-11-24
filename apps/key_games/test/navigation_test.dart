@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:key_games/games/color_keys_page.dart';
 import 'package:key_games/games/color_keys_rules.dart';
+import 'package:key_games/games/copy_page.dart';
 import 'package:key_games/input/back_control.dart';
 import 'package:key_games/input/key_router.dart';
 import 'package:key_games/midi/midi_input.dart';
@@ -39,27 +40,27 @@ void main() {
     usePhone(tester);
     await pumpApp(tester, null);
     await tester.pump(keySettle);
-    expect(find.text('Listen'), findsOneWidget);
+    expect(find.text('Memory'), findsOneWidget);
 
-    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen, its two games
-    expect(find.text('Ear Notes'), findsOneWidget);
+    await _press(tester, LogicalKeyboardKey.keyD); // E: Memory, its two games
     expect(find.text('Copy Cat'), findsOneWidget);
-    await _press(tester, LogicalKeyboardKey.keyA); // C: Ear Notes, its levels
+    expect(find.text('Song Memory'), findsOneWidget);
+    await _press(tester, LogicalKeyboardKey.keyA); // C: Copy Cat, its levels
     expect(find.text('Expert'), findsOneWidget);
     await _press(tester, LogicalKeyboardKey.keyD); // E: Hard
-    expect(find.text('Level 4'), findsOneWidget);
+    expect(find.byType(CopyPage), findsOneWidget);
 
     // The difficulty picker was replaced by the game, so back is the menu
     // the game was picked from, and back again is home.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 3));
-    expect(find.text('Level 4'), findsNothing);
-    expect(find.text('Copy Cat'), findsOneWidget);
+    expect(find.byType(CopyPage), findsNothing);
+    expect(find.text('Song Memory'), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Copy Cat'), findsNothing);
+    expect(find.text('Song Memory'), findsNothing);
     expect(find.text('Free Play'), findsOneWidget);
   });
 
@@ -92,8 +93,7 @@ void main() {
     await services.settings.setBackControl(const BackControl(ControlKind.note, 9, 36));
     await tester.pump(keySettle);
 
-    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen
-    await _press(tester, LogicalKeyboardKey.keyA); // C: Ear Notes' levels
+    await _press(tester, LogicalKeyboardKey.keyS); // D: Listen, Ear Notes' levels
     await _press(tester, LogicalKeyboardKey.keyA); // C: Easy
     expect(find.text('Level 1'), findsOneWidget);
 
@@ -116,7 +116,7 @@ void main() {
     final services = await pumpApp(tester, null);
     await tester.pump(keySettle);
 
-    await _press(tester, LogicalKeyboardKey.keyH); // A: Settings
+    await _press(tester, LogicalKeyboardKey.keyT); // F#: Settings
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(find.text('No Back pad picked: any pad goes back.'), findsOneWidget);
 
@@ -232,7 +232,7 @@ void main() {
       await tester.pump();
     }
 
-    // D on the keys (channel 13): Listen, its games.
+    // D on the keys (channel 13): Listen, which is Ear Notes and its levels.
     await tap(62, 12);
     expect(find.text('Ear Notes'), findsOneWidget);
 

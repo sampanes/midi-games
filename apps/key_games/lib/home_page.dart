@@ -5,11 +5,17 @@
 // always reaches the first game on Easy. Free Play has no levels: its tile
 // opens it.
 //
-// After the tiles come two header buttons with the next letters: Settings,
-// and once a game has been played, Again, which opens the game played last
-// at its level (a song game straight into its song). The line under the
-// tiles says what Again plays and, until a Back pad is picked in Settings
-// (any pad goes back meanwhile), where to pick one.
+// The categories say what a game asks for. Look: a note is shown, find it.
+// Listen: a note is heard, find it. Memory: here is a pattern, play it back.
+// Songs: real tunes, read as they go by. Arcade: against the clock.
+//
+// Two header buttons follow the tiles. Again, once a game has been played,
+// has the next letter and opens the game played last at its level (a song
+// game straight into its song). Settings is on a black key, F#, the same
+// one whether or not there is a game to play again, where a small child
+// picking letters does not land on it. The line under the tiles says what
+// Again plays and, until a Back pad is picked in Settings (any pad goes
+// back meanwhile), where to pick one.
 
 import 'package:flutter/material.dart';
 
@@ -22,6 +28,7 @@ import 'games/difficulty.dart';
 import 'games/ear_page.dart';
 import 'games/free_play_page.dart';
 import 'games/highway_page.dart';
+import 'games/memory_page.dart';
 import 'games/runner_page.dart';
 import 'games/rush_page.dart';
 import 'settings/settings_page.dart';
@@ -58,6 +65,9 @@ class _Game {
   final Map<Difficulty, String> labels;
   final Map<Difficulty, String> bestKeys;
 }
+
+// The key that opens Settings from the home menu: F#.
+const settingsLetter = 6;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -115,6 +125,17 @@ class HomePage extends StatelessWidget {
         (level, _) => CopyPage(difficulty: level),
         levels: copyLevelsText,
         bestKeys: copyBestKeys,
+      ),
+      _Game(
+        'memory',
+        'Song Memory',
+        'Learn a tune by heart, a bit at a time',
+        Icons.psychology_alt,
+        const [Color(0xFF4A6BFF), Color(0xFFC04DFF)],
+        (level, song) => songs('memory', 'Song Memory', level, song,
+            play: (song) => MemoryPage(song: song, difficulty: level),
+            starsKey: (song) => memoryStarsKey(level, song)),
+        levels: memoryLevelsText,
       ),
       _Game(
         'steps',
@@ -237,8 +258,10 @@ class HomePage extends StatelessWidget {
     final tiles = [
       _category('Look', 'Find the glowing note', Icons.visibility,
           const [Color(0xFFFF3B3B), Color(0xFFFF9A1F)], [tile('color')]),
-      _category('Listen', 'Games for your ears', Icons.hearing,
-          const [Color(0xFF22C9A0), Color(0xFF4A6BFF)], [tile('ear'), tile('copy')]),
+      _category('Listen', 'Hear a note, then find it', Icons.hearing,
+          const [Color(0xFF22C9A0), Color(0xFF4A6BFF)], [tile('ear')]),
+      _category('Memory', 'Here is the pattern: play it back', Icons.psychology,
+          const [Color(0xFFFF5EC8), Color(0xFF8A4DFF)], [tile('copy'), tile('memory')]),
       _category('Songs', 'Play real tunes', Icons.music_note,
           const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)],
           [tile('steps'), tile('highway'), tile('box')]),
@@ -252,9 +275,11 @@ class HomePage extends StatelessWidget {
       icon: Icons.settings,
       colors: const [Color(0xFF4A4360), Color(0xFF2B2440)],
       onPick: (context) => _go(context, const SettingsPage()),
+      letter: settingsLetter,
     );
-    // The header buttons take the letters after the tiles.
-    String letter(int action) => pitchClasses[menuLetters[tiles.length + action]].name;
+    final settingsName = pitchClasses[settingsLetter].name;
+    // Again takes the letter after the tiles.
+    final againName = pitchClasses[menuLetters[tiles.length]].name;
 
     return ListenableBuilder(
       listenable: Listenable.merge([settings.backControl, settings.lastGame]),
@@ -269,9 +294,9 @@ class HomePage extends StatelessWidget {
             if (lastGame == null)
               'Press a letter on the keyboard to pick.'
             else
-              '${letter(1)} plays ${last!.song ?? lastGame.title} again.',
+              '$againName plays ${last!.song ?? lastGame.title} again.',
             if (settings.backControl.value == null)
-              'Any pad goes back; ${letter(0)} (Settings) picks just one.',
+              'Any pad goes back; $settingsName (Settings) picks just one.',
           ].join(' '),
           items: tiles,
           actions: [

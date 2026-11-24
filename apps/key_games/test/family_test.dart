@@ -105,13 +105,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('home: G is Free Play, and then B plays it again', (tester) async {
+  testWidgets('home: A is Free Play, and then B plays it again', (tester) async {
     usePhone(tester, landscape: true);
     final services = await pumpApp(tester, null);
     await tester.pump(keySettle);
     expect(find.text('Again'), findsNothing);
 
-    await _press(tester, LogicalKeyboardKey.keyG); // G: Free Play, no levels
+    await _press(tester, LogicalKeyboardKey.keyH); // A: Free Play, no levels
     expect(find.byType(FreePlayPage), findsOneWidget);
     expect(services.settings.lastGame.value, const LastGame('free', 0));
 
@@ -120,8 +120,9 @@ void main() {
     expect(find.text('Again'), findsOneWidget);
     expect(find.byType(BackButton), findsNothing);
     expect(find.textContaining('B plays Free Play again.'), findsOneWidget);
-    // Settings keeps its letter whether or not there is a game to play again.
-    expect(find.textContaining('A (Settings)'), findsOneWidget);
+    // Settings keeps its key, a black one, whether or not there is a game
+    // to play again.
+    expect(find.textContaining('F# (Settings)'), findsOneWidget);
 
     await _press(tester, LogicalKeyboardKey.keyJ); // B: again
     expect(find.byType(FreePlayPage), findsOneWidget);
@@ -131,7 +132,7 @@ void main() {
     usePhone(tester, landscape: true);
     final services = await pumpApp(tester, null);
     await tester.pump(keySettle);
-    await _press(tester, LogicalKeyboardKey.keyH); // A: Settings
+    await _press(tester, LogicalKeyboardKey.keyT); // F#: Settings
     expect(find.byType(SettingsPage), findsOneWidget);
 
     // The home menu shows the Back pad too, so it is rebuilt under Settings.
@@ -188,7 +189,7 @@ void main() {
     services.settings.recordBest('rush.zones', 42);
     await tester.pump(keySettle);
 
-    await _press(tester, LogicalKeyboardKey.keyF); // F: Arcade
+    await _press(tester, LogicalKeyboardKey.keyG); // G: Arcade
     await _press(tester, LogicalKeyboardKey.keyA); // C: Key Rush, its levels
     expect(find.text('42'), findsOneWidget);
     // On Easy's tile, not on the others.

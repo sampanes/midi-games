@@ -32,6 +32,7 @@ class MenuItem {
     required this.colors,
     required this.onPick,
     this.badge,
+    this.letter,
   });
 
   final String title;
@@ -44,6 +45,10 @@ class MenuItem {
   // Two colors, top-left to bottom-right.
   final List<Color> colors;
   final void Function(BuildContext context) onPick;
+
+  // A header button's own letter (a pitch class) instead of the next white
+  // one: a black key, for a button small children should not land on.
+  final int? letter;
 }
 
 class MenuPage extends StatelessWidget {
@@ -53,7 +58,7 @@ class MenuPage extends StatelessWidget {
     required this.items,
     this.actions = const [],
     this.footer,
-  }) : assert(items.length + actions.length <= 7);
+  });
 
   final String title;
   final List<MenuItem> items;
@@ -66,9 +71,19 @@ class MenuPage extends StatelessWidget {
   // the other menus say nothing.
   final String? footer;
 
+  // The letter of each header button: its own, or the next white one after
+  // the tiles and the buttons before it.
+  static List<int> actionLetters(List<MenuItem> items, List<MenuItem> actions) {
+    var next = items.length;
+    return [for (final action in actions) action.letter ?? menuLetters[next++]];
+  }
+
   @override
   Widget build(BuildContext context) {
+    assert(items.length + actions.where((action) => action.letter == null).length <=
+        menuLetters.length);
     final scale = uiScale(context);
+    final letters = actionLetters(items, actions);
     final hint = footer ??
         (hasPageBelow(context) ? null : 'Press a letter on the keyboard to pick.');
     return GamePage(
@@ -83,16 +98,15 @@ class MenuPage extends StatelessWidget {
           ),
         ),
         for (var i = 0; i < actions.length; i++)
-          _HeaderAction(item: actions[i], pc: menuLetters[items.length + i]),
+          _HeaderAction(item: actions[i], pc: letters[i]),
       ],
       navigationLabels: {
         for (var i = 0; i < items.length; i++) menuLetters[i]: items[i].title,
-        for (var i = 0; i < actions.length; i++) menuLetters[items.length + i]: actions[i].title,
+        for (var i = 0; i < actions.length; i++) letters[i]: actions[i].title,
       },
       picks: {
         for (var i = 0; i < items.length; i++) menuLetters[i]: () => items[i].onPick(context),
-        for (var i = 0; i < actions.length; i++)
-          menuLetters[items.length + i]: () => actions[i].onPick(context),
+        for (var i = 0; i < actions.length; i++) letters[i]: () => actions[i].onPick(context),
       },
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8) * scale,
@@ -113,8 +127,10 @@ class MenuPage extends StatelessWidget {
   }
 }
 
-// Rows of equal tiles, centered. One row of up to five when wide; on a tall
-// screen, two columns once there are four or more tiles.
+// Rows of equal tiles, centered. One row of up to five when wide; six or
+// seven go in two rows when that makes the tiles clearly bigger (a TV) and
+// stay in one row when it does not (a phone on its side). On a tall screen,
+// two columns once there are four or more tiles.
 class _Grid extends StatelessWidget {
   const _Grid({required this.items});
 
@@ -127,13 +143,26 @@ class _Grid extends StatelessWidget {
         final scale = uiScale(context);
         final count = items.length;
         final wide = constraints.maxWidth > constraints.maxHeight;
-        final columns = wide ? min(count, 5) : (count >= 4 ? 2 : 1);
-        final rows = (count / columns).ceil();
         final gap = 12 * scale;
-        final cellWidth = (constraints.maxWidth - gap * (columns - 1)) / columns;
-        final cellHeight = (constraints.maxHeight - gap * (rows - 1)) / rows;
-        final width = min(cellWidth, _tileDesign * scale);
-        final height = min(cellHeight, width * 1.25);
+        // The tile [columns] across gives: as wide as its cell up to a
+        // hand-sized card, and never much taller, or wider, than a square.
+        Size tile(int columns) {
+          final rows = (count / columns).ceil();
+          final cellWidth = (constraints.maxWidth - gap * (columns - 1)) / columns;
+          final cellHeight = (constraints.maxHeight - gap * (rows - 1)) / rows;
+          final width = min(cellWidth, _tileDesign * scale);
+          final height = min(cellHeight, width * 1.25);
+          return Size(min(width, height * 1.25), height);
+        }
+
+        var columns = wide ? min(count, 5) : (count >= 4 ? 2 : 1);
+        if (wide && count > 5) {
+          final half = (count / 2).ceil();
+          columns = tile(half).shortestSide > tile(count).shortestSide * 1.15 ? half : count;
+        }
+        final rows = (count / columns).ceil();
+        final width = tile(columns).width;
+        final height = tile(columns).height;
         return Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

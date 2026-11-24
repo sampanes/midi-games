@@ -4,7 +4,7 @@ publish_to: 'none'
 # The version is shown in Settings > About (lib/app/about.dart keeps a copy,
 # checked by a test). The build number must grow with every release so the
 # Android build installs over the last one.
-version: 0.3.0+3
+version: 0.4.0+4
 
 environment:
   sdk: ^3.13.5

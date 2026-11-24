@@ -19,19 +19,26 @@ void main() {
     await pumpApp(tester, null);
     await tester.pump(const Duration(milliseconds: 500));
 
-    for (final title in ['Look', 'Listen', 'Songs', 'Arcade', 'Free Play']) {
+    for (final title in ['Look', 'Listen', 'Memory', 'Songs', 'Arcade', 'Free Play']) {
       final size = _tileSize(tester, title);
       expect(size.width, lessThanOrEqualTo(600), reason: '$title is a card, not a billboard');
       expect(size.width, greaterThan(330), reason: '$title fills its share of the row');
       expect(size.height, lessThanOrEqualTo(size.width * 1.25 + 1));
+      expect(size.width, lessThanOrEqualTo(size.height * 1.25 + 1));
     }
-    // One row, centered: the gap on the left matches the gap on the right.
+    // Two rows of three, centered: bigger cards than six in a row, and the
+    // gap on the left matches the gap on the right.
     final look = _tileRect(tester, 'Look');
+    final memory = _tileRect(tester, 'Memory');
+    final songs = _tileRect(tester, 'Songs');
     final free = _tileRect(tester, 'Free Play');
-    expect(look.top.round(), _tileRect(tester, 'Arcade').top.round());
-    expect(look.left.round(), (1920 - free.right).round());
+    expect(look.top.round(), memory.top.round());
+    expect(look.left.round(), (1920 - memory.right).round());
+    expect(songs.top, greaterThan(look.bottom));
+    expect(songs.left.round(), look.left.round());
+    expect(free.right.round(), memory.right.round());
 
-    // Settings is a header button, so it is not a sixth tile below the row.
+    // Settings is a header button, so it is not a seventh tile.
     expect(tester.getRect(find.text('Settings')).top, lessThan(120));
 
     // The keyboard status sits at the right edge, not in the middle.
@@ -60,15 +67,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Arcade'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
+    // One row of six: two rows would not make the cards any bigger here.
+    expect(_tileRect(tester, 'Look').top, _tileRect(tester, 'Free Play').top);
     await tester.pumpWidget(const SizedBox());
 
     usePhone(tester);
     await pumpApp(tester, null);
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Arcade'), findsOneWidget);
-    // Two columns: Look and Listen share a row, Songs sits below Look.
+    // Two columns: Look and Listen share a row, Memory sits below Look.
     expect(tester.getRect(find.text('Look')).top, tester.getRect(find.text('Listen')).top);
-    expect(tester.getRect(find.text('Songs')).top, greaterThan(tester.getRect(find.text('Look')).top));
+    expect(tester.getRect(find.text('Memory')).top, greaterThan(tester.getRect(find.text('Look')).top));
+    expect(_tileRect(tester, 'Memory').left, _tileRect(tester, 'Look').left);
   });
 
   testWidgets('the home menu says where to pick a Back pad until one is picked', (tester) async {

@@ -23,10 +23,12 @@ void main() {
     expect(find.textContaining('Selected: Look'), findsOneWidget);
     await tapMidi(tester, services.midi, 61); // C# moves to Listen.
     expect(find.textContaining('Selected: Listen'), findsOneWidget);
-    await tapMidi(tester, services.midi, 70); // A# selects Listen.
+    await tapMidi(tester, services.midi, 61); // And on to Memory.
+    expect(find.textContaining('Selected: Memory'), findsOneWidget);
+    await tapMidi(tester, services.midi, 70); // A# selects Memory.
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Ear Notes'), findsOneWidget);
-    expect(find.textContaining('Selected: Ear Notes'), findsOneWidget);
+    expect(find.text('Song Memory'), findsOneWidget);
+    expect(find.textContaining('Selected: Copy Cat'), findsOneWidget);
   });
 
   testWidgets('black keys choose a song and its next page', (tester) async {

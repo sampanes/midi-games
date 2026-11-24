@@ -5,7 +5,7 @@
 import 'package:flutter/material.dart';
 
 const appName = 'Key Games';
-const appVersion = '0.3.0';
+const appVersion = '0.4.0';
 
 void showAbout(BuildContext context) {
   showLicensePage(

@@ -1,5 +1,6 @@
 // Computer keys for testing on a PC without the MIDI keyboard: A S D F G H J K
-// play one octave of white keys from middle C.
+// play one octave of white keys from middle C, and W E T Y U the black keys
+// between them, laid out like a piano.
 
 import 'package:flutter/services.dart';
 
@@ -14,6 +15,11 @@ final _computerKeys = {
   LogicalKeyboardKey.keyH: 69,
   LogicalKeyboardKey.keyJ: 71,
   LogicalKeyboardKey.keyK: 72,
+  LogicalKeyboardKey.keyW: 61,
+  LogicalKeyboardKey.keyE: 63,
+  LogicalKeyboardKey.keyT: 66,
+  LogicalKeyboardKey.keyY: 68,
+  LogicalKeyboardKey.keyU: 70,
 };
 
 // Use as a HardwareKeyboard handler; returns true when the key was a note.
