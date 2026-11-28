@@ -81,4 +81,44 @@ void main() {
     expect(find.byKey(const ValueKey('roll-note-61')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'key guide shows complete black-key groups without octave numbers',
+    (tester) async {
+      usePhone(tester);
+      const song = Song('Groups', [
+        SongNote(62, 0, 1000),
+        SongNote(66, 1200, 500),
+      ]);
+      await pumpApp(tester, const SongGuidePage(song: song));
+      await tester.pump();
+      for (final pitch in [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71]) {
+        expect(find.byKey(ValueKey('roll-note-$pitch')), findsOneWidget);
+      }
+      final white = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(const ValueKey('roll-note-62')),
+          matching: find.byType(Container),
+        ),
+      );
+      final black = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(const ValueKey('roll-note-61')),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (white.decoration! as BoxDecoration).color,
+        const Color(0xFFF4F1EC),
+      );
+      expect(
+        (black.decoration! as BoxDecoration).color,
+        const Color(0xFF141219),
+      );
+      expect(
+        white.constraints!.maxHeight,
+        greaterThan(black.constraints!.maxHeight),
+      );
+      expect(find.text('4'), findsNothing);
+    },
+  );
 }

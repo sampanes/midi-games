@@ -234,8 +234,8 @@ class PianoRoll extends StatelessWidget {
   final List<SongNote> notes;
   final String description;
 
-  static const laneWidth = 16.0;
-  static const axisWidth = 48.0;
+  static const laneWidth = 8.0;
+  static const axisWidth = 30.0;
   static const pixelsPerSecond = 56.0;
 
   static String noteName(int note) {
@@ -258,7 +258,18 @@ class PianoRoll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pitches = notes.map((n) => n.note).toSet().toList()..sort();
+    final first = notes.map((n) => n.note).reduce(min);
+    final last = notes.map((n) => n.note).reduce(max);
+    final firstClass = pitchClass(first);
+    final lastClass = pitchClass(last);
+    // Finish the two- or three-black-key group at each end, including unused
+    // keys. Even a one-note song gets enough context to find it by sight.
+    final low = first - (firstClass <= 4 ? firstClass : firstClass - 5);
+    final high = min(
+      127,
+      last + (lastClass <= 4 ? 4 - lastClass : 11 - lastClass),
+    );
+    final pitches = List<int>.generate(high - low + 1, (i) => low + i);
     final duration = notes.map((n) => n.startMs + n.lengthMs).reduce(max);
     final height = max(120.0, duration / 1000 * pixelsPerSecond + 24);
     return Column(
@@ -288,7 +299,7 @@ class PianoRoll extends StatelessWidget {
                     child: Column(
                       children: [
                         SizedBox(
-                          height: 50,
+                          height: 34,
                           child: Row(
                             children: [
                               const SizedBox(
@@ -298,35 +309,9 @@ class PianoRoll extends StatelessWidget {
                               for (final pitch in pitches)
                                 SizedBox(
                                   width: actualLaneWidth,
-                                  child: Semantics(
-                                    label: noteName(pitch),
-                                    child: Column(
-                                      key: ValueKey('roll-note-$pitch'),
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          pitchClasses[pitchClass(pitch)].name,
-                                          maxLines: 1,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color:
-                                                pitchClasses[pitchClass(pitch)]
-                                                    .white
-                                                ? Colors.white
-                                                : Colors.amberAccent,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${pitch ~/ 12 - 1}',
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  child: _RollKeyHeader(
+                                    key: ValueKey('roll-note-$pitch'),
+                                    pitch: pitch,
                                   ),
                                 ),
                             ],
@@ -366,6 +351,51 @@ class PianoRoll extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+// A non-interactive key reference: bars below align with these same lanes.
+class _RollKeyHeader extends StatelessWidget {
+  const _RollKeyHeader({super.key, required this.pitch});
+  final int pitch;
+
+  @override
+  Widget build(BuildContext context) {
+    final info = pitchClasses[pitchClass(pitch)];
+    return Semantics(
+      label: PianoRoll.noteName(pitch),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          height: info.white ? 34 : 23,
+          decoration: BoxDecoration(
+            color: info.white
+                ? const Color(0xFFF4F1EC)
+                : const Color(0xFF141219),
+            border: Border.all(
+              color: info.white ? Colors.black38 : Colors.white54,
+              width: .5,
+            ),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(2),
+            ),
+          ),
+          alignment: info.white ? Alignment.bottomCenter : Alignment.center,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              info.name,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: info.white ? Colors.black : Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

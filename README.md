@@ -181,6 +181,8 @@ synth on program 0.
 
 Open **Songs > My songs** and choose a song. Its roll reads from top to bottom:
 columns are keys, bars are notes, and bar length shows how long to hold a note.
+The fixed white and black key guide includes the unused keys between notes, so
+the familiar groups of two and three black keys stay visible.
 Scroll vertically through the whole piece and sideways when there are more keys
 than fit on the screen. The key names stay visible at the top. A roll made from
 an original MIDI part can show simultaneous notes; older extracted song files
