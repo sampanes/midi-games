@@ -177,21 +177,22 @@ Results go to ignored `private/midi/auto-probe-*.json`; recordings to
 `private/tmp/auto-probe/`. Pass `-SkipProgramChange` to avoid leaving the
 synth on program 0.
 
-## My songs: a visual melody reminder
+## My songs: a scrollable piano roll
 
-In Key Games, open **Songs > My songs**. Add the titles you want to remember;
-the list stays on that device. A song whose note data is already in the app
-opens a self-paced guide: its next melody key glows, its note and upcoming
-notes are named, and you can hear a note or move forward and back. Play the
-shown MIDI note or tap the pictured key to advance. This is a melody reminder,
-not a complete piano arrangement or a rhythm lesson. The extracted MIDI part
-may need correction in the song editor before it matches the desired version.
+Open **Songs > My songs** and choose a song. Its roll reads from top to bottom:
+columns are keys, bars are notes, and bar length shows how long to hold a note.
+Scroll vertically through the whole piece and sideways when there are more keys
+than fit on the screen. The key names stay visible at the top. A roll made from
+an original MIDI part can show simultaneous notes; older extracted song files
+provide a simplified single-note line instead. Neither requires a MIDI keyboard.
 
-A title marked **Notes not added yet** is only a reminder in the list. To add
-its notes, use your own MIDI file with the existing song editor and local build
-workflow below; the saved title must match the song's title. Private song files
-are bundled only in local builds and are not committed or included in GitHub
-release builds. Adding a title on the phone does not download a song.
+A title marked **Notes not added yet** is just a reminder. The app does not
+download music. Add a MIDI with the local song editor and local build workflow
+below. To retain a polyphonic original MIDI part for the guide, use
+`scripts/build-song-roll.py` to create a `.roll` file alongside its song JSON.
+Run `python scripts/build-song-roll.py --help` for the track and channel options.
+Private song files are bundled only in local builds, not committed or included
+in GitHub release builds.
 
 ## App: Key Games (Flutter, phone and PC)
 

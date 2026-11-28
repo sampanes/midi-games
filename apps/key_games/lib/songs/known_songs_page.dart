@@ -5,11 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/services.dart';
-import '../audio/synth.dart';
+import '../app/theme.dart';
 import '../games/color_keys_rules.dart';
-import '../midi/midi_input.dart';
 import '../widgets/game_page.dart';
-import '../widgets/piano_strip.dart';
 import 'song.dart';
 
 // A personal list can include songs whose note data hasn't been added yet.
@@ -211,152 +209,239 @@ class _KnownSongsPageState extends State<KnownSongsPage> {
   }
 }
 
-// A no-score, self-paced reminder of the melody in an existing song file.
-class SongGuidePage extends StatefulWidget {
+// A scrollable reference: time moves downward; each vertical lane is a key.
+class SongGuidePage extends StatelessWidget {
   const SongGuidePage({super.key, required this.song});
   final Song song;
 
   @override
-  State<SongGuidePage> createState() => _SongGuidePageState();
+  Widget build(BuildContext context) {
+    final notes = song.guideNotes ?? song.notes;
+    return GamePage(
+      title: song.title,
+      body: notes.isEmpty
+          ? const Center(child: Text('No notes available yet.'))
+          : PianoRoll(
+              notes: notes,
+              description: song.guideDescription ?? 'Extracted single-note line. Timing and octaves may have been simplified.',
+            ),
+    );
+  }
 }
 
-class _SongGuidePageState extends State<SongGuidePage> {
-  late final Synth _synth;
-  final Set<int> _held = {};
-  int _index = 0;
-  int _base = 48;
+class PianoRoll extends StatelessWidget {
+  const PianoRoll({super.key, required this.notes, required this.description});
+  final List<SongNote> notes;
+  final String description;
 
-  @override
-  void initState() {
-    super.initState();
-    _synth = AppServices.of(context).synth;
-  }
+  static const laneWidth = 16.0;
+  static const axisWidth = 48.0;
+  static const pixelsPerSecond = 56.0;
 
-  int get _target => widget.song.notes[_index].note;
-  String _name(int note) {
+  static String noteName(int note) {
     const names = [
       'C',
-      'C#/Db',
+      'C#',
       'D',
-      'D#/Eb',
+      'D#',
       'E',
       'F',
-      'F#/Gb',
+      'F#',
       'G',
-      'G#/Ab',
+      'G#',
       'A',
-      'A#/Bb',
+      'A#',
       'B',
     ];
-    return '${names[pitchClass(note)]} ${note ~/ 12 - 1}';
-  }
-
-  void _move(int offset) => setState(
-    () => _index = (_index + offset).clamp(0, widget.song.notes.length - 1),
-  );
-
-  void _note(NoteEvent event) {
-    if (!event.on) {
-      _synth.noteOff(event.note);
-      setState(() => _held.remove(event.note));
-      return;
-    }
-    _synth.noteOn(event.note, event.velocity);
-    setState(() {
-      _held.add(event.note);
-      _base = fitBase(_base, event.note);
-      if (event.note == _target && _index < widget.song.notes.length - 1) {
-        _index++;
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    for (final note in _held) {
-      _synth.noteOff(note);
-    }
-    super.dispose();
+    return '${names[pitchClass(note)]}${note ~/ 12 - 1}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final notes = widget.song.notes;
-    final low = max(12, (_target ~/ 12) * 12 - 12);
-    final high = min(108, low + 24);
-    return GamePage(
-      title: widget.song.title,
-      onNote: _note,
-      body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Note  ${_index + 1} / ${notes.length}',
-                style: const TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _name(_target),
-                style: const TextStyle(
-                  fontSize: 46,
-                  fontWeight: FontWeight.bold,
+    final pitches = notes.map((n) => n.note).toSet().toList()..sort();
+    final duration = notes.map((n) => n.startMs + n.lengthMs).reduce(max);
+    final height = max(120.0, duration / 1000 * pixelsPerSecond + 24);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            'Read top to bottom. Bar length = hold time.\n$description',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Colors.white70),
+          ),
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = max(
+                constraints.maxWidth,
+                axisWidth + pitches.length * laneWidth,
+              );
+              final actualLaneWidth = (width - axisWidth) / pitches.length;
+              return Scrollbar(
+                notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: width,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 50,
+                          child: Row(
+                            children: [
+                              const SizedBox(
+                                width: axisWidth,
+                                child: Center(child: Text('time')),
+                              ),
+                              for (final pitch in pitches)
+                                SizedBox(
+                                  width: actualLaneWidth,
+                                  child: Semantics(
+                                    label: noteName(pitch),
+                                    child: Column(
+                                      key: ValueKey('roll-note-$pitch'),
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          pitchClasses[pitchClass(pitch)].name,
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color:
+                                                pitchClasses[pitchClass(pitch)]
+                                                    .white
+                                                ? Colors.white
+                                                : Colors.amberAccent,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${pitch ~/ 12 - 1}',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Scrollbar(
+                            child: SingleChildScrollView(
+                              key: const ValueKey('song-roll-scroll'),
+                              child: CustomPaint(
+                                key: const ValueKey('song-roll'),
+                                size: Size(width, height),
+                                painter: _RollPainter(
+                                  notes,
+                                  pitches,
+                                  actualLaneWidth,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const Text(
-                'Play the glowing key, or use the buttons to move at your pace.',
-                textAlign: TextAlign.center,
-              ),
-              const Text(
-                'Simplified MIDI line: chords and octaves may differ.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                children: [
-                  OutlinedButton(
-                    onPressed: _index == 0 ? null : () => _move(-1),
-                    child: const Text('Previous'),
-                  ),
-                  FilledButton(
-                    onPressed: () => _synth.blip(_target, lengthMs: 500),
-                    child: const Text('Hear note'),
-                  ),
-                  OutlinedButton(
-                    onPressed: _index == notes.length - 1
-                        ? null
-                        : () => _move(1),
-                    child: const Text('Next'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Next: ${notes.skip(_index + 1).take(4).map((n) => _name(n.note)).join('  -  ')}',
-                textAlign: TextAlign.center,
-              ),
-            ],
+              );
+            },
           ),
         ),
-      ),
-      footer: [
-        SizedBox(
-          height: min(180, MediaQuery.sizeOf(context).height * .25),
-          child: PianoStrip(
-            base: _base,
-            span: (low: low, high: high),
-            targetNote: _target,
-            plain: true,
-            held: _held,
-            onNoteOn: (note) => _note(NoteEvent(note, 90, on: true)),
-            onNoteOff: (note) => _note(NoteEvent(note, 0, on: false)),
+        if (pitches.length * laneWidth + axisWidth >
+            MediaQuery.sizeOf(context).width)
+          const Padding(
+            padding: EdgeInsets.all(6),
+            child: Text(
+              'Swipe sideways to see more keys',
+              style: TextStyle(fontSize: 12, color: Colors.white70),
+            ),
           ),
-        ),
       ],
     );
   }
+}
+
+class _RollPainter extends CustomPainter {
+  _RollPainter(this.notes, this.pitches, this.laneWidth);
+  final List<SongNote> notes;
+  final List<int> pitches;
+  final double laneWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final clip = canvas.getLocalClipBounds().intersect(Offset.zero & size);
+    if (clip.isEmpty) return;
+    final paint = Paint();
+    for (var i = 0; i < pitches.length; i++) {
+      paint.color = pitchClasses[pitchClass(pitches[i])].white
+          ? const Color(0xFF282331)
+          : const Color(0xFF17141E);
+      canvas.drawRect(
+        Rect.fromLTWH(
+          PianoRoll.axisWidth + i * laneWidth,
+          clip.top,
+          laneWidth - 1,
+          clip.height,
+        ),
+        paint,
+      );
+    }
+    final startSecond = max(0, (clip.top / PianoRoll.pixelsPerSecond).floor());
+    final endSecond = (clip.bottom / PianoRoll.pixelsPerSecond).ceil();
+    for (var second = startSecond; second <= endSecond; second++) {
+      final y = second * PianoRoll.pixelsPerSecond;
+      paint.color = Colors.white.withValues(alpha: second % 5 == 0 ? .3 : .1);
+      canvas.drawRect(
+        Rect.fromLTWH(
+          PianoRoll.axisWidth,
+          y,
+          size.width - PianoRoll.axisWidth,
+          1,
+        ),
+        paint,
+      );
+      if (second % 5 == 0) {
+        final label = TextPainter(
+          text: TextSpan(
+            text: '${second ~/ 60}:${(second % 60).toString().padLeft(2, '0')}',
+            style: const TextStyle(color: Colors.white70, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: PianoRoll.axisWidth - 4);
+        label.paint(canvas, Offset(2, y + 2));
+      }
+    }
+    final columns = {for (var i = 0; i < pitches.length; i++) pitches[i]: i};
+    for (final note in notes) {
+      final y = note.startMs / 1000 * PianoRoll.pixelsPerSecond;
+      final h = max(3.0, note.lengthMs / 1000 * PianoRoll.pixelsPerSecond);
+      if (y + h < clip.top || y > clip.bottom) continue;
+      final x = PianoRoll.axisWidth + columns[note.note]! * laneWidth;
+      paint.color = noteColor(note.note);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x + 2, y, laneWidth - 4, h),
+          const Radius.circular(3),
+        ),
+        paint,
+      );
+      paint.color = Colors.white.withValues(alpha: .75);
+      canvas.drawRect(Rect.fromLTWH(x + 3, y, laneWidth - 6, min(2, h)), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RollPainter oldWidget) =>
+      oldWidget.notes != notes ||
+      oldWidget.pitches != pitches ||
+      oldWidget.laneWidth != laneWidth;
 }

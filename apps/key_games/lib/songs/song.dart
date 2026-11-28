@@ -20,7 +20,7 @@ class SongNote {
 }
 
 class Song {
-  const Song(this.title, this.notes, {this.group = 'Songs', this.backing = const []});
+  const Song(this.title, this.notes, {this.group = 'Songs', this.backing = const [], this.guideNotes, this.guideDescription});
 
   factory Song.fromJson(Map<String, dynamic> json) {
     List<SongNote> read(List? list) => [
@@ -36,6 +36,10 @@ class Song {
   }
 
   final String title;
+
+  // Optional unmodified, polyphonic part for the visual song guide.
+  final List<SongNote>? guideNotes;
+  final String? guideDescription;
 
   // The tune, one note at a time: what the player plays.
   final List<SongNote> notes;
@@ -96,7 +100,19 @@ Future<List<Song>> loadSongs(AssetBundle bundle) async {
       ..sort();
     for (final path in paths) {
       final json = jsonDecode(await bundle.loadString(path)) as Map<String, dynamic>;
-      final song = Song.fromJson(json);
+      var song = Song.fromJson(json);
+      final guidePath = '${path.substring(0, path.length - 5)}.roll';
+      if (manifest.listAssets().contains(guidePath)) {
+        final guide = jsonDecode(await bundle.loadString(guidePath)) as Map<String, dynamic>;
+        final notes = (guide['notes'] as List).map((value) {
+          final row = value as List;
+          return SongNote(row[0] as int, row[1] as int, row[2] as int);
+        }).toList();
+        if (notes.isNotEmpty) {
+          song = Song(song.title, song.notes, group: song.group, backing: song.backing,
+              guideNotes: notes, guideDescription: guide['description'] as String?);
+        }
+      }
       if (song.notes.isNotEmpty) byTitle[song.title] = song;
     }
   }
