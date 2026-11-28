@@ -6,6 +6,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 
 import '../audio/synth.dart';
 import '../input/key_router.dart';
@@ -30,6 +31,17 @@ class AppServices {
   // Everything started, for the real app.
   static Future<AppServices> boot() async {
     final settings = await Settings.load();
+    // A local build may include a private starter list. Never overwrite a
+    // list the player has already saved, including an intentionally empty one.
+    if (!settings.hasKnownSongsPreference) {
+      try {
+        final text = await rootBundle.loadString('assets/songs/known-song-titles.txt');
+        final titles = text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
+        if (titles.isNotEmpty) await settings.setKnownSongs(titles);
+      } catch (_) {
+        // Public builds need no personal starter list.
+      }
+    }
     final services = AppServices(synth: Synth(), midi: MidiInput(), settings: settings);
     unawaited(services.synth.start());
     unawaited(services.midi.start());

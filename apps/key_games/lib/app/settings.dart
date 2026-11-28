@@ -58,7 +58,8 @@ class Settings {
       : backControl = ValueNotifier(BackControl.parse(_prefs.getString(_backKey))),
         keySound = ValueNotifier(_named(KeySound.values, _prefs.getString(_soundKey))),
         bandLevel = ValueNotifier(_named(BandLevel.values, _prefs.getString(_bandKey))),
-        lastGame = ValueNotifier(_readLast(_prefs));
+        lastGame = ValueNotifier(_readLast(_prefs)),
+        knownSongs = ValueNotifier(_prefs.getStringList(_knownSongsKey) ?? const []);
 
   static Future<Settings> load() async => Settings._(await SharedPreferences.getInstance());
 
@@ -66,6 +67,7 @@ class Settings {
   static const _soundKey = 'keySound';
   static const _bandKey = 'bandLevel';
   static const _lastKey = 'last';
+  static const _knownSongsKey = 'knownSongs';
 
   static LastGame? _readLast(SharedPreferences prefs) {
     final game = prefs.getString('$_lastKey.game');
@@ -110,6 +112,17 @@ class Settings {
     unawaited(song == null
         ? _prefs.remove('$_lastKey.song')
         : _prefs.setString('$_lastKey.song', song));
+  }
+
+  // Personal practice list; an empty list is saved rather than reset to defaults.
+  final ValueNotifier<List<String>> knownSongs;
+
+  bool get hasKnownSongsPreference => _prefs.containsKey(_knownSongsKey);
+
+  Future<void> setKnownSongs(List<String> titles) async {
+    final copy = List<String>.unmodifiable(titles);
+    await _prefs.setStringList(_knownSongsKey, copy);
+    knownSongs.value = copy;
   }
 
   // Best score so far for [game] (for example "rush.easy"); 0 when none.

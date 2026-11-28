@@ -177,6 +177,22 @@ Results go to ignored `private/midi/auto-probe-*.json`; recordings to
 `private/tmp/auto-probe/`. Pass `-SkipProgramChange` to avoid leaving the
 synth on program 0.
 
+## My songs: a visual melody reminder
+
+In Key Games, open **Songs > My songs**. Add the titles you want to remember;
+the list stays on that device. A song whose note data is already in the app
+opens a self-paced guide: its next melody key glows, its note and upcoming
+notes are named, and you can hear a note or move forward and back. Play the
+shown MIDI note or tap the pictured key to advance. This is a melody reminder,
+not a complete piano arrangement or a rhythm lesson. The extracted MIDI part
+may need correction in the song editor before it matches the desired version.
+
+A title marked **Notes not added yet** is only a reminder in the list. To add
+its notes, use your own MIDI file with the existing song editor and local build
+workflow below; the saved title must match the song's title. Private song files
+are bundled only in local builds and are not committed or included in GitHub
+release builds. Adding a title on the phone does not download a song.
+
 ## App: Key Games (Flutter, phone and PC)
 
 `apps/key_games` is the same Color Keys game as a native app for Android and

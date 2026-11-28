@@ -35,6 +35,7 @@ import 'settings/settings_page.dart';
 import 'songs/song.dart';
 import 'songs/song_list_page.dart';
 import 'songs/song_listen_page.dart';
+import 'songs/known_songs_page.dart';
 import 'songs/song_play_page.dart';
 import 'widgets/menu_page.dart';
 
@@ -264,7 +265,16 @@ class HomePage extends StatelessWidget {
           const [Color(0xFFFF5EC8), Color(0xFF8A4DFF)], [tile('copy'), tile('memory')]),
       _category('Songs', 'Play real tunes', Icons.music_note,
           const [Color(0xFF8A4DFF), Color(0xFFFF5EC8)],
-          [tile('steps'), tile('highway'), tile('box')]),
+          [
+            tile('steps'), tile('highway'), tile('box'),
+            MenuItem(
+              title: 'My songs',
+              subtitle: 'Remember songs and follow the keys',
+              icon: Icons.library_music_rounded,
+              colors: const [Color(0xFF8A4DFF), Color(0xFF2FA8FF)],
+              onPick: (context) => _go(context, const KnownSongsPage()),
+            ),
+          ]),
       _category('Arcade', 'Fast games against the clock', Icons.sports_esports,
           const [Color(0xFFFFD84A), Color(0xFFFF3B3B)], [tile('rush'), tile('runner')]),
       tile('free'),

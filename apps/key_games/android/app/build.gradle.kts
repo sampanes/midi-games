@@ -50,6 +50,9 @@ android {
 
     buildTypes {
         release {
+            // shared_preferences_android calls Kotlin methods through JNI. R8
+            // must retain their full descriptors as well as their names.
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }
